@@ -1,3 +1,3 @@
 # pyeep
 
-Simple Python synth and pattern generator
+Simple Python synth and audio pattern generator
