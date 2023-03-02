@@ -1,0 +1,63 @@
+#!/usr/bin/python3
+
+# TODO: pass a Volume-like object also for waveforms
+# TODO: Function to compute note frequency (note, octave: int, semitone_shift:
+#       int)
+# TODO: Pattern: if it yields a Sequence, sum (average? multiply?) the
+#       waveforms to make chords
+# TODO: chord-generating function
+
+import argparse
+import asyncio
+import sys
+from typing import Generator
+
+from pyeep import volume
+from pyeep.pattern import Pattern, PatternSequence, Wave
+from pyeep.wav import WaveWriter
+from pyeep.audio import PyAudioPlayer
+
+
+class TestVolumeSlide(PatternSequence):
+    """
+    Frequency difference
+    """
+    def patterns(self) -> Generator[Pattern, None, None]:
+        yield Wave(volume=volume.RampUp(0.0, 1.0), duration=1, freq=1000)
+        yield Wave(volume=volume.Sine(0.5, 1.0, 5), duration=1, freq=1000)
+        yield Wave(volume=volume.RampDown(0.0, 1.0), duration=1, freq=1000)
+
+
+class App:
+    def __init__(self, args: argparse.Namespace):
+        self.args = args
+        if self.args.output:
+            self.player = WaveWriter(args.output)
+        else:
+            self.player = PyAudioPlayer()
+
+    async def play(self):
+        await self.player.loop()
+
+    def main(self):
+        try:
+            self.player.start_mono(TestVolumeSlide())
+            asyncio.run(self.play())
+        except KeyboardInterrupt:
+            print("Shutting down...")
+        finally:
+            self.player.shutdown()
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Pyeep test/demo program")
+    parser.add_argument("-o", "--output", action="store", metavar="file.wav",
+                        help="write the generated audio to the given file instead of playing it")
+    args = parser.parse_args()
+
+    app = App(args)
+    app.main()
+
+
+if __name__ == "__main__":
+    sys.exit(main())
