@@ -12,7 +12,7 @@ class Volume:
     def __repr__(self):
         return self.__str__()
 
-    def make_array(self, x: numpy.ndarray, sample_rate: int, last_value: float | None) -> numpy.ndarray:
+    def make_array(self, x: numpy.ndarray, player: Player) -> numpy.ndarray:
         raise NotImplementedError(f"{self.__class__.__name__}.make_array not implemented")
 
 

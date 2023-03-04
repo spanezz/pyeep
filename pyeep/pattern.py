@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Generator, Iterator, Optional
 import numpy
 
 from .volume import Volume
+from .shape import Shape, Sine
 
 
 if TYPE_CHECKING:
@@ -109,7 +110,11 @@ class Pattern:
         self.player.last_volume_value = None
         return numpy.zeros(round(duration * self.player.sample_rate), dtype=self.player.numpy_type)
 
-    def wave(self, *, volume: float | Volume = 1.0, duration: float = 1.0, freq: float = 440.0) -> numpy.ndarray:
+    def wave(
+            self, *,
+            shape: float | Shape = 440.0,
+            volume: float | Volume = 1.0,
+            duration: float = 1.0) -> numpy.ndarray:
         """
         Generate a waveform as a numpy array
         """
@@ -120,23 +125,18 @@ class Pattern:
         x = numpy.arange(samples_count, dtype=self.player.numpy_type)
 
         match volume:
-            case int():
+            case int() | float():
                 volume_scaling = float(volume)
-                self.player.last_volume_value = volume_scaling
-            case float():
-                volume_scaling = volume
                 self.player.last_volume_value = volume_scaling
             case Volume():
                 volume_scaling = volume.make_array(x, self.player)
                 self.player.last_volume_value = volume_scaling[-1]
 
-        if self.player.last_wave_value is not None:
-            sync_factor = numpy.arcsin(self.player.last_wave_value)
-        else:
-            sync_factor = 0.0
+        match shape:
+            case int() | float():
+                shape = Sine(freq=shape)
 
-        factor = 2.0 * numpy.pi * freq / self.player.sample_rate
-        wave = numpy.sin(x * factor + sync_factor) * volume_scaling
+        wave = shape.make_array(x, self.player) * volume_scaling
         self.player.last_wave_value = wave[-1]
         return wave
 
@@ -172,7 +172,7 @@ class Wave(Pattern):
         self.freq = freq
 
     def generate(self) -> Generator[numpy.ndarray, None, None]:
-        yield self.wave(volume=self.volume, duration=self.duration, freq=self.freq)
+        yield self.wave(volume=self.volume, duration=self.duration, shape=self.freq)
 
 
 class PatternSequence(Pattern):

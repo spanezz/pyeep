@@ -3,6 +3,13 @@
 # TODO: pass a Volume-like object also for waveforms
 # TODO: Function to compute note frequency (note, octave: int, semitone_shift:
 #       int)
+# TODO: from http://hplgit.github.io/primer.html/doc/pub/diffeq/._diffeq-solarized002.html
+#       base_freq = 440.0
+#       notes = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E',
+#                'F', 'F#', 'G', 'G#']
+#       notes2freq = {notes[i]: base_freq*2**(i/12.0)
+#                     for i in range(len(notes))}
+#       see also sources from http://hplgit.github.io/scitools/doc/api/html/sound.html
 # TODO: Pattern: if it yields a Sequence, sum (average? multiply?) the
 #       waveforms to make chords
 # TODO: chord-generating function
@@ -12,7 +19,7 @@ import asyncio
 import sys
 from typing import Generator
 
-from pyeep import volume
+from pyeep import volume, shape
 from pyeep.pattern import Pattern, PatternSequence, Wave
 from pyeep.wav import WaveWriter
 from pyeep.audio import PyAudioPlayer
@@ -28,6 +35,18 @@ class TestVolumeSlide(PatternSequence):
         yield Wave(volume=volume.RampDown(0.0, 1.0), duration=1, freq=1000)
 
 
+class TestFreqSlide(PatternSequence):
+    """
+    Frequency difference
+    """
+    def patterns(self) -> Generator[Pattern, None, None]:
+        yield Wave(volume=1, duration=1, freq=440.0)
+        yield Wave(freq=shape.Chirp(440.0, 880.0), duration=1, volume=1)
+        yield Wave(volume=1, duration=1, freq=880.0)
+        yield Wave(freq=shape.Chirp(880.0, 440.0), duration=1, volume=1)
+        yield Wave(volume=1, duration=1, freq=440.0)
+
+
 class App:
     def __init__(self, args: argparse.Namespace):
         self.args = args
@@ -41,7 +60,8 @@ class App:
 
     def main(self):
         try:
-            self.player.start_mono(TestVolumeSlide())
+            # self.player.start_mono(TestVolumeSlide())
+            self.player.start_mono(TestFreqSlide())
             asyncio.run(self.play())
         except KeyboardInterrupt:
             print("Shutting down...")
