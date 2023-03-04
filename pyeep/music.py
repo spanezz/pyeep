@@ -39,3 +39,13 @@ def note(note: str, octave: int = 4, semitone: int = 0) -> float:
     # See https://pages.mtu.edu/~suits/NoteFreqCalcs.html
     step_shift = A_SHIFTS[note] + (octave - 4) * 12 + semitone
     return A4 * math.exp2(step_shift / 12.0)
+
+
+def chord_major(base_note: str, octave: int = 4, semitone: int = 0) -> tuple[float, float, float]:
+    """
+    Compute the 3 notes of a major chord
+    """
+    return (
+            note(base_note, octave, semitone),
+            note(base_note, octave, semitone + 3),
+            note(base_note, octave, semitone + 5))

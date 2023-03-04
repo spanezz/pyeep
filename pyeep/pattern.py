@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import io
-from typing import TYPE_CHECKING, Generator, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Generator, Iterator, Optional
 
 import numpy
 
@@ -173,6 +173,28 @@ class Wave(Pattern):
 
     def generate(self) -> Generator[numpy.ndarray, None, None]:
         yield self.wave(volume=self.volume, duration=self.duration, shape=self.freq)
+
+
+class Waves(Pattern):
+    """
+    Sum of waves
+    """
+    def __init__(self, *wargs: dict[str, Any]):
+        super().__init__()
+        self.wargs = wargs
+        last_warg: Optional[dict[str, Any]] = None
+        for warg in self.wargs:
+            if last_warg is None:
+                last_warg = warg
+            elif last_warg.get("duration", 1.0) != warg.get("duration", 1.0):
+                raise ValueError(
+                        f"waves diven of different duration ({last_warg} and {warg}")
+
+    def generate(self) -> Generator[numpy.ndarray, None, None]:
+        waves: list[numpy.ndarray] = []
+        for warg in self.wargs:
+            waves.append(self.wave(**warg))
+        yield sum(waves)
 
 
 class PatternSequence(Pattern):

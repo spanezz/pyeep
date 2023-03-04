@@ -1,21 +1,14 @@
 #!/usr/bin/python3
 
-# TODO: Function to compute note frequency (note, octave: int, semitone_shift:
-#       int)
-# TODO: Pattern: if it yields a Sequence, sum (average? multiply?) the
-#       waveforms to make chords
-# TODO: chord-generating function
-
 import argparse
 import asyncio
 import sys
-from typing import Generator
+from typing import Generator, Any
 
-from pyeep import volume, shape
-from pyeep.pattern import Pattern, PatternSequence, Wave, Silence
-from pyeep.wav import WaveWriter
+from pyeep import music, shape, volume
 from pyeep.audio import PyAudioPlayer
-from pyeep.music import note
+from pyeep.pattern import Pattern, PatternSequence, Silence, Wave, Waves
+from pyeep.wav import WaveWriter
 
 
 class TestVolumeSlide(PatternSequence):
@@ -51,8 +44,23 @@ class TestTune(PatternSequence):
                 ("EEFGGFED", 4, 3),
                 ("CCDEDCC", 5, 0)):
             for n in tune:
-                yield Wave(volume=1, duration=0.1, freq=note(n, octave=octave, semitone=semitone))
+                yield Wave(volume=1, duration=0.1, freq=music.note(n, octave=octave, semitone=semitone))
                 yield Silence(duration=0.005)
+
+
+class TestChords(PatternSequence):
+    """
+    Play a tune to test note frequency calculation
+    """
+    def patterns(self) -> Generator[Pattern, None, None]:
+        duration = 0.5
+        for note in "CFG":
+            freqs = music.chord_major(note)
+            args: list[dict[str, Any]] = []
+            for f in freqs:
+                args.append({"duration": duration, "shape": f})
+            yield Waves(*args)
+            yield Silence(duration=0.1)
 
 
 class App:
@@ -70,7 +78,8 @@ class App:
         try:
             # self.player.start_mono(TestVolumeSlide())
             # self.player.start_mono(TestFreqSlide())
-            self.player.start_mono(TestTune())
+            # self.player.start_mono(TestTune())
+            self.player.start_mono(TestChords())
             asyncio.run(self.play())
         except KeyboardInterrupt:
             print("Shutting down...")
