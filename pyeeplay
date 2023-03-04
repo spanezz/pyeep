@@ -1,15 +1,7 @@
 #!/usr/bin/python3
 
-# TODO: pass a Volume-like object also for waveforms
 # TODO: Function to compute note frequency (note, octave: int, semitone_shift:
 #       int)
-# TODO: from http://hplgit.github.io/primer.html/doc/pub/diffeq/._diffeq-solarized002.html
-#       base_freq = 440.0
-#       notes = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E',
-#                'F', 'F#', 'G', 'G#']
-#       notes2freq = {notes[i]: base_freq*2**(i/12.0)
-#                     for i in range(len(notes))}
-#       see also sources from http://hplgit.github.io/scitools/doc/api/html/sound.html
 # TODO: Pattern: if it yields a Sequence, sum (average? multiply?) the
 #       waveforms to make chords
 # TODO: chord-generating function
@@ -20,9 +12,10 @@ import sys
 from typing import Generator
 
 from pyeep import volume, shape
-from pyeep.pattern import Pattern, PatternSequence, Wave
+from pyeep.pattern import Pattern, PatternSequence, Wave, Silence
 from pyeep.wav import WaveWriter
 from pyeep.audio import PyAudioPlayer
+from pyeep.music import note
 
 
 class TestVolumeSlide(PatternSequence):
@@ -47,6 +40,21 @@ class TestFreqSlide(PatternSequence):
         yield Wave(volume=1, duration=1, freq=440.0)
 
 
+class TestTune(PatternSequence):
+    """
+    Play a tune to test note frequency calculation
+    """
+    def patterns(self) -> Generator[Pattern, None, None]:
+        for tune, octave, semitone in (
+                ("EEFGGFED", 3, 0),
+                ("CCDEEDD", 4, 0),
+                ("EEFGGFED", 4, 3),
+                ("CCDEDCC", 5, 0)):
+            for n in tune:
+                yield Wave(volume=1, duration=0.1, freq=note(n, octave=octave, semitone=semitone))
+                yield Silence(duration=0.005)
+
+
 class App:
     def __init__(self, args: argparse.Namespace):
         self.args = args
@@ -61,7 +69,8 @@ class App:
     def main(self):
         try:
             # self.player.start_mono(TestVolumeSlide())
-            self.player.start_mono(TestFreqSlide())
+            # self.player.start_mono(TestFreqSlide())
+            self.player.start_mono(TestTune())
             asyncio.run(self.play())
         except KeyboardInterrupt:
             print("Shutting down...")
