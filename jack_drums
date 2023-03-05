@@ -14,7 +14,7 @@ from pyeep.jackmidi import MidiPlayer
 
 DRUM_CHANNEL = 9
 
-with MidiPlayer() as player:
+with MidiPlayer("pyeep drums") as player:
     # program=random.choice([1, 9, 17, 25, 26, 33, 41]))
     beat: int = 0
     while True:
