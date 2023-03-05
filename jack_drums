@@ -1,0 +1,32 @@
+#!/usr/bin/python3
+
+# Example JACK midi event generator
+#
+# Play a drum pattern over JACK
+
+import time
+
+from pyeep.jackmidi import MidiPlayer
+
+# See:
+# https://soundprogramming.net/file-formats/general-midi-instrument-list/
+# https://www.pgmusic.com/tutorial_gm.htm
+
+DRUM_CHANNEL = 9
+
+with MidiPlayer() as player:
+    # program=random.choice([1, 9, 17, 25, 26, 33, 41]))
+    beat: int = 0
+    while True:
+        player.play("program_change", channel=DRUM_CHANNEL, program=1)
+        player.play("note_on", velocity=64, note=35, channel=DRUM_CHANNEL)
+        player.play("note_off", note=38, channel=DRUM_CHANNEL, delay_sec=0.5)
+        if beat == 0:
+            player.play("note_on", velocity=100, note=38, channel=DRUM_CHANNEL)
+            player.play("note_off", note=36, channel=DRUM_CHANNEL, delay_sec=0.3)
+        if beat + 1 == 2:
+            player.play("note_on", velocity=100, note=42, channel=DRUM_CHANNEL)
+            player.play("note_off", note=42, channel=DRUM_CHANNEL, delay_sec=0.3)
+
+        beat = (beat + 1) % 4
+        time.sleep(0.3)
