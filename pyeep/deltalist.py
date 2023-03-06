@@ -5,7 +5,10 @@ from typing import TypeVar, Generic
 
 
 class Event:
-    def __init__(self, frame_delay: int = 0):
+    """
+    Generic event, timed by frame counts
+    """
+    def __init__(self, *, frame_delay: int = 0):
         self.frame_delay: int = frame_delay
 
 

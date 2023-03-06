@@ -2,6 +2,7 @@
 
 import contextlib
 import threading
+from typing import Optional, Self
 
 import jack
 import mido
@@ -29,9 +30,34 @@ class MidiEvent(Event):
     """
     Frame-timed event carrying a MIDI message
     """
-    def __init__(self, msg: mido.Message, *args, **kw):
-        super().__init__(*args, **kw)
-        self.msg = msg
+    def __init__(
+            self, *,
+            msg: Optional[mido.Message] = None,
+            data: Optional[bytes] = None,
+            **kw):
+        super().__init__(**kw)
+        self._msg: Optional[mido.Message] = msg
+        self._data: Optional[bytes] = data
+
+    @classmethod
+    def from_mido(cls, msg: mido.Message, encode: bool = False, **kw) -> Self:
+        res = cls(msg=msg, **kw)
+        if encode:
+            # Trigger encoding
+            res.data
+        return res
+
+    @property
+    def msg(self) -> mido.Message:
+        if self._msg is None:
+            self._msg = mido.parse([ord(b) for b in self.data])
+        return self._msg
+
+    @property
+    def data(self) -> bytes:
+        if self._data is None:
+            self._data = self._msg.bytes()
+        return self._data
 
     def __str__(self):
         return str(self.msg)
@@ -59,7 +85,7 @@ class MidiPlayer(contextlib.ExitStack):
         Enqueue a MIDI event to be played
         """
         msg = mido.Message(type, **args)
-        evt = MidiEvent(msg, frame_delay=int(round(delay_sec * self.samplerate)))
+        evt = MidiEvent.from_mido(msg, encode=True, frame_delay=int(round(delay_sec * self.samplerate)))
         with self.events_mutex:
             self.events.add_event(evt)
 
@@ -70,4 +96,4 @@ class MidiPlayer(contextlib.ExitStack):
             events = self.events.clock_tick(frames)
 
         for evt in events:
-            self.outport.write_midi_event(evt.frame_delay, evt.msg.bytes())
+            self.outport.write_midi_event(evt.frame_delay, evt.data)
