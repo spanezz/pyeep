@@ -6,8 +6,8 @@ from pyeep.deltalist import Event, DeltaList
 
 
 class TestEvent(Event):
-    def __init__(self, name: str, *args, **kw):
-        super().__init__(*args, **kw)
+    def __init__(self, name: str, **kw):
+        super().__init__(**kw)
         self.name = name
 
 
@@ -32,11 +32,11 @@ class TestDeltaList(unittest.TestCase):
     def test_add_get(self):
         dl = DeltaList()
 
-        dl.add_event(TestEvent("second", 100))
-        dl.add_event(TestEvent("first", 10))
-        dl.add_event(TestEvent("fourth", 1000))
-        dl.add_event(TestEvent("zero", 0))
-        dl.add_event(TestEvent("third", 800))
+        dl.add_event(TestEvent("second", frame_delay=100))
+        dl.add_event(TestEvent("first", frame_delay=10))
+        dl.add_event(TestEvent("fourth", frame_delay=1000))
+        dl.add_event(TestEvent("zero", frame_delay=0))
+        dl.add_event(TestEvent("third", frame_delay=800))
 
         self.assertEqual(
                 [(evt.name, evt.frame_delay) for evt in dl.events],
