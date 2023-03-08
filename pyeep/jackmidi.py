@@ -2,7 +2,7 @@
 
 import contextlib
 import threading
-from typing import Optional, Self
+from typing import Generator, Optional, Self
 
 import jack
 import mido
@@ -40,11 +40,19 @@ class MidiEvent(Event):
         self._data: Optional[bytes] = data
 
     @classmethod
-    def from_mido(cls, msg: mido.Message, encode: bool = False, **kw) -> Self:
+    def from_msg(cls, msg: mido.Message, encode: bool = False, **kw) -> Self:
         res = cls(msg=msg, **kw)
         if encode:
             # Trigger encoding
             res.data
+        return res
+
+    @classmethod
+    def from_data(cls, data: bytes, decode: bool = False, **kw) -> Self:
+        res = cls(data=data, **kw)
+        if decode:
+            # Trigger decoding
+            res.msg
         return res
 
     @property
@@ -85,7 +93,7 @@ class MidiPlayer(contextlib.ExitStack):
         Enqueue a MIDI event to be played
         """
         msg = mido.Message(type, **args)
-        evt = MidiEvent.from_mido(msg, encode=True, frame_delay=int(round(delay_sec * self.samplerate)))
+        evt = MidiEvent.from_msg(msg, encode=True, frame_delay=int(round(delay_sec * self.samplerate)))
         with self.events_mutex:
             self.events.add_event(evt)
 
