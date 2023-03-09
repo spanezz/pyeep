@@ -2,7 +2,8 @@
 
 import contextlib
 import threading
-from typing import Generator, Optional, Self
+from collections import deque
+from typing import Generator, NamedTuple, Optional, Self
 
 import jack
 import mido
@@ -105,3 +106,29 @@ class MidiPlayer(contextlib.ExitStack):
 
         for evt in events:
             self.outport.write_midi_event(evt.frame_delay, evt.data)
+
+
+class MidiEventAbsolute(NamedTuple):
+    # TODO: mido.Message has a `time` member that we can probably just use
+    # insetad of MidiEventAbsolute
+    msg: mido.Message
+    frame_time: int
+
+
+class MidiReceiver(contextlib.ExitStack):
+    """
+    JACK client that receives MIDI events
+    """
+    def __init__(self, name="pyeep MIDI receiver"):
+        super().__init__()
+        self.client = jack.Client(name)
+        self.inport = self.client.midi_inports.register('midi input')
+        self.client.set_process_callback(self.on_process)
+        self.enter_context(self.client)
+        self.samplerate = self.client.samplerate
+
+    def read_events(self) -> Generator[MidiEvent, None, None]:
+        frame_time = self.client.last_frame_time
+        for offset, indata in self.inport.incoming_midi_events():
+            msg = mido.parse([ord(b) for b in indata])
+            yield MidiEventAbsolute(msg, frame_time + offset)
