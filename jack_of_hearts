@@ -9,6 +9,7 @@ import asyncio
 import json
 import statistics
 import sys
+import threading
 from collections import deque
 from typing import NamedTuple
 
@@ -34,16 +35,16 @@ class HeartSample(NamedTuple):
     rr: tuple[float] = ()
 
 
-class Score:
-    def __init__(self, player: MidiPlayer, bpm: float):
-        self.player = player
-        self.bpm = bpm
+class Player(MidiPlayer):
+    def __init__(self, name: str):
+        super().__init__(name)
+        self.bpm = 0
 
     def drum(self, note: int, position: float, duration: float, velocity: int = 127):
         beat = 60 / self.bpm
         delay = beat * position
-        self.player.play("note_on", velocity=velocity, note=note, channel=DRUM_CHANNEL, delay_sec=delay)
-        self.player.play("note_off", note=note, channel=DRUM_CHANNEL, delay_sec=delay + beat * duration)
+        self.play("note_on", velocity=velocity, note=note, channel=DRUM_CHANNEL, delay_sec=delay)
+        self.play("note_off", note=note, channel=DRUM_CHANNEL, delay_sec=delay + beat * duration)
 
 
 class App:
@@ -53,6 +54,7 @@ class App:
         self.last_sample: HeartSample | None = None
         self.last_window: deque[float] = deque(maxlen=10)
         self.improvised_delta: float = 0
+        self.shutdown: bool = False
 
     async def read_socket(self):
         # Read heart beats from https://www.enricozini.org/blog/2023/debian/monitoring-a-heart-rate-monitor/
@@ -63,7 +65,7 @@ class App:
         for sample in (HeartSample(*s) for s in initial["last"]):
             self.last_window.append(sample.rate)
 
-        while (line := await reader.readline()):
+        while not self.shutdown and (line := await reader.readline()):
             self.last_sample = HeartSample(*json.loads(line))
             self.on_sample()
 
@@ -82,39 +84,46 @@ class App:
         self.last_window.append(self.last_sample.rate)
 
     async def composer(self):
-        score: Score | None = None
-        while True:
+        while not self.shutdown:
             if self.last_sample is None:
                 await asyncio.sleep(0.2)
                 continue
-            if score is None:
-                score = Score(self.player, self.last_sample.rate)
-
-            score.bpm = self.last_sample.rate
+            self.player.bpm = self.last_sample.rate
 
             if self.improvised_delta > 2:
-                score.drum(DRUM_LOW_TOM, 0, 1/4)
-                score.drum(DRUM_CRASH1, 1/2, 1/4)
+                self.player.drum(DRUM_LOW_TOM, 0, 1/4)
+                self.player.drum(DRUM_CRASH1, 1/2, 1/4)
             elif self.improvised_delta > 0.5:
-                score.drum(DRUM_LOW_TOM, 0, 1/4)
-                score.drum(DRUM_CLOSED_HIHAT, 1/2, 1/4)
+                self.player.drum(DRUM_LOW_TOM, 0, 1/4)
+                self.player.drum(DRUM_CLOSED_HIHAT, 1/2, 1/4)
             elif self.improvised_delta < -0.5:
-                score.drum(DRUM_SIDE_STICK, 0, 1/4, velocity=64)
+                self.player.drum(DRUM_SIDE_STICK, 0, 1/4, velocity=64)
             else:
-                score.drum(DRUM_LOW_TOM, 0, 1/4)
+                self.player.drum(DRUM_LOW_TOM, 0, 1/4)
 
-            await asyncio.sleep(60 / score.bpm)
+            await asyncio.sleep(60 / self.player.bpm)
 
     async def amain(self):
         await asyncio.gather(self.read_socket(), self.composer())
 
+    def aio_thread(self):
+        asyncio.run(self.amain())
+
     def main(self):
-        with MidiPlayer("JACK of Hearts") as player:
+        with Player("JACK of Hearts") as player:
             self.player = player
+            aio_thread = threading.Thread(target=self.aio_thread, name="aio")
+            aio_thread.start()
             try:
-                asyncio.run(self.amain())
+                while True:
+                    cmd = input("> ")
+                    if cmd.startswith("q"):
+                        break
             except KeyboardInterrupt:
+                pass
+            finally:
                 print("Shutting down...")
+                self.shutdown = True
 
 
 def main():
