@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import sys
 import logging
 import threading
@@ -13,8 +14,9 @@ except ModuleNotFoundError:
     HAVE_COLOREDLOGS = False
 
 
-class App:
+class App(contextlib.ExitStack):
     def __init__(self, args: argparse.Namespace):
+        super().__init__()
         self.args = args
         self.shutting_down = False
         self.setup_logging()
