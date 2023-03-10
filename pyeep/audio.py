@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import os
 import threading
 import time
@@ -10,6 +11,8 @@ from typing import Optional
 import pyaudio
 
 from .player import Player
+
+log = logging.getLogger(__name__)
 
 
 @contextlib.contextmanager
@@ -46,7 +49,7 @@ class PyAudioPlayer(Player, threading.Thread):
         self.shutting_down = False
 
     async def wait_for_patterns(self):
-        while not all(c.ended for c in self.channels):
+        while not self.shutting_down and not all(c.ended for c in self.channels):
             await asyncio.sleep(0.2)
 
     async def loop(self):
@@ -54,8 +57,7 @@ class PyAudioPlayer(Player, threading.Thread):
         await self.wait_for_patterns()
 
     def shutdown(self):
-        # TODO: logging?
-        # print("shutting down")
+        log.info("Shutting down")
         self.shutting_down = True
         if self.stream:
             while self.stream.is_active():
