@@ -2,7 +2,6 @@
 
 import contextlib
 import threading
-from collections import deque
 from typing import Generator, NamedTuple, Optional, Self
 
 import jack

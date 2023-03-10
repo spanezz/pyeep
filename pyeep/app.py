@@ -19,7 +19,6 @@ class App(contextlib.ExitStack):
         super().__init__()
         self.args = args
         self.shutting_down = False
-        self.setup_logging()
 
     @classmethod
     def argparser(self, description: str) -> argparse.ArgumentParser:
@@ -57,6 +56,7 @@ class App(contextlib.ExitStack):
         asyncio.run(self.aio_main())
 
     def main(self):
+        self.setup_logging()
         aio_thread = threading.Thread(target=self._aio_thread, name="aio")
         aio_thread.start()
         try:

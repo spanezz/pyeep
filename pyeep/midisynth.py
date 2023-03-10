@@ -1,13 +1,15 @@
 #!/usr/bin/python3
 
 from collections import deque
-from typing import Type
+from typing import Callable, Type
 
+import mido
 import numpy
 import scipy.signal
-# from resampy.core import resample
 
 from . import jackmidi
+
+# from resampy.core import resample
 
 
 class Note:
@@ -115,17 +117,28 @@ class MidiSynth(jackmidi.MidiReceiver):
         self.instruments: dict[int, Instrument] = {
             0: Instrument(OnOff, self.dtype),
         }
+        # Set to a callable to have it invoked at each processing step
+        # when midi are processed, with the midi messages that were processed
+        self.midi_snoop: Callable[[list[mido.Message]], None] | None = None
 
     def on_process(self, frames: int):
         """
         JACK processing: enqueue midi events in the right instruments/notes
         """
+        midi_processed: list[mido.Message] | None = (
+                [] if self.midi_snoop is not None else None)
+
         for evt in self.read_events():
             if evt.msg.type not in ("note_on", "note_off"):
                 continue
             if (instrument := self.instruments.get(evt.msg.channel)) is None:
                 continue
+            if midi_processed is not None:
+                midi_processed.append(evt.msg)
             instrument.add_event(evt)
+
+        if midi_processed:
+            self.midi_snoop(midi_processed)
 
     def generate(self, frame_time: int, frames: int) -> numpy.ndarray:
         """
