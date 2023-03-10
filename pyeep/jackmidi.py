@@ -2,7 +2,7 @@
 
 import contextlib
 import threading
-from typing import Generator, NamedTuple, Optional, Self
+from typing import Generator, Optional, Self
 
 import jack
 import mido
@@ -107,13 +107,6 @@ class MidiPlayer(contextlib.ExitStack):
             self.outport.write_midi_event(evt.frame_delay, evt.data)
 
 
-class MidiEventAbsolute(NamedTuple):
-    # TODO: mido.Message has a `time` member that we can probably just use
-    # insetad of MidiEventAbsolute
-    msg: mido.Message
-    frame_time: int
-
-
 class MidiReceiver(contextlib.ExitStack):
     """
     JACK client that receives MIDI events
@@ -130,4 +123,5 @@ class MidiReceiver(contextlib.ExitStack):
         frame_time = self.client.last_frame_time
         for offset, indata in self.inport.incoming_midi_events():
             msg = mido.parse([ord(b) for b in indata])
-            yield MidiEventAbsolute(msg, frame_time + offset)
+            msg.time = frame_time + offset
+            yield msg

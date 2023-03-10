@@ -5,7 +5,6 @@ import unittest
 import mido
 import numpy
 
-from pyeep.jackmidi import MidiEventAbsolute
 from pyeep.midisynth import OnOff
 
 
@@ -17,9 +16,7 @@ class TestOnOff(unittest.TestCase):
 
     def test_note_on(self):
         note = OnOff(0, numpy.float32)
-        note.add_event(MidiEventAbsolute(
-            mido.Message("note_on", velocity=64),
-            1024))
+        note.add_event(mido.Message("note_on", velocity=64, time=1024))
 
         a = note.generate(0, 512)
         self.assertEqual(len(a), 512)
@@ -36,12 +33,8 @@ class TestOnOff(unittest.TestCase):
 
     def test_note_on_off(self):
         note = OnOff(0, numpy.float32)
-        note.add_event(MidiEventAbsolute(
-            mido.Message("note_on", velocity=64),
-            3))
-        note.add_event(MidiEventAbsolute(
-            mido.Message("note_off"),
-            6))
+        note.add_event(mido.Message("note_on", velocity=64, time=3))
+        note.add_event(mido.Message("note_off", time=6))
 
         a = [int(x * 1000) for x in note.generate(0, 10)]
         val = int(64/127 * 1000)

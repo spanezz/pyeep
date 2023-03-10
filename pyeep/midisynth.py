@@ -16,10 +16,10 @@ class Note:
     def __init__(self, note: int, dtype):
         self.note = note
         self.dtype = dtype
-        self.next_events: deque[jackmidi.MidiEventAbsolute] = deque()
+        self.next_events: deque[mido.Message] = deque()
 
-    def add_event(self, evt: jackmidi.MidiEventAbsolute):
-        self.next_events.append(evt)
+    def add_event(self, msg: mido.Message):
+        self.next_events.append(msg)
 
     def generate(self, frames: int) -> numpy.ndarray:
         raise NotImplementedError()
@@ -37,17 +37,17 @@ class OnOff(Note):
         If it returns None, it means this note is completely turned off
         """
         # Dequeue the events we want to process
-        events: list[jackmidi.MidiEventAbsolute] = []
-        while self.next_events and self.next_events[0].frame_time < frame_time + frames:
-            evt = self.next_events.popleft()
-            if evt.frame_time < frame_time:
-                match evt.msg.type:
+        events: list[mido.Message] = []
+        while self.next_events and self.next_events[0].time < frame_time + frames:
+            msg = self.next_events.popleft()
+            if msg.time < frame_time:
+                match msg.type:
                     case "note_on":
-                        self.last_value = evt.msg.velocity / 127.0
+                        self.last_value = msg.velocity / 127.0
                     case "note_off":
                         self.last_value = 0
             else:
-                events.append(evt)
+                events.append(msg)
 
         if not events and not self.next_events:
             if self.last_value == 0:
@@ -56,9 +56,9 @@ class OnOff(Note):
             return numpy.full(frames, self.last_value, dtype=self.dtype)
 
         sample: numpy.ndarray = numpy.zeros(0, dtype=self.dtype)
-        for evt in events:
-            offset = evt.frame_time - frame_time
-            match evt.msg.type:
+        for msg in events:
+            offset = msg.time - frame_time
+            match msg.type:
                 case "note_off":
                     if offset > len(sample):
                         sample = numpy.concatenate((sample, numpy.full(offset - len(sample), self.last_value)))
@@ -66,7 +66,7 @@ class OnOff(Note):
                 case "note_on":
                     if offset > len(sample):
                         sample = numpy.concatenate((sample, numpy.full(offset - len(sample), self.last_value)))
-                    self.last_value = evt.msg.velocity / 127.0
+                    self.last_value = msg.velocity / 127.0
 
         if frames > len(sample):
             sample = numpy.concatenate((sample, numpy.full(frames - len(sample), self.last_value)))
@@ -80,12 +80,12 @@ class Instrument:
         self.dtype = dtype
         self.notes: dict[int, Note] = {}
 
-    def add_event(self, evt: jackmidi.MidiEventAbsolute):
-        if (note := self.notes.get(evt.msg.note)) is None:
-            note = self.note_cls(evt.msg.note, self.dtype)
-            self.notes[evt.msg.note] = note
+    def add_event(self, msg: mido.Message):
+        if (note := self.notes.get(msg.note)) is None:
+            note = self.note_cls(msg.note, self.dtype)
+            self.notes[msg.note] = note
 
-        note.add_event(evt)
+        note.add_event(msg)
 
     def generate(self, frame_time: int, frames: int) -> numpy.ndarray:
         off: list[int] = []
@@ -128,14 +128,14 @@ class MidiSynth(jackmidi.MidiReceiver):
         midi_processed: list[mido.Message] | None = (
                 [] if self.midi_snoop is not None else None)
 
-        for evt in self.read_events():
-            if evt.msg.type not in ("note_on", "note_off"):
+        for msg in self.read_events():
+            if msg.type not in ("note_on", "note_off"):
                 continue
-            if (instrument := self.instruments.get(evt.msg.channel)) is None:
+            if (instrument := self.instruments.get(msg.channel)) is None:
                 continue
             if midi_processed is not None:
-                midi_processed.append(evt.msg)
-            instrument.add_event(evt)
+                midi_processed.append(msg)
+            instrument.add_event(msg)
 
         if midi_processed:
             self.midi_snoop(midi_processed)
