@@ -5,16 +5,14 @@ from typing import Callable, Type
 
 import mido
 import numpy
-import scipy.signal
 
 from . import jackmidi
 
-# from resampy.core import resample
-
 
 class Note:
-    def __init__(self, note: int, dtype):
+    def __init__(self, note: int, samplerate: int, dtype):
         self.note = note
+        self.samplerate = samplerate
         self.dtype = dtype
         self.next_events: deque[mido.Message] = deque()
 
@@ -26,8 +24,8 @@ class Note:
 
 
 class OnOff(Note):
-    def __init__(self, note: int, dtype):
-        super().__init__(note, dtype)
+    def __init__(self, note: int, samplerate: int, dtype):
+        super().__init__(note, samplerate, dtype)
         self.last_value: float = 0
 
     def generate(self, frame_time: int, frames: int) -> numpy.ndarray | None:
@@ -75,14 +73,15 @@ class OnOff(Note):
 
 
 class Instrument:
-    def __init__(self, note_cls: Type[Note], dtype):
+    def __init__(self, note_cls: Type[Note], samplerate: int, dtype):
         self.note_cls = note_cls
+        self.samplerate = samplerate
         self.dtype = dtype
         self.notes: dict[int, Note] = {}
 
     def add_event(self, msg: mido.Message):
         if (note := self.notes.get(msg.note)) is None:
-            note = self.note_cls(msg.note, self.dtype)
+            note = self.note_cls(msg.note, self.samplerate, self.dtype)
             self.notes[msg.note] = note
 
         note.add_event(msg)
@@ -111,11 +110,13 @@ class MidiSynth(jackmidi.MidiReceiver):
     Dispatch MIDI events to a software bank of instruments and notes, and
     generate the mixed waveforms
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, name: str, synth_samplerate: int):
+        super().__init__(name)
+        self.synth_samplerate = synth_samplerate
+        self.synth_last_frame_time: int = 0
         self.dtype = numpy.float32
         self.instruments: dict[int, Instrument] = {
-            0: Instrument(OnOff, self.dtype),
+            0: Instrument(OnOff, self.synth_samplerate, self.dtype),
         }
         # Set to a callable to have it invoked at each processing step
         # when midi are processed, with the midi messages that were processed
@@ -128,6 +129,8 @@ class MidiSynth(jackmidi.MidiReceiver):
         midi_processed: list[mido.Message] | None = (
                 [] if self.midi_snoop is not None else None)
 
+        self.synth_last_frame_time = int(round(self.client.last_frame_time / self.samplerate * self.synth_samplerate))
+
         for msg in self.read_events():
             if msg.type not in ("note_on", "note_off"):
                 continue
@@ -135,6 +138,10 @@ class MidiSynth(jackmidi.MidiReceiver):
                 continue
             if midi_processed is not None:
                 midi_processed.append(msg)
+
+            # Convert time from self.samplerate to self.synth_samplerate
+            msg.time = int(round(msg.time / self.samplerate * self.synth_samplerate))
+
             instrument.add_event(msg)
 
         if midi_processed:
@@ -152,11 +159,3 @@ class MidiSynth(jackmidi.MidiReceiver):
             return numpy.clip(0, 1, sum(samples))
         else:
             return numpy.zeros(frames, dtype=self.dtype)
-
-    def generate_resampled(self, frame_time: int, frames: int, out_sample_rate: int) -> numpy.ndarray:
-        """
-        Generate a waveform for the given time, resampled to the given frame rate
-        """
-        orig = self.generate(frame_time, frames)
-        # return numpy.clip(0, 1, resample(orig, self.samplerate, out_sample_rate))
-        return numpy.clip(0, 1, scipy.signal.resample(orig, round(frames / self.samplerate * out_sample_rate)))
