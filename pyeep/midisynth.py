@@ -162,12 +162,13 @@ class MidiSynth(jackmidi.MidiReceiver):
         self.synth_samplerate = synth_samplerate
         self.synth_last_frame_time: int = 0
         self.dtype = numpy.float32
-        self.instruments: dict[int, Instrument] = {
-            0: Instrument(OnOff, self.synth_samplerate, self.dtype),
-        }
+        self.instruments: dict[int, Instrument] = {}
         # Set to a callable to have it invoked at each processing step
         # when midi are processed, with the midi messages that were processed
         self.midi_snoop: Callable[[list[mido.Message]], None] | None = None
+
+    def set_instrument(self, channel: int, note_cls: Type[Note]):
+        self.instruments[channel] = Instrument(note_cls, self.synth_samplerate, self.dtype)
 
     def on_process(self, frames: int):
         """
