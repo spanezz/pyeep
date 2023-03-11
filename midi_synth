@@ -18,51 +18,60 @@ class SlowSine(midisynth.Sine):
         self.factor = self.freq * 2.0 * numpy.pi / self.samplerate
 
 
-class Synth(midisynth.MidiSynth):
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
+class TextSynth(midisynth.MidiSynth):
+    def __init__(self, client, **kw):
+        super().__init__(client, out_samplerate=10, **kw)
         self.queue: queue.Queue[float] = queue.Queue()
         self.last_output_frame_time: int | None = None
-        self.set_instrument(0, SlowSine)
+        self.instruments.set(0, SlowSine)
 
     def on_process(self, frames: int):
         super().on_process(frames)
 
-        if self.last_output_frame_time is None:
-            self.last_output_frame_time = self.synth_last_frame_time - 1
+        out_last_frame_time = self.instruments.out_last_frame_time
+        if self.last_output_frame_time is None or out_last_frame_time < self.last_output_frame_time:
+            self.last_output_frame_time = out_last_frame_time - 1
 
-        if self.last_output_frame_time < self.synth_last_frame_time:
-            data = self.generate(
+        if self.last_output_frame_time < out_last_frame_time:
+            data = self.instruments.generate(
                     self.last_output_frame_time,
-                    self.synth_last_frame_time - self.last_output_frame_time)
+                    out_last_frame_time - self.last_output_frame_time)
+
             for val in data:
                 self.queue.put(val)
-            self.last_output_frame_time = self.synth_last_frame_time
+            self.last_output_frame_time = out_last_frame_time
 
 
-class App(pyeep.app.App):
+class AudioSynth(midisynth.MidiSynth):
+    def __init__(self, client, **kw):
+        super().__init__(client, **kw)
+        self.instruments.set(0, midisynth.Sine)
+        self.audio_outport = self.client.outports.register("audio out")
+
+    def on_process(self, frames: int):
+        super().on_process(frames)
+        data = self.instruments.generate(self.client.last_frame_time, frames)
+        self.audio_outport.get_array()[:] = data
+
+
+class App(pyeep.app.JackApp):
     def __init__(self, args: argparse.Namespace):
         super().__init__(args)
-        self.synth: Synth = Synth(args.name, 10)
+        self.audio_synth = self.add_jack_component(AudioSynth)
+        self.text_synth = self.add_jack_component(TextSynth, inport=self.audio_synth.inport)
 
     async def aio_main(self):
         while not self.shutting_down:
-            asyncio.sleep(0.2)
+            await asyncio.sleep(0.2)
 
     def ui_main(self):
         while not self.shutting_down:
-            val = self.synth.queue.get()
+            val = self.text_synth.queue.get()
             print(val)
-
-    def main(self):
-        with self.synth:
-            super().main()
 
 
 def main():
-    parser = App.argparser("MIDI synth test")
-    parser.add_argument("--name", action="store", default="MIDISynth",
-                        help="JACK name to use")
+    parser = App.argparser("MIDISynth", "MIDI synth test")
     args = parser.parse_args()
 
     with App(args) as app:

@@ -6,6 +6,10 @@ import contextlib
 import sys
 import logging
 import threading
+from typing import Type, TypeVar
+
+import jack
+from .jackmidi import JackComponent
 
 try:
     import coloredlogs
@@ -21,7 +25,7 @@ class App(contextlib.ExitStack):
         self.shutting_down = False
 
     @classmethod
-    def argparser(self, description: str) -> argparse.ArgumentParser:
+    def argparser(cls, description: str) -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser(description=description)
         parser.add_argument("-v", "--verbose", action="store_true",
                             help="verbose output")
@@ -55,8 +59,11 @@ class App(contextlib.ExitStack):
     def _aio_thread(self):
         asyncio.run(self.aio_main())
 
-    def main(self):
+    def main_init(self):
         self.setup_logging()
+
+    def main(self):
+        self.main_init()
         aio_thread = threading.Thread(target=self._aio_thread, name="aio")
         aio_thread.start()
         try:
@@ -66,3 +73,34 @@ class App(contextlib.ExitStack):
         finally:
             self.shutdown()
             aio_thread.join()
+
+
+AppJackComponent = TypeVar("AppJackComponent", bound=JackComponent)
+
+
+class JackApp(App):
+    def __init__(self, args: argparse.Namespace):
+        super().__init__(args)
+        self.jack_client = jack.Client(self.args.name)
+        self.jack_client.set_process_callback(self.on_process)
+        self.jack_components: list[JackComponent] = []
+
+    def add_jack_component(self, cls: Type[AppJackComponent], **kwargs) -> JackComponent:
+        component = cls(self.jack_client, **kwargs)
+        self.jack_components.append(component)
+        return component
+
+    def on_process(self, frames: int):
+        for c in self.jack_components:
+            c.on_process(frames)
+
+    def main_init(self):
+        super().main_init()
+        self.enter_context(self.jack_client)
+
+    @classmethod
+    def argparser(cls, name: str, description: str) -> argparse.ArgumentParser:
+        parser = super().argparser(description)
+        parser.add_argument("--name", action="store", default=name,
+                            help="JACK name to use")
+        return parser

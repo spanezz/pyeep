@@ -4,6 +4,7 @@ import math
 from collections import deque
 from typing import Callable, Type
 
+import jack
 import mido
 import numpy
 
@@ -52,7 +53,8 @@ class Note:
             if self.last_attenuation == 0:
                 return None
             # No events: continue from last known value
-            return self.synth(frame_time, frames) * self.last_attenuation
+            res = self.synth(frame_time, frames) * self.last_attenuation
+            return res
 
         sample: numpy.ndarray = numpy.zeros(frames, dtype=self.dtype)
         last_offset = 0
@@ -76,7 +78,7 @@ class Note:
 
         if frames > last_offset:
             sample[last_offset:frames] = self.synth(
-                frame_time + last_offset, frames
+                frame_time + last_offset, frames - last_offset
             ) * self.last_attenuation
 
         return sample
@@ -97,8 +99,11 @@ class Sine(Note):
         self.factor = self.freq * 2.0 * numpy.pi / self.samplerate
 
     def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
-        x = numpy.arange(frame_time, frame_time + frames, dtype=self.dtype)
-        return numpy.sin(x * self.factor)
+        # Use modulus to prevent passing large integer values to numpy.
+        # float32 would risk losing the least significant digits
+        time = frame_time % self.samplerate
+        x = numpy.arange(time, time + frames, dtype=self.dtype)
+        return numpy.sin(x * self.factor, dtype=self.dtype)
 
 
 class Instrument:
@@ -134,23 +139,71 @@ class Instrument:
             return numpy.zeros(frames, dtype=self.dtype)
 
 
+class Instruments:
+    def __init__(self, in_samplerate: int, out_samplerate: int, dtype):
+        self.in_samplerate = in_samplerate
+        self.out_samplerate = out_samplerate
+        self.out_last_frame_time: int = 0
+        self.dtype = dtype
+        self.instruments: dict[int, Instrument] = {}
+
+        self.samplerate_conversion: float | None = None
+        if self.out_samplerate != self.in_samplerate:
+            self.samplerate_conversion = self.out_samplerate / self.in_samplerate
+
+    def set(self, channel: int, note_cls: Type[Note]):
+        self.instruments[channel] = Instrument(note_cls, self.out_samplerate, self.dtype)
+
+    def start_input_frame(self, in_last_frame_time: int):
+        if self.samplerate_conversion is not None:
+            self.out_last_frame_time = int(round(in_last_frame_time * self.samplerate_conversion))
+        else:
+            self.out_last_frame_time = in_last_frame_time
+
+    def add_event(self, msg: mido.Message) -> bool:
+        if msg.type not in ("note_on", "note_off"):
+            return False
+        if (instrument := self.instruments.get(msg.channel)) is None:
+            return False
+
+        # Convert time from self.in_samplerate to self.out_samplerate
+        if self.samplerate_conversion is not None:
+            msg = msg.copy(time=int(round(msg.time * self.samplerate_conversion)))
+
+        instrument.add_event(msg)
+
+    def generate(self, out_frame_time: int, out_frames: int) -> numpy.ndarray:
+        """
+        Generate a waveform for the given time, expressed as the output frame
+        rate
+        """
+        samples: list[numpy.ndarray] = []
+        for instrument in self.instruments.values():
+            samples.append(instrument.generate(out_frame_time, out_frames))
+
+        if samples:
+            return numpy.clip(0, 1, sum(samples))
+        else:
+            return numpy.zeros(out_frames, dtype=self.dtype)
+
+
 class MidiSynth(jackmidi.MidiReceiver):
     """
     Dispatch MIDI events to a software bank of instruments and notes, and
     generate the mixed waveforms
     """
-    def __init__(self, name: str, synth_samplerate: int):
-        super().__init__(name)
-        self.synth_samplerate = synth_samplerate
-        self.synth_last_frame_time: int = 0
+    def __init__(self, client: jack.Client, *, out_samplerate: int | None = None, **kw):
+        super().__init__(client, **kw)
+        if out_samplerate is None:
+            self.out_samplerate = self.samplerate
+        else:
+            self.out_samplerate = out_samplerate
         self.dtype = numpy.float32
-        self.instruments: dict[int, Instrument] = {}
+        self.instruments = Instruments(self.samplerate, self.out_samplerate, self.dtype)
+
         # Set to a callable to have it invoked at each processing step
         # when midi are processed, with the midi messages that were processed
         self.midi_snoop: Callable[[list[mido.Message]], None] | None = None
-
-    def set_instrument(self, channel: int, note_cls: Type[Note]):
-        self.instruments[channel] = Instrument(note_cls, self.synth_samplerate, self.dtype)
 
     def on_process(self, frames: int):
         """
@@ -159,33 +212,12 @@ class MidiSynth(jackmidi.MidiReceiver):
         midi_processed: list[mido.Message] | None = (
                 [] if self.midi_snoop is not None else None)
 
-        self.synth_last_frame_time = int(round(self.client.last_frame_time / self.samplerate * self.synth_samplerate))
+        self.instruments.start_input_frame(self.client.last_frame_time)
 
         for msg in self.read_events():
-            if msg.type not in ("note_on", "note_off"):
-                continue
-            if (instrument := self.instruments.get(msg.channel)) is None:
-                continue
-            if midi_processed is not None:
-                midi_processed.append(msg)
-
-            # Convert time from self.samplerate to self.synth_samplerate
-            msg.time = int(round(msg.time / self.samplerate * self.synth_samplerate))
-
-            instrument.add_event(msg)
+            if self.instruments.add_event(msg):
+                if midi_processed is not None:
+                    midi_processed.append(msg)
 
         if midi_processed:
             self.midi_snoop(midi_processed)
-
-    def generate(self, frame_time: int, frames: int) -> numpy.ndarray:
-        """
-        Generate a waveform for the given time
-        """
-        samples: list[numpy.ndarray] = []
-        for instrument in self.instruments.values():
-            samples.append(instrument.generate(frame_time, frames))
-
-        if samples:
-            return numpy.clip(0, 1, sum(samples))
-        else:
-            return numpy.zeros(frames, dtype=self.dtype)

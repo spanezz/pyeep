@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-import contextlib
 import threading
 from typing import Generator, Optional, Self
 
@@ -74,19 +73,25 @@ class MidiEvent(Event):
         return f"MidiEvent({self.msg}, +{self.frame_delay})"
 
 
-class MidiPlayer(contextlib.ExitStack):
+class JackComponent:
+    def __init__(self, client: jack.Client):
+        super().__init__()
+        self.client = client
+        self.samplerate = self.client.samplerate
+
+    def on_process(self, frames: int):
+        raise NotImplementedError(f"{self.__class__.__name__}.on_process not implemented")
+
+
+class MidiPlayer(JackComponent):
     """
     JACK client that plays a queue of MIDI events
     """
-    def __init__(self, name="pyeep MIDI player"):
-        super().__init__()
+    def __init__(self, client: jack.Client):
+        super().__init__(client)
         self.events = DeltaList[MidiEvent]()
         self.events_mutex = threading.Lock()
-        self.client = jack.Client(name)
-        self.outport = self.client.midi_outports.register('midi output')
-        self.client.set_process_callback(self.on_process)
-        self.enter_context(self.client)
-        self.samplerate = self.client.samplerate
+        self.midi_outport = self.client.midi_outports.register('midi output')
 
     def play(self, type: str, *, delay_sec: float = 0.0, **args):
         """
@@ -98,26 +103,25 @@ class MidiPlayer(contextlib.ExitStack):
             self.events.add_event(evt)
 
     def on_process(self, frames: int):
-        self.outport.clear_buffer()
+        self.midi_outport.clear_buffer()
 
         with self.events_mutex:
             events = self.events.clock_tick(frames)
 
         for evt in events:
-            self.outport.write_midi_event(evt.frame_delay, evt.data)
+            self.midi_outport.write_midi_event(evt.frame_delay, evt.data)
 
 
-class MidiReceiver(contextlib.ExitStack):
+class MidiReceiver(JackComponent):
     """
     JACK client that receives MIDI events
     """
-    def __init__(self, name="pyeep MIDI receiver"):
-        super().__init__()
-        self.client = jack.Client(name)
-        self.inport = self.client.midi_inports.register('midi input')
-        self.client.set_process_callback(self.on_process)
-        self.enter_context(self.client)
-        self.samplerate = self.client.samplerate
+    def __init__(self, client: jack.Client, inport: jack.OwnMidiPort | None = None):
+        super().__init__(client)
+        if inport is None:
+            self.inport = self.client.midi_inports.register('midi input')
+        else:
+            self.inport = inport
 
     def read_events(self) -> Generator[MidiEvent, None, None]:
         frame_time = self.client.last_frame_time
