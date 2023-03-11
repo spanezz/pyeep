@@ -9,23 +9,17 @@ import asyncio
 import json
 import statistics
 import sys
-import threading
 from collections import deque
-from typing import NamedTuple
+from typing import NamedTuple, Type
 
+import pyeep.app
+from pyeep.generative import (DRUM_CHANNEL, DRUM_CLOSED_HIHAT, DRUM_CRASH1,
+                              DRUM_LOW_TOM, DRUM_SIDE_STICK, GenerativeScore)
 from pyeep.jackmidi import MidiPlayer
 
 # See:
 # https://soundprogramming.net/file-formats/general-midi-instrument-list/
 # https://www.pgmusic.com/tutorial_gm.htm
-
-DRUM_CHANNEL = 9
-DRUM_BASS = 36
-DRUM_HIGH_TOM = 50
-DRUM_LOW_TOM = 45
-DRUM_CLOSED_HIHAT = 42
-DRUM_CRASH1 = 49
-DRUM_SIDE_STICK = 37
 
 
 class HeartSample(NamedTuple):
@@ -35,26 +29,37 @@ class HeartSample(NamedTuple):
     rr: tuple[float] = ()
 
 
-class Player(MidiPlayer):
-    def __init__(self, name: str):
-        super().__init__(name)
-        self.bpm = 0
+class DrumLoop(GenerativeScore):
+    def __init__(self, *, player: MidiPlayer, heart: "App", bpm: int = 60, **kw):
+        super().__init__(player=player, bpm=bpm)
+        self.heart = heart
+        self.channel = DRUM_CHANNEL
 
-    def drum(self, note: int, position: float, duration: float, velocity: int = 127):
-        beat = 60 / self.bpm
-        delay = beat * position
-        self.play("note_on", velocity=velocity, note=note, channel=DRUM_CHANNEL, delay_sec=delay)
-        self.play("note_off", note=note, channel=DRUM_CHANNEL, delay_sec=delay + beat * duration)
+    def beat(self):
+        super().beat()
+        self.bpm = self.heart.last_sample.rate
+
+        if self.heart.improvised_delta > 2:
+            self.drum(DRUM_LOW_TOM, 0, 1/4)
+            self.drum(DRUM_CRASH1, 1/2, 1/4)
+        elif self.heart.improvised_delta > 0.5:
+            self.drum(DRUM_LOW_TOM, 0, 1/4)
+            self.drum(DRUM_CLOSED_HIHAT, 1/2, 1/4)
+        elif self.heart.improvised_delta < -0.5:
+            self.drum(DRUM_SIDE_STICK, 0, 1/4, velocity=64)
+        else:
+            self.drum(DRUM_LOW_TOM, 0, 1/4)
 
 
-class App:
+class App(pyeep.app.JackApp):
     def __init__(self, args: argparse.Namespace):
-        self.args = args
-        self.player: MidiPlayer
+        super().__init__(args)
+        self.player = self.add_jack_component(MidiPlayer)
+        self.score: GenerativeScore | None = None
+
         self.last_sample: HeartSample | None = None
         self.last_window: deque[float] = deque(maxlen=10)
         self.improvised_delta: float = 0
-        self.shutdown: bool = False
 
     async def read_socket(self):
         # Read heart beats from https://www.enricozini.org/blog/2023/debian/monitoring-a-heart-rate-monitor/
@@ -65,12 +70,11 @@ class App:
         for sample in (HeartSample(*s) for s in initial["last"]):
             self.last_window.append(sample.rate)
 
-        while not self.shutdown and (line := await reader.readline()):
+        while not self.shutting_down and (line := await reader.readline()):
             self.last_sample = HeartSample(*json.loads(line))
             self.on_sample()
 
     def on_sample(self):
-        # print("SAMPLE", self.last_sample)
         if len(self.last_window) > 5:
             mean = statistics.mean(self.last_window)
             variance = statistics.variance(self.last_window)
@@ -83,56 +87,48 @@ class App:
             print("Improvised delta:", self.improvised_delta)
         self.last_window.append(self.last_sample.rate)
 
+    def set_score(self, score_cls: Type[GenerativeScore]):
+        if self.score is not None:
+            self.score.stop()
+        self.score = score_cls(player=self.player, heart=self)
+
     async def composer(self):
-        while not self.shutdown:
-            if self.last_sample is None:
+        while not self.shutting_down:
+            if self.score is None or self.last_sample is None:
                 await asyncio.sleep(0.2)
                 continue
-            self.player.bpm = self.last_sample.rate
 
-            if self.improvised_delta > 2:
-                self.player.drum(DRUM_LOW_TOM, 0, 1/4)
-                self.player.drum(DRUM_CRASH1, 1/2, 1/4)
-            elif self.improvised_delta > 0.5:
-                self.player.drum(DRUM_LOW_TOM, 0, 1/4)
-                self.player.drum(DRUM_CLOSED_HIHAT, 1/2, 1/4)
-            elif self.improvised_delta < -0.5:
-                self.player.drum(DRUM_SIDE_STICK, 0, 1/4, velocity=64)
-            else:
-                self.player.drum(DRUM_LOW_TOM, 0, 1/4)
+            self.score.beat()
 
-            await asyncio.sleep(60 / self.player.bpm)
+            await asyncio.sleep(60 / self.score.bpm)
 
-    async def amain(self):
+        if self.score.stop():
+            await asyncio.sleep(60 / self.score.bpm)
+
+    async def aio_main(self):
         await asyncio.gather(self.read_socket(), self.composer())
 
-    def aio_thread(self):
-        asyncio.run(self.amain())
+    def ui_main(self):
+        try:
+            while not self.shutting_down:
+                cmd = input("> ")
+                if cmd.startswith("q"):
+                    break
+        except EOFError:
+            pass
 
-    def main(self):
-        with Player("JACK of Hearts") as player:
-            self.player = player
-            aio_thread = threading.Thread(target=self.aio_thread, name="aio")
-            aio_thread.start()
-            try:
-                while True:
-                    cmd = input("> ")
-                    if cmd.startswith("q"):
-                        break
-            except KeyboardInterrupt:
-                pass
-            finally:
-                print("Shutting down...")
-                self.shutdown = True
+    def main(self, score_cls: Type[GenerativeScore]):
+        self.set_score(score_cls)
+        super().main()
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate a drum pattern based on heart beat")
+    parser = App.argparser("JACK of Hearts", "Generate a drum pattern based on heart beat")
     parser.add_argument("socket", action="store", help="path to the socket to use to read heart beats")
     args = parser.parse_args()
 
-    app = App(args)
-    app.main()
+    with App(args) as app:
+        app.main(DrumLoop)
 
 
 if __name__ == "__main__":
