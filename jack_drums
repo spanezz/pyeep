@@ -4,29 +4,94 @@
 #
 # Play a drum pattern over JACK
 
-import time
+import argparse
+import asyncio
+import sys
+import random
+from typing import Type
 
+import pyeep.app
+from pyeep.generative import (DRUM_ACOUSTIC_BASS, DRUM_ACOUSTIC_SNARE,
+                              DRUM_CHANNEL, DRUM_CLOSED_HIHAT, DRUM_CRASH1,
+                              DRUM_LOW_TOM, DRUM_SIDE_STICK, GenerativeScore)
 from pyeep.jackmidi import MidiPlayer
 
 # See:
 # https://soundprogramming.net/file-formats/general-midi-instrument-list/
 # https://www.pgmusic.com/tutorial_gm.htm
 
-DRUM_CHANNEL = 9
 
-with MidiPlayer("pyeep drums") as player:
-    # program=random.choice([1, 9, 17, 25, 26, 33, 41]))
-    beat: int = 0
-    while True:
-        player.play("program_change", channel=DRUM_CHANNEL, program=1)
-        player.play("note_on", velocity=64, note=35, channel=DRUM_CHANNEL)
-        player.play("note_off", note=38, channel=DRUM_CHANNEL, delay_sec=0.5)
-        if beat == 0:
-            player.play("note_on", velocity=100, note=38, channel=DRUM_CHANNEL)
-            player.play("note_off", note=36, channel=DRUM_CHANNEL, delay_sec=0.3)
-        if beat + 1 == 2:
-            player.play("note_on", velocity=100, note=42, channel=DRUM_CHANNEL)
-            player.play("note_off", note=42, channel=DRUM_CHANNEL, delay_sec=0.3)
+class DrumLoop(GenerativeScore):
+    def __init__(self, *, player: MidiPlayer, bpm: int = 80, **kw):
+        super().__init__(player=player, bpm=bpm)
+        self.channel = DRUM_CHANNEL
 
-        beat = (beat + 1) % 4
-        time.sleep(0.3)
+    def beat(self):
+        super().beat()
+
+        # player.play("program_change", channel=DRUM_CHANNEL, program=1)
+
+        self.drum(DRUM_ACOUSTIC_BASS, 0, 1/4)
+        # self.drum(DRUM_ACOUSTIC_BASS, 1/4, 1/4)
+        self.drum(DRUM_ACOUSTIC_BASS, 2/4, 1/4)
+        # self.drum(DRUM_ACOUSTIC_BASS, 3/4, 1/4)
+
+        if random.randint(1, 6) > 4:
+            self.drum(DRUM_CLOSED_HIHAT, 3/4, 1/4)
+        if random.randint(1, 6) > 2:
+            self.drum(DRUM_ACOUSTIC_SNARE, 2/4, 1/4)
+        if random.randint(1, 12) > 11:
+            self.drum(DRUM_CRASH1, 3/4, 1/4)
+
+
+class App(pyeep.app.JackApp):
+    def __init__(self, args: argparse.Namespace):
+        super().__init__(args)
+        self.player = self.add_jack_component(MidiPlayer)
+        self.score: GenerativeScore | None = None
+
+    def set_score(self, score_cls: Type[GenerativeScore]):
+        if self.score is not None:
+            self.score.stop()
+        self.score = score_cls(player=self.player)
+
+    async def composer(self):
+        while not self.shutting_down:
+            if self.score is None:
+                await asyncio.sleep(0.2)
+                continue
+
+            self.score.beat()
+
+            await asyncio.sleep(60 / self.score.bpm)
+
+        if self.score.stop():
+            await asyncio.sleep(60 / self.score.bpm)
+
+    async def aio_main(self):
+        await self.composer()
+
+    def ui_main(self):
+        try:
+            while not self.shutting_down:
+                cmd = input("> ")
+                if cmd.startswith("q"):
+                    break
+        except EOFError:
+            pass
+
+    def main(self, score_cls: Type[GenerativeScore]):
+        self.set_score(score_cls)
+        super().main()
+
+
+def main():
+    parser = App.argparser("MIDI drumloop", "Generate a drum pattern")
+    args = parser.parse_args()
+
+    with App(args) as app:
+        app.main(DrumLoop)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

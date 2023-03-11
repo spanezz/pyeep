@@ -3,12 +3,14 @@ from __future__ import annotations
 from pyeep.jackmidi import MidiPlayer
 
 DRUM_CHANNEL = 9
+DRUM_ACOUSTIC_BASS = 35
 DRUM_BASS = 36
+DRUM_SIDE_STICK = 37
+DRUM_ACOUSTIC_SNARE = 38
 DRUM_HIGH_TOM = 50
 DRUM_LOW_TOM = 45
 DRUM_CLOSED_HIHAT = 42
 DRUM_CRASH1 = 49
-DRUM_SIDE_STICK = 37
 
 
 class GenerativeScore:
