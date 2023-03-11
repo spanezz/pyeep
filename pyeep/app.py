@@ -19,7 +19,7 @@ except ModuleNotFoundError:
 
 
 class App(contextlib.ExitStack):
-    def __init__(self, args: argparse.Namespace):
+    def __init__(self, args: argparse.Namespace, **kw):
         super().__init__()
         self.args = args
         self.shutting_down = False
@@ -79,8 +79,8 @@ AppJackComponent = TypeVar("AppJackComponent", bound=JackComponent)
 
 
 class JackApp(App):
-    def __init__(self, args: argparse.Namespace):
-        super().__init__(args)
+    def __init__(self, args: argparse.Namespace, **kw):
+        super().__init__(args, **kw)
         self.jack_client = jack.Client(self.args.name)
         self.jack_client.set_process_callback(self.on_process)
         self.jack_components: list[JackComponent] = []

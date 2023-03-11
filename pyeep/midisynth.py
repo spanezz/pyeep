@@ -171,6 +171,7 @@ class Instruments:
             msg = msg.copy(time=int(round(msg.time * self.samplerate_conversion)))
 
         instrument.add_event(msg)
+        return True
 
     def generate(self, out_frame_time: int, out_frames: int) -> numpy.ndarray:
         """

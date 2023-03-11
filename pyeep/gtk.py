@@ -48,8 +48,8 @@ class GtkHandler(logging.Handler):
 
 
 class GtkApp(App):
-    def __init__(self, args: argparse.Namespace, title: str):
-        super().__init__(args)
+    def __init__(self, args: argparse.Namespace, *, title: str, **kw):
+        super().__init__(args, **kw)
         self.window = Gtk.Window(title=title)
         self.window.set_default_size(400, 300)
         self.window.connect("destroy", Gtk.main_quit)
