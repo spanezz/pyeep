@@ -40,11 +40,6 @@ class Note:
                 events.append(msg)
         return events
 
-    def generate(self, frames: int) -> numpy.ndarray:
-        raise NotImplementedError()
-
-
-class OnOff(Note):
     def generate(self, frame_time: int, frames: int) -> numpy.ndarray | None:
         """
         Return `frames` samples at the given frame time.
@@ -57,42 +52,7 @@ class OnOff(Note):
             if self.last_attenuation == 0:
                 return None
             # No events: continue from last known value
-            return numpy.full(frames, self.last_attenuation, dtype=self.dtype)
-
-        sample: numpy.ndarray = numpy.zeros(0, dtype=self.dtype)
-        for msg in events:
-            offset = msg.time - frame_time
-            match msg.type:
-                case "note_off":
-                    if offset > len(sample):
-                        sample = numpy.concatenate((sample, numpy.full(offset - len(sample), self.last_attenuation)))
-                    self.last_attenuation = 0
-                case "note_on":
-                    if offset > len(sample):
-                        sample = numpy.concatenate((sample, numpy.full(offset - len(sample), self.last_attenuation)))
-                    self.last_attenuation = msg.velocity / 127.0
-
-        if frames > len(sample):
-            sample = numpy.concatenate((sample, numpy.full(frames - len(sample), self.last_attenuation)))
-
-        return sample
-
-
-class Sine(Note):
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-        self.freq = 440.0 * math.exp2((self.note - 69) / 12)
-        self.factor = self.freq * 2.0 * numpy.pi / self.samplerate
-
-    def generate(self, frame_time: int, frames: int) -> numpy.ndarray | None:
-        events = self.get_events(frame_time, frames)
-
-        if not events and not self.next_events:
-            if self.last_attenuation == 0:
-                return None
-            # No events: continue from last known value
-            x = numpy.arange(frame_time, frame_time + frames)
-            return numpy.sin(x * self.factor) * self.last_attenuation
+            return self.synth(frame_time, frames) * self.last_attenuation
 
         sample: numpy.ndarray = numpy.zeros(frames, dtype=self.dtype)
         last_offset = 0
@@ -101,22 +61,44 @@ class Sine(Note):
             match msg.type:
                 case "note_off":
                     if offset > last_offset:
-                        x = numpy.arange(frame_time + last_offset, frame_time + offset)
-                        sample[last_offset:offset] = numpy.sin(x * self.factor) * self.last_attenuation
+                        sample[last_offset:offset] = self.synth(
+                            frame_time + last_offset, offset - last_offset
+                        ) * self.last_attenuation
                     self.last_attenuation = 0
                     last_offset = offset
                 case "note_on":
                     if offset > last_offset:
-                        x = numpy.arange(frame_time + last_offset, frame_time + offset)
-                        sample[last_offset:offset] = numpy.sin(x * self.factor) * self.last_attenuation
+                        sample[last_offset:offset] = self.synth(
+                            frame_time + last_offset, offset - last_offset
+                        ) * self.last_attenuation
                     self.last_attenuation = msg.velocity / 127.0
                     last_offset = offset
 
         if frames > last_offset:
-            x = numpy.arange(frame_time + last_offset, frame_time + frames)
-            sample[last_offset:frames] = numpy.sin(x * self.factor) * self.last_attenuation
+            sample[last_offset:frames] = self.synth(
+                frame_time + last_offset, frames
+            ) * self.last_attenuation
 
         return sample
+
+    def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
+        raise NotImplementedError()
+
+
+class OnOff(Note):
+    def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
+        return numpy.full(frames, 1, dtype=self.dtype)
+
+
+class Sine(Note):
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self.freq = 440.0 * math.exp2((self.note - 69) / 12)
+        self.factor = self.freq * 2.0 * numpy.pi / self.samplerate
+
+    def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
+        x = numpy.arange(frame_time, frame_time + frames, dtype=self.dtype)
+        return numpy.sin(x * self.factor)
 
 
 class Instrument:

@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+
+import argparse
+import asyncio
+import queue
+import sys
+
+import numpy
+
+import pyeep.app
+from pyeep import midisynth
+
+
+class SlowSine(midisynth.Sine):
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self.freq = 1
+        self.factor = self.freq * 2.0 * numpy.pi / self.samplerate
+
+
+class Synth(midisynth.MidiSynth):
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self.queue: queue.Queue[float] = queue.Queue()
+        self.last_output_frame_time: int | None = None
+        self.set_instrument(0, SlowSine)
+
+    def on_process(self, frames: int):
+        super().on_process(frames)
+
+        if self.last_output_frame_time is None:
+            self.last_output_frame_time = self.synth_last_frame_time - 1
+
+        if self.last_output_frame_time < self.synth_last_frame_time:
+            data = self.generate(
+                    self.last_output_frame_time,
+                    self.synth_last_frame_time - self.last_output_frame_time)
+            for val in data:
+                self.queue.put(val)
+            self.last_output_frame_time = self.synth_last_frame_time
+
+
+class App(pyeep.app.App):
+    def __init__(self, args: argparse.Namespace):
+        super().__init__(args)
+        self.synth: Synth = Synth(args.name, 10)
+
+    async def aio_main(self):
+        while not self.shutting_down:
+            asyncio.sleep(0.2)
+
+    def ui_main(self):
+        while not self.shutting_down:
+            val = self.synth.queue.get()
+            print(val)
+
+    def main(self):
+        with self.synth:
+            super().main()
+
+
+def main():
+    parser = App.argparser("MIDI synth test")
+    parser.add_argument("--name", action="store", default="MIDISynth",
+                        help="JACK name to use")
+    args = parser.parse_args()
+
+    with App(args) as app:
+        app.main()
+
+
+if __name__ == "__main__":
+    sys.exit(main())
