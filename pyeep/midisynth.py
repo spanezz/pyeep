@@ -7,6 +7,7 @@ from typing import Callable, Type
 import jack
 import mido
 import numpy
+import scipy.signal
 
 from . import jackmidi
 
@@ -104,6 +105,20 @@ class Sine(Note):
         time = frame_time % self.samplerate
         x = numpy.arange(time, time + frames, dtype=self.dtype)
         return numpy.sin(x * self.factor, dtype=self.dtype)
+
+
+class Saw(Note):
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self.freq = 440.0 * math.exp2((self.note - 69) / 12)
+        self.factor = self.freq / self.samplerate
+
+    def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
+        # Use modulus to prevent passing large integer values to numpy.
+        # float32 would risk losing the least significant digits
+        time = frame_time % self.samplerate
+        x = numpy.arange(time, time + frames, dtype=self.dtype)
+        return scipy.signal.sawtooth(2 * numpy.pi * self.factor * x)
 
 
 class Instrument:

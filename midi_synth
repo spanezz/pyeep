@@ -18,12 +18,20 @@ class SlowSine(midisynth.Sine):
         self.factor = self.freq * 2.0 * numpy.pi / self.samplerate
 
 
+class SlowSaw(midisynth.Sine):
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self.freq = 1
+        self.factor = self.freq / self.samplerate
+
+
 class TextSynth(midisynth.MidiSynth):
     def __init__(self, client, **kw):
         super().__init__(client, out_samplerate=10, **kw)
         self.queue: queue.Queue[float] = queue.Queue()
         self.last_output_frame_time: int | None = None
         self.instruments.set(0, SlowSine)
+        self.instruments.set(1, SlowSaw)
 
     def on_process(self, frames: int):
         super().on_process(frames)
@@ -46,6 +54,7 @@ class AudioSynth(midisynth.MidiSynth):
     def __init__(self, client, **kw):
         super().__init__(client, **kw)
         self.instruments.set(0, midisynth.Sine)
+        self.instruments.set(1, midisynth.Saw)
         self.audio_outport = self.client.outports.register("audio out")
 
     def on_process(self, frames: int):
