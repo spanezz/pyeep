@@ -19,7 +19,7 @@ class Note:
         self.samplerate = samplerate
         self.dtype = dtype
         self.next_events: deque[mido.Message] = deque()
-        self.last_attenuation: float = 0
+        self.last_note: mido.Message | None = None
 
     def get_semitone(self) -> float:
         if (t := self.instrument.transpose):
@@ -37,7 +37,7 @@ class Note:
         """
         Dequeue the events we want to process.
 
-        Update last_attenuation if some events need to be skipped
+        If some events need to be skipped, keep track of the last one
         """
         events: list[mido.Message] = []
         while self.next_events and self.next_events[0].time < frame_time + frames:
@@ -45,12 +45,23 @@ class Note:
             if msg.time < frame_time:
                 match msg.type:
                     case "note_on":
-                        self.last_attenuation = msg.velocity / 127.0
+                        self.last_note = msg
                     case "note_off":
-                        self.last_attenuation = 0
+                        self.last_note = None
             else:
                 events.append(msg)
         return events
+
+    def get_wave(self, frame_time: int, frames: int) -> numpy.ndarray:
+        raise NotImplementedError()
+
+    def get_attenuation(self, frame_time: int, frames: int) -> numpy.ndarray:
+        if self.last_note is None:
+            return 0
+        return numpy.full(frames, self.last_note.velocity / 127, dtype=self.dtype)
+
+    def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
+        return self.get_wave(frame_time, frames) * self.get_attenuation(frame_time, frames)
 
     def generate(self, frame_time: int, frames: int) -> numpy.ndarray | None:
         """
@@ -61,11 +72,10 @@ class Note:
         events = self.get_events(frame_time, frames)
 
         if not events and not self.next_events:
-            if self.last_attenuation == 0:
+            if self.last_note is None:
                 return None
             # No events: continue from last known value
-            res = self.synth(frame_time, frames) * self.last_attenuation
-            return res
+            return self.synth(frame_time, frames)
 
         sample: numpy.ndarray = numpy.zeros(frames, dtype=self.dtype)
         last_offset = 0
@@ -74,37 +84,28 @@ class Note:
             match msg.type:
                 case "note_off":
                     if offset > last_offset:
-                        sample[last_offset:offset] = self.synth(
-                            frame_time + last_offset, offset - last_offset
-                        ) * self.last_attenuation
-                    self.last_attenuation = 0
+                        sample[last_offset:offset] = self.synth(frame_time + last_offset, offset - last_offset)
+                    self.last_note = None
                     last_offset = offset
                 case "note_on":
                     if offset > last_offset:
-                        sample[last_offset:offset] = self.synth(
-                            frame_time + last_offset, offset - last_offset
-                        ) * self.last_attenuation
-                    self.last_attenuation = msg.velocity / 127.0
+                        sample[last_offset:offset] = self.synth(frame_time + last_offset, offset - last_offset)
+                    self.last_note = msg
                     last_offset = offset
 
         if frames > last_offset:
-            sample[last_offset:frames] = self.synth(
-                frame_time + last_offset, frames - last_offset
-            ) * self.last_attenuation
+            sample[last_offset:frames] = self.synth(frame_time + last_offset, frames - last_offset)
 
         return sample
 
-    def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
-        raise NotImplementedError()
-
 
 class OnOff(Note):
-    def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
+    def get_wave(self, frame_time: int, frames: int) -> numpy.ndarray:
         return numpy.full(frames, 1, dtype=self.dtype)
 
 
 class Sine(Note):
-    def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
+    def get_wave(self, frame_time: int, frames: int) -> numpy.ndarray:
         # Use modulus to prevent passing large integer values to numpy.
         # float32 would risk losing the least significant digits
         factor = self.get_freq() * 2.0 * numpy.pi / self.samplerate
@@ -114,7 +115,7 @@ class Sine(Note):
 
 
 class Saw(Note):
-    def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
+    def get_wave(self, frame_time: int, frames: int) -> numpy.ndarray:
         factor = self.get_freq() / self.samplerate
         # Use modulus to prevent passing large integer values to numpy.
         # float32 would risk losing the least significant digits
@@ -149,6 +150,8 @@ class Instrument:
         # entire range of possible Pitch Wheel message values (ie, 0x0000
         # to 0x3FFF) as +/- 2 half steps transposition
         # See http://midi.teragonaudio.com/tech/midispec/wheel.htm
+
+        # FIXME: msg.time is lost here
         self.transpose = msg.pitch
 
     def generate(self, frame_time: int, frames: int) -> numpy.ndarray:
