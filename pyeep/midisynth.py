@@ -57,7 +57,7 @@ class Note:
 
     def get_attenuation(self, frame_time: int, frames: int) -> numpy.ndarray:
         if self.last_note is None:
-            return 0
+            return numpy.zeros(frames, dtype=self.dtype)
         return numpy.full(frames, self.last_note.velocity / 127, dtype=self.dtype)
 
     def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
@@ -99,13 +99,10 @@ class Note:
         return sample
 
 
-class OnOff(Note):
-    def get_wave(self, frame_time: int, frames: int) -> numpy.ndarray:
-        return numpy.full(frames, 1, dtype=self.dtype)
-
-
 class Sine(Note):
     def get_wave(self, frame_time: int, frames: int) -> numpy.ndarray:
+        if self.last_note is None:
+            return numpy.zeros(frames, dtype=self.dtype)
         # Use modulus to prevent passing large integer values to numpy.
         # float32 would risk losing the least significant digits
         factor = self.get_freq() * 2.0 * numpy.pi / self.samplerate
@@ -116,6 +113,8 @@ class Sine(Note):
 
 class Saw(Note):
     def get_wave(self, frame_time: int, frames: int) -> numpy.ndarray:
+        if self.last_note is None:
+            return numpy.zeros(frames, dtype=self.dtype)
         factor = self.get_freq() / self.samplerate
         # Use modulus to prevent passing large integer values to numpy.
         # float32 would risk losing the least significant digits
