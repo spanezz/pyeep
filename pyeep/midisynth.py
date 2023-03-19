@@ -104,7 +104,6 @@ class Sine(Note):
         # Use modulus to prevent passing large integer values to numpy.
         # float32 would risk losing the least significant digits
         if self.instrument.transpose:
-            print("SINE TRASPOSE", self.instrument.transpose)
             note = (self.note - 69) + 2 * self.instrument.transpose / 8192
             freq = 440.0 * math.exp2(note / 12)
             factor = freq * 2.0 * numpy.pi / self.samplerate
@@ -123,7 +122,6 @@ class Saw(Note):
 
     def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
         if self.instrument.transpose:
-            print("SAW TRASPOSE", self.instrument.transpose)
             note = (self.note - 69) + 2 * self.instrument.transpose / 8192
             freq = 440.0 * math.exp2(note / 12)
             factor = freq / self.samplerate
