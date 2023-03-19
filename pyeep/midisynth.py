@@ -21,6 +21,15 @@ class Note:
         self.next_events: deque[mido.Message] = deque()
         self.last_attenuation: float = 0
 
+    def get_semitone(self) -> float:
+        if (t := self.instrument.transpose):
+            return (self.note - 69) + 2 * t / 8192
+        else:
+            return self.note - 69
+
+    def get_freq(self) -> float:
+        return 440.0 * math.exp2(self.get_semitone() / 12)
+
     def add_event(self, msg: mido.Message):
         self.next_events.append(msg)
 
@@ -95,38 +104,18 @@ class OnOff(Note):
 
 
 class Sine(Note):
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-        self.freq = 440.0 * math.exp2((self.note - 69) / 12)
-        self.factor = self.freq * 2.0 * numpy.pi / self.samplerate
-
     def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
         # Use modulus to prevent passing large integer values to numpy.
         # float32 would risk losing the least significant digits
-        if self.instrument.transpose:
-            note = (self.note - 69) + 2 * self.instrument.transpose / 8192
-            freq = 440.0 * math.exp2(note / 12)
-            factor = freq * 2.0 * numpy.pi / self.samplerate
-        else:
-            factor = self.factor
+        factor = self.get_freq() * 2.0 * numpy.pi / self.samplerate
         time = frame_time % self.samplerate
         x = numpy.arange(time, time + frames, dtype=self.dtype)
         return numpy.sin(x * factor, dtype=self.dtype)
 
 
 class Saw(Note):
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-        self.freq = 440.0 * math.exp2((self.note - 69) / 12)
-        self.factor = self.freq / self.samplerate
-
     def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
-        if self.instrument.transpose:
-            note = (self.note - 69) + 2 * self.instrument.transpose / 8192
-            freq = 440.0 * math.exp2(note / 12)
-            factor = freq / self.samplerate
-        else:
-            factor = self.factor
+        factor = self.get_freq() / self.samplerate
         # Use modulus to prevent passing large integer values to numpy.
         # float32 would risk losing the least significant digits
         time = frame_time % self.samplerate

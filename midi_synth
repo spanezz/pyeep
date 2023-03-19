@@ -5,8 +5,6 @@ import asyncio
 import queue
 import sys
 
-import numpy
-
 import pyeep.app
 from pyeep import midisynth
 
@@ -16,17 +14,13 @@ from pyeep import midisynth
 #
 
 class SlowSine(midisynth.Sine):
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-        self.freq = 1
-        self.factor = self.freq * 2.0 * numpy.pi / self.samplerate
+    def get_freq(self):
+        return 1
 
 
 class SlowSaw(midisynth.Sine):
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-        self.freq = 1
-        self.factor = self.freq / self.samplerate
+    def get_freq(self):
+        return 1
 
 
 class TextSynth(midisynth.MidiSynth):
