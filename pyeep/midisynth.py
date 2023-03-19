@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+from __future__ import annotations
 
 import math
 from collections import deque
@@ -13,7 +13,8 @@ from . import jackmidi
 
 
 class Note:
-    def __init__(self, note: int, samplerate: int, dtype):
+    def __init__(self, instrument: "Instrument", note: int, samplerate: int, dtype):
+        self.instrument = instrument
         self.note = note
         self.samplerate = samplerate
         self.dtype = dtype
@@ -102,9 +103,16 @@ class Sine(Note):
     def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
         # Use modulus to prevent passing large integer values to numpy.
         # float32 would risk losing the least significant digits
+        if self.instrument.transpose:
+            print("SINE TRASPOSE", self.instrument.transpose)
+            note = (self.note - 69) + 2 * self.instrument.transpose / 8192
+            freq = 440.0 * math.exp2(note / 12)
+            factor = freq * 2.0 * numpy.pi / self.samplerate
+        else:
+            factor = self.factor
         time = frame_time % self.samplerate
         x = numpy.arange(time, time + frames, dtype=self.dtype)
-        return numpy.sin(x * self.factor, dtype=self.dtype)
+        return numpy.sin(x * factor, dtype=self.dtype)
 
 
 class Saw(Note):
@@ -114,26 +122,47 @@ class Saw(Note):
         self.factor = self.freq / self.samplerate
 
     def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
+        if self.instrument.transpose:
+            print("SAW TRASPOSE", self.instrument.transpose)
+            note = (self.note - 69) + 2 * self.instrument.transpose / 8192
+            freq = 440.0 * math.exp2(note / 12)
+            factor = freq / self.samplerate
+        else:
+            factor = self.factor
         # Use modulus to prevent passing large integer values to numpy.
         # float32 would risk losing the least significant digits
         time = frame_time % self.samplerate
         x = numpy.arange(time, time + frames, dtype=self.dtype)
-        return scipy.signal.sawtooth(2 * numpy.pi * self.factor * x)
+        return scipy.signal.sawtooth(2 * numpy.pi * factor * x)
 
 
 class Instrument:
-    def __init__(self, note_cls: Type[Note], samplerate: int, dtype):
+    def __init__(self, channel: int, note_cls: Type[Note], samplerate: int, dtype):
+        self.channel = channel
         self.note_cls = note_cls
         self.samplerate = samplerate
         self.dtype = dtype
         self.notes: dict[int, Note] = {}
+        self.transpose: int = 0
 
-    def add_event(self, msg: mido.Message):
+    def add_note(self, msg: mido.Message) -> bool:
         if (note := self.notes.get(msg.note)) is None:
-            note = self.note_cls(msg.note, self.samplerate, self.dtype)
+            note = self.note_cls(self, msg.note, self.samplerate, self.dtype)
             self.notes[msg.note] = note
 
         note.add_event(msg)
+        return True
+
+    def add_pitchwheel(self, msg: mido.Message):
+        # Transpose the notes
+        #
+        # Pitch is an integer from from -8192 to 8191
+        #
+        # The GM spec recommends that MIDI devices default to using the
+        # entire range of possible Pitch Wheel message values (ie, 0x0000
+        # to 0x3FFF) as +/- 2 half steps transposition
+        # See http://midi.teragonaudio.com/tech/midispec/wheel.htm
+        self.transpose = msg.pitch
 
     def generate(self, frame_time: int, frames: int) -> numpy.ndarray:
         off: list[int] = []
@@ -167,7 +196,7 @@ class Instruments:
             self.samplerate_conversion = self.out_samplerate / self.in_samplerate
 
     def set(self, channel: int, note_cls: Type[Note]):
-        self.instruments[channel] = Instrument(note_cls, self.out_samplerate, self.dtype)
+        self.instruments[channel] = Instrument(channel, note_cls, self.out_samplerate, self.dtype)
 
     def start_input_frame(self, in_last_frame_time: int):
         if self.samplerate_conversion is not None:
@@ -176,17 +205,28 @@ class Instruments:
             self.out_last_frame_time = in_last_frame_time
 
     def add_event(self, msg: mido.Message) -> bool:
-        if msg.type not in ("note_on", "note_off"):
-            return False
-        if (instrument := self.instruments.get(msg.channel)) is None:
-            return False
+        match msg.type:
+            case "note_on" | "note_off":
+                if (instrument := self.instruments.get(msg.channel)) is None:
+                    return False
 
-        # Convert time from self.in_samplerate to self.out_samplerate
-        if self.samplerate_conversion is not None:
-            msg = msg.copy(time=int(round(msg.time * self.samplerate_conversion)))
+                # Convert time from self.in_samplerate to self.out_samplerate
+                if self.samplerate_conversion is not None:
+                    msg = msg.copy(time=int(round(msg.time * self.samplerate_conversion)))
 
-        instrument.add_event(msg)
-        return True
+                return instrument.add_note(msg)
+
+            case "pitchwheel":
+                # Convert time from self.in_samplerate to self.out_samplerate
+                if self.samplerate_conversion is not None:
+                    msg = msg.copy(time=int(round(msg.time * self.samplerate_conversion)))
+
+                for instrument in self.instruments.values():
+                    instrument.add_pitchwheel(msg)
+
+                return True
+            case _:
+                return False
 
     def generate(self, out_frame_time: int, out_frames: int) -> numpy.ndarray:
         """

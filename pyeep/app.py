@@ -45,7 +45,7 @@ class App(contextlib.ExitStack):
         else:
             log_level = logging.WARN
 
-        if coloredlogs is not None:
+        if HAVE_COLOREDLOGS:
             coloredlogs.install(level=log_level, fmt=FORMAT)
         else:
             logging.basicConfig(level=log_level, stream=sys.stderr, format=FORMAT)

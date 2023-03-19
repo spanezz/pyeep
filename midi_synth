@@ -11,6 +11,10 @@ import pyeep.app
 from pyeep import midisynth
 
 
+#
+# Example downsampling instruments, to control other things than audio
+#
+
 class SlowSine(midisynth.Sine):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -49,6 +53,10 @@ class TextSynth(midisynth.MidiSynth):
                 self.queue.put(val)
             self.last_output_frame_time = out_last_frame_time
 
+
+#
+# Actual audio synth. There are better free synths out there
+#
 
 class AudioSynth(midisynth.MidiSynth):
     def __init__(self, client, **kw):
