@@ -20,9 +20,10 @@ class Note:
         self.dtype = dtype
         self.next_events: deque[mido.Message] = deque()
         self.last_note: mido.Message | None = None
+        self.last_pitchwheel: mido.Message | None = None
 
     def get_semitone(self) -> float:
-        if (t := self.instrument.transpose):
+        if (msg := self.last_pitchwheel) is not None and (t := msg.pitch):
             return (self.note - 69) + 2 * t / 8192
         else:
             return self.note - 69
@@ -32,6 +33,18 @@ class Note:
 
     def add_event(self, msg: mido.Message):
         self.next_events.append(msg)
+
+    def _process_event(self, msg: mido.Message):
+        match msg.type:
+            case "note_on":
+                self.last_note = msg
+            case "note_off":
+                self.last_note = None
+            case "pitchwheel":
+                if msg.pitch == 0:
+                    self.last_pitchwheel = None
+                else:
+                    self.last_pitchwheel = msg
 
     def get_events(self, frame_time: int, frames: int) -> list[mido.Message]:
         """
@@ -43,11 +56,7 @@ class Note:
         while self.next_events and self.next_events[0].time < frame_time + frames:
             msg = self.next_events.popleft()
             if msg.time < frame_time:
-                match msg.type:
-                    case "note_on":
-                        self.last_note = msg
-                    case "note_off":
-                        self.last_note = None
+                self._process_event(msg)
             else:
                 events.append(msg)
         return events
@@ -81,17 +90,10 @@ class Note:
         last_offset = 0
         for msg in events:
             offset = msg.time - frame_time
-            match msg.type:
-                case "note_off":
-                    if offset > last_offset:
-                        sample[last_offset:offset] = self.synth(frame_time + last_offset, offset - last_offset)
-                    self.last_note = None
-                    last_offset = offset
-                case "note_on":
-                    if offset > last_offset:
-                        sample[last_offset:offset] = self.synth(frame_time + last_offset, offset - last_offset)
-                    self.last_note = msg
-                    last_offset = offset
+            if offset > last_offset:
+                sample[last_offset:offset] = self.synth(frame_time + last_offset, offset - last_offset)
+            self._process_event(msg)
+            last_offset = offset
 
         if frames > last_offset:
             sample[last_offset:frames] = self.synth(frame_time + last_offset, frames - last_offset)
@@ -130,7 +132,6 @@ class Instrument:
         self.samplerate = samplerate
         self.dtype = dtype
         self.notes: dict[int, Note] = {}
-        self.transpose: int = 0
 
     def add_note(self, msg: mido.Message) -> bool:
         if (note := self.notes.get(msg.note)) is None:
@@ -149,9 +150,8 @@ class Instrument:
         # entire range of possible Pitch Wheel message values (ie, 0x0000
         # to 0x3FFF) as +/- 2 half steps transposition
         # See http://midi.teragonaudio.com/tech/midispec/wheel.htm
-
-        # FIXME: msg.time is lost here
-        self.transpose = msg.pitch
+        for note in self.notes.values():
+            note.add_event(msg)
 
     def generate(self, frame_time: int, frames: int) -> numpy.ndarray:
         off: list[int] = []
