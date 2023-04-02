@@ -5,6 +5,7 @@ import contextlib
 import sys
 import logging
 import threading
+from typing import Type
 
 try:
     import coloredlogs
@@ -16,10 +17,10 @@ log = logging.getLogger(__name__)
 
 
 class Component:
-    def __init__(self, *, name: str | None = None):
+    def __init__(self, *, hub: "Hub", name: str | None = None):
         self.name = name if name is not None else self.__class__.__name__.lower()
         self.logger = logging.getLogger(name)
-        self.hub: "Hub" | None = None
+        self.hub = hub
         self.shutting_down = False
 
     def shutdown(self):
@@ -67,8 +68,8 @@ class Hub:
         elif (c := self.components.get(msg.dst)) is not None:
             c.receive(msg)
 
-    def add_component(self, component: Component) -> bool:
-        return False
+    def add_component(self, component_cls: Type[Component], **kwargs) -> Component | None:
+        return None
 
     def shutdown(self):
         for c in self.components.values():
@@ -112,12 +113,12 @@ class App(contextlib.ExitStack):
         hub.app = self
         self.hubs[hub.name] = hub
 
-    def add_component(self, component: Component):
+    def add_component(self, component_cls: Type[Component], **kwargs) -> Component:
         for hub in self.hubs.values():
-            if hub.add_component(component):
-                break
+            if (c := hub.add_component(component_cls, **kwargs)):
+                return c
         else:
-            log.error("%s: component not claimed by any threads", component.name)
+            raise RuntimeError(f"{component_cls}: component not claimed by any hub")
 
     def send(self, msg: Message):
         log.debug("%s → %s: %s", msg.src.name if msg.src else "None", msg.dst, msg)

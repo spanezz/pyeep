@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import logging
-from typing import Generator
+from typing import Generator, Type
 
 import gi
 
@@ -64,13 +64,14 @@ class GtkHub(Hub):
     def shutdown(self):
         pyeep.gtk.GLib.idle_add(super().shutdown)
 
-    def add_component(self, component: Component) -> bool:
-        if isinstance(component, GtkComponent):
+    def add_component(self, component_cls: Type[Component], **kwargs) -> Component:
+        if issubclass(component_cls, GtkComponent):
+            kwargs["hub"] = self
+            component = component_cls(**kwargs)
             self.components[component.name] = component
-            component.hub = self
-            return True
+            return component
 
-        return super().add_component(component)
+        return super().add_component(component_cls, **kwargs)
 
 
 class GtkApp(App):

@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import math
+import threading
 from collections import deque
-from typing import Callable, Type
+from typing import Type
 
-import jack
 import mido
 import numpy
 import scipy.signal
 
 from . import jackmidi
+from .app import Message
 
 
 class Note:
@@ -232,23 +233,31 @@ class Instruments:
             return numpy.zeros(out_frames, dtype=self.dtype)
 
 
+class MidiProcessed(Message):
+    def __init__(self, messages: list[mido.Message], **kwargs):
+        super().__init__(**kwargs)
+        self.messages = messages
+
+
 class MidiSynth(jackmidi.MidiReceiver):
     """
     Dispatch MIDI events to a software bank of instruments and notes, and
     generate the mixed waveforms
     """
-    def __init__(self, client: jack.Client, *, out_samplerate: int | None = None, **kw):
-        super().__init__(client, **kw)
+    def __init__(self, *, out_samplerate: int | None = None, midi_snoop: bool = False, **kwargs):
+        super().__init__(**kwargs)
         if out_samplerate is None:
             self.out_samplerate = self.samplerate
         else:
             self.out_samplerate = out_samplerate
+        self.midi_snoop = midi_snoop
         self.dtype = numpy.float32
-        self.instruments = Instruments(self.samplerate, self.out_samplerate, self.dtype)
+        self.instrument_banks: set[Instruments] = set()
+        self.instrument_banks_lock = threading.Lock()
 
-        # Set to a callable to have it invoked at each processing step
-        # when midi are processed, with the midi messages that were processed
-        self.midi_snoop: Callable[[list[mido.Message]], None] | None = None
+    def add_instrument_bank(self, instruments: Instruments):
+        with self.instrument_banks_lock:
+            self.instrument_banks.add(instruments)
 
     def on_process(self, frames: int):
         """
@@ -257,12 +266,14 @@ class MidiSynth(jackmidi.MidiReceiver):
         midi_processed: list[mido.Message] | None = (
                 [] if self.midi_snoop is not None else None)
 
-        self.instruments.start_input_frame(self.client.last_frame_time)
+        with self.instrument_banks_lock:
+            for instruments in self.instrument_banks:
+                instruments.start_input_frame(self.jack_client.last_frame_time)
 
-        for msg in self.read_events():
-            if self.instruments.add_event(msg):
-                if midi_processed is not None:
-                    midi_processed.append(msg)
+            for msg in self.read_events():
+                if any(i.add_event(msg) for i in self.instrument_banks):
+                    if midi_processed is not None:
+                        midi_processed.append(msg)
 
         if midi_processed:
-            self.midi_snoop(midi_processed)
+            self.send(MidiProcessed(messages=midi_processed))

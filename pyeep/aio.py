@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from typing import Type
 
 from .app import App, Component, ThreadHub, Message
 
@@ -51,13 +52,14 @@ class AIOThread(ThreadHub):
             *(c.run() for c in self.components.values())
         )
 
-    def add_component(self, component: Component) -> bool:
-        if isinstance(component, AIOComponent):
+    def add_component(self, component_cls: Type[Component], **kwargs) -> Component:
+        if issubclass(component_cls, AIOComponent):
+            kwargs["hub"] = self
+            component = component_cls(**kwargs)
             self.components[component.name] = component
-            component.hub = self
-            return True
+            return component
 
-        return super().add_component(component)
+        return super().add_component(component_cls, **kwargs)
 
 
 class AIOApp(App):
