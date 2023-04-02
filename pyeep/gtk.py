@@ -76,6 +76,7 @@ class GtkApp(App):
             logging.getLogger().removeHandler(log_handler)
 
     def main_loop(self):
+        super().main_loop()
         self.window.show_all()
         with self.gtk_logging():
             Gtk.main()
