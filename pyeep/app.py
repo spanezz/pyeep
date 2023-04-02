@@ -50,6 +50,7 @@ class Hub:
         self.name = name
         self.app: "App" | None = None
         self.components: dict[str, Component] = {}
+        self.shutting_down = False
 
     def start(self):
         pass
@@ -72,6 +73,7 @@ class Hub:
         return None
 
     def shutdown(self):
+        self.shutting_down = True
         for c in self.components.values():
             c.shutdown()
 
@@ -99,6 +101,7 @@ class App(contextlib.ExitStack):
         self.args = args
         self.shutting_down = False
         self.hubs: dict[str, Hub] = {}
+        self.hubs_lock = threading.Lock()
 
     @classmethod
     def argparser(cls, description: str) -> argparse.ArgumentParser:
@@ -111,7 +114,12 @@ class App(contextlib.ExitStack):
 
     def add_hub(self, hub: Hub):
         hub.app = self
-        self.hubs[hub.name] = hub
+        with self.hubs_lock:
+            self.hubs[hub.name] = hub
+
+    def remove_hub(self, hub: Hub):
+        with self.hubs_lock:
+            self.hubs.pop(hub.name)
 
     def add_component(self, component_cls: Type[Component], **kwargs) -> Component:
         for hub in self.hubs.values():
@@ -128,9 +136,11 @@ class App(contextlib.ExitStack):
     def shutdown(self):
         self.send(Shutdown())
         self.shutting_down = True
-        for hub in self.hubs.values():
+        with self.hubs_lock:
+            hubs = list(self.hubs.values())
+        for hub in hubs:
             hub.shutdown()
-        for hub in self.hubs.values():
+        for hub in hubs:
             hub.join()
 
     def setup_logging(self):

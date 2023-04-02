@@ -59,6 +59,8 @@ class GtkHub(Hub):
         super().__init__(name="gtk")
 
     def receive(self, msg: Message):
+        if self.shutting_down:
+            return
         pyeep.gtk.GLib.idle_add(super().receive, msg)
 
     def shutdown(self):

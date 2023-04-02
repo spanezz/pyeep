@@ -34,7 +34,7 @@ class AIOThread(ThreadHub):
         self.loop: asyncio.AbstractEventLoop | None = None
 
     def receive(self, msg: Message):
-        if self.loop is None:
+        if self.loop is None or self.shutting_down:
             return
         self.loop.call_soon_threadsafe(super().receive, msg)
 
@@ -48,9 +48,11 @@ class AIOThread(ThreadHub):
 
     async def aio_main(self):
         self.loop = asyncio.get_event_loop()
-        await asyncio.gather(
-            *(c.run() for c in self.components.values())
-        )
+        async with asyncio.TaskGroup() as tg:
+            for c in self.components.values():
+                tg.create_task(c.run())
+        self.loop = None
+        self.app.remove_hub(self)
 
     def add_component(self, component_cls: Type[Component], **kwargs) -> Component:
         if issubclass(component_cls, AIOComponent):
