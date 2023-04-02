@@ -6,7 +6,8 @@ from typing import Generator, Optional, Self
 import jack
 import mido
 
-from pyeep.deltalist import DeltaList, Event
+from .deltalist import DeltaList, Event
+from .jack import JackComponent
 
 # See:
 # https://github.com/jackaudio/jackaudio.github.com/wiki/WalkThrough_Dev_LatencyBufferProcess
@@ -71,16 +72,6 @@ class MidiEvent(Event):
 
     def __repr__(self):
         return f"MidiEvent({self.msg}, +{self.frame_delay})"
-
-
-class JackComponent:
-    def __init__(self, client: jack.Client):
-        super().__init__()
-        self.client = client
-        self.samplerate = self.client.samplerate
-
-    def on_process(self, frames: int):
-        raise NotImplementedError(f"{self.__class__.__name__}.on_process not implemented")
 
 
 class MidiPlayer(JackComponent):

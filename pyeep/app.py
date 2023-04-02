@@ -1,15 +1,10 @@
 from __future__ import annotations
 
 import argparse
-import asyncio
 import contextlib
 import sys
 import logging
 import threading
-from typing import Type, TypeVar
-
-import jack
-from .jackmidi import JackComponent
 
 try:
     import coloredlogs
@@ -17,12 +12,37 @@ try:
 except ModuleNotFoundError:
     HAVE_COLOREDLOGS = False
 
+log = logging.getLogger(__name__)
+
+
+class Component:
+    def __init__(self, name: str):
+        self.name = name
+        self.shutting_down = False
+
+    def shutdown(self):
+        self.shutting_down = True
+
+
+class Thread(threading.Thread):
+    def __init__(self, name: str):
+        super().__init__(name=name)
+        self.components: dict[str, Component] = {}
+
+    def add_component(self, component: Component) -> bool:
+        return False
+
+    def shutdown(self):
+        for c in self.components.values():
+            c.shutdown()
+
 
 class App(contextlib.ExitStack):
     def __init__(self, args: argparse.Namespace, **kw):
         super().__init__()
         self.args = args
         self.shutting_down = False
+        self.threads: dict[str, Thread] = {}
 
     @classmethod
     def argparser(cls, description: str) -> argparse.ArgumentParser:
@@ -33,8 +53,22 @@ class App(contextlib.ExitStack):
                             help="verbose output")
         return parser
 
+    def add_thread(self, thread: Thread):
+        self.threads[thread.name] = thread
+
+    def add_component(self, component: Component):
+        for threads in self.threads.values():
+            if threads.add_component(component):
+                break
+        else:
+            log.error("%s: component not claimed by any threads", component.name)
+
     def shutdown(self):
         self.shutting_down = True
+        for c in self.threads.values():
+            c.shutdown()
+        for c in self.threads.values():
+            c.join()
 
     def setup_logging(self):
         FORMAT = "%(levelname)s %(name)s %(message)s"
@@ -50,57 +84,19 @@ class App(contextlib.ExitStack):
         else:
             logging.basicConfig(level=log_level, stream=sys.stderr, format=FORMAT)
 
-    async def aio_main(self):
+    def main_loop(self):
         pass
-
-    def ui_main(self):
-        pass
-
-    def _aio_thread(self):
-        asyncio.run(self.aio_main())
 
     def main_init(self):
         self.setup_logging()
+        for thread in self.threads.values():
+            thread.start()
 
     def main(self):
         self.main_init()
-        aio_thread = threading.Thread(target=self._aio_thread, name="aio")
-        aio_thread.start()
         try:
-            self.ui_main()
+            self.main_loop()
         except KeyboardInterrupt:
             pass
         finally:
             self.shutdown()
-            aio_thread.join()
-
-
-AppJackComponent = TypeVar("AppJackComponent", bound=JackComponent)
-
-
-class JackApp(App):
-    def __init__(self, args: argparse.Namespace, **kw):
-        super().__init__(args, **kw)
-        self.jack_client = jack.Client(self.args.name)
-        self.jack_client.set_process_callback(self.on_process)
-        self.jack_components: list[JackComponent] = []
-
-    def add_jack_component(self, cls: Type[AppJackComponent], **kwargs) -> JackComponent:
-        component = cls(self.jack_client, **kwargs)
-        self.jack_components.append(component)
-        return component
-
-    def on_process(self, frames: int):
-        for c in self.jack_components:
-            c.on_process(frames)
-
-    def main_init(self):
-        super().main_init()
-        self.enter_context(self.jack_client)
-
-    @classmethod
-    def argparser(cls, name: str, description: str) -> argparse.ArgumentParser:
-        parser = super().argparser(description)
-        parser.add_argument("--name", action="store", default=name,
-                            help="JACK name to use")
-        return parser

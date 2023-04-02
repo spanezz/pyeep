@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import logging
+from typing import Generator
 
 import gi
 
@@ -37,7 +39,7 @@ class LogView(Gtk.ScrolledWindow):
             buffer.delete(start, line1)
 
 
-class GtkHandler(logging.Handler):
+class GtkLoggingHandler(logging.Handler):
     def __init__(self, view: LogView, level=logging.NOTSET):
         super().__init__(level)
         self.view = view
@@ -60,16 +62,20 @@ class GtkApp(App):
         self.logview = LogView()
         self.vbox.pack_end(self.logview, True, True, 0)
 
-    def setup_curses_logging(self):
+    @contextlib.contextmanager
+    def gtk_logging(self) -> Generator[None]:
         FORMAT = "%(levelname)s %(name)s %(message)s"
         formatter = logging.Formatter(FORMAT)
-        self.log_handler = GtkHandler(self.logview)
-        self.log_handler.setFormatter(formatter)
+        log_handler = GtkLoggingHandler(self.logview)
+        log_handler.setFormatter(formatter)
         # self.log_handler.propagate = False
-        logging.getLogger().addHandler(self.log_handler)
+        logging.getLogger().addHandler(log_handler)
+        try:
+            yield
+        finally:
+            logging.getLogger().removeHandler(log_handler)
 
-    def ui_main(self):
+    def main_loop(self):
         self.window.show_all()
-        self.setup_curses_logging()
-        Gtk.main()
-        logging.getLogger().removeHandler(self.log_handler)
+        with self.gtk_logging():
+            Gtk.main()
