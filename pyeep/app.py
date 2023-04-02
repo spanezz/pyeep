@@ -19,7 +19,7 @@ class Component:
     def __init__(self, *, name: str | None = None):
         self.name = name if name is not None else self.__class__.__name__.lower()
         self.logger = logging.getLogger(name)
-        self.thread: "Thread" | None = None
+        self.hub: "Hub" | None = None
         self.shutting_down = False
 
     def shutdown(self):
@@ -27,8 +27,8 @@ class Component:
 
     def send(self, msg: "Message"):
         msg.src = self
-        if self.thread is not None:
-            self.thread.send(msg)
+        if self.hub is not None:
+            self.hub.send(msg)
 
     def receive(self, msg: "Message"):
         pass
@@ -44,11 +44,17 @@ class Shutdown(Message):
     pass
 
 
-class Thread(threading.Thread):
+class Hub:
     def __init__(self, name: str):
-        super().__init__(name=name)
+        self.name = name
         self.app: "App" | None = None
         self.components: dict[str, Component] = {}
+
+    def start(self):
+        pass
+
+    def join(self):
+        pass
 
     def send(self, msg: Message):
         if self.app is not None:
@@ -69,12 +75,29 @@ class Thread(threading.Thread):
             c.shutdown()
 
 
+class ThreadHub(Hub):
+    def __init__(self, name: str):
+        super().__init__(name=name)
+        self.thread = threading.Thread(name=name, target=self.run)
+
+    def start(self):
+        super().start()
+        self.thread.start()
+
+    def join(self):
+        super().join()
+        self.thread.join()
+
+    def run(self):
+        raise NotImplementedError("ThreadHub.run")
+
+
 class App(contextlib.ExitStack):
     def __init__(self, args: argparse.Namespace, **kw):
         super().__init__()
         self.args = args
         self.shutting_down = False
-        self.threads: dict[str, Thread] = {}
+        self.hubs: dict[str, Hub] = {}
 
     @classmethod
     def argparser(cls, description: str) -> argparse.ArgumentParser:
@@ -85,29 +108,29 @@ class App(contextlib.ExitStack):
                             help="verbose output")
         return parser
 
-    def add_thread(self, thread: Thread):
-        thread.app = self
-        self.threads[thread.name] = thread
+    def add_hub(self, hub: Hub):
+        hub.app = self
+        self.hubs[hub.name] = hub
 
     def add_component(self, component: Component):
-        for threads in self.threads.values():
-            if threads.add_component(component):
+        for hub in self.hubs.values():
+            if hub.add_component(component):
                 break
         else:
             log.error("%s: component not claimed by any threads", component.name)
 
     def send(self, msg: Message):
         log.debug("%s → %s: %s", msg.src.name if msg.src else "None", msg.dst, msg)
-        for thread in self.threads.values():
-            thread.receive(msg)
+        for hub in self.hubs.values():
+            hub.receive(msg)
 
     def shutdown(self):
         self.send(Shutdown())
         self.shutting_down = True
-        for c in self.threads.values():
-            c.shutdown()
-        for c in self.threads.values():
-            c.join()
+        for hub in self.hubs.values():
+            hub.shutdown()
+        for hub in self.hubs.values():
+            hub.join()
 
     def setup_logging(self):
         FORMAT = "%(levelname)s %(name)s %(message)s"
@@ -128,8 +151,8 @@ class App(contextlib.ExitStack):
 
     def main_init(self):
         self.setup_logging()
-        for thread in self.threads.values():
-            thread.start()
+        for hub in self.hubs.values():
+            hub.start()
 
     def main(self):
         self.main_init()

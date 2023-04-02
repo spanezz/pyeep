@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 
-from .app import App, Component, Thread, Message
+from .app import App, Component, ThreadHub, Message
 
 
 class AIOComponent(Component):
@@ -27,7 +27,7 @@ class AIOComponent(Component):
         pass
 
 
-class AIOThread(Thread):
+class AIOThread(ThreadHub):
     def __init__(self):
         super().__init__(name="aio")
         self.loop: asyncio.AbstractEventLoop | None = None
@@ -54,7 +54,7 @@ class AIOThread(Thread):
     def add_component(self, component: Component) -> bool:
         if isinstance(component, AIOComponent):
             self.components[component.name] = component
-            component.thread = self
+            component.hub = self
             return True
 
         return super().add_component(component)
@@ -63,4 +63,4 @@ class AIOThread(Thread):
 class AIOApp(App):
     def __init__(self, args: argparse.Namespace, **kw):
         super().__init__(args, **kw)
-        self.add_thread(AIOThread())
+        self.add_hub(AIOThread())

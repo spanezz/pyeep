@@ -7,7 +7,8 @@ from typing import Generator
 
 import gi
 
-from .app import App
+from .app import App, Hub, Message, Component
+import pyeep.gtk
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GLib", "2.0")
@@ -49,9 +50,34 @@ class GtkLoggingHandler(logging.Handler):
         self.view.append(line)
 
 
+class GtkComponent(Component):
+    pass
+
+
+class GtkHub(Hub):
+    def __init__(self):
+        super().__init__(name="gtk")
+
+    def receive(self, msg: Message):
+        pyeep.gtk.GLib.idle_add(super().receive, msg)
+
+    def shutdown(self):
+        pyeep.gtk.GLib.idle_add(super().shutdown)
+
+    def add_component(self, component: Component) -> bool:
+        if isinstance(component, GtkComponent):
+            self.components[component.name] = component
+            component.hub = self
+            return True
+
+        return super().add_component(component)
+
+
 class GtkApp(App):
     def __init__(self, args: argparse.Namespace, *, title: str, **kw):
         super().__init__(args, **kw)
+        self.add_hub(GtkHub())
+
         self.window = Gtk.Window(title=title)
         self.window.set_default_size(400, 300)
         self.window.connect("destroy", Gtk.main_quit)
