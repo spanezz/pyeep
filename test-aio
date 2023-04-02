@@ -17,7 +17,7 @@ class AIOTick(AIOComponent):
 class App(AIOApp):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
-        self.add_component(AIOTick("aio_tick"))
+        self.add_component(AIOTick(name="aio_tick"))
 
     def main_loop(self):
         while not self.shutting_down:

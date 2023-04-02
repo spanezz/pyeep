@@ -16,18 +16,50 @@ log = logging.getLogger(__name__)
 
 
 class Component:
-    def __init__(self, name: str):
-        self.name = name
+    def __init__(self, *, name: str | None = None):
+        self.name = name if name is not None else self.__class__.__name__.lower()
+        self.logger = logging.getLogger(name)
+        self.thread: "Thread" | None = None
         self.shutting_down = False
 
     def shutdown(self):
         self.shutting_down = True
 
+    def send(self, msg: "Message"):
+        msg.src = self
+        if self.thread is not None:
+            self.thread.send(msg)
+
+    def receive(self, msg: "Message"):
+        pass
+
+
+class Message:
+    def __init__(self, *, src: Component | None = None, dst: str | None = None):
+        self.src = src
+        self.dst = dst
+
+
+class Shutdown(Message):
+    pass
+
 
 class Thread(threading.Thread):
     def __init__(self, name: str):
         super().__init__(name=name)
+        self.app: "App" | None = None
         self.components: dict[str, Component] = {}
+
+    def send(self, msg: Message):
+        if self.app is not None:
+            self.app.send(msg)
+
+    def receive(self, msg: Message):
+        if msg.dst is None:
+            for c in self.components.values():
+                c.receive(msg)
+        elif (c := self.components.get(msg.dst)) is not None:
+            c.receive(msg)
 
     def add_component(self, component: Component) -> bool:
         return False
@@ -54,6 +86,7 @@ class App(contextlib.ExitStack):
         return parser
 
     def add_thread(self, thread: Thread):
+        thread.app = self
         self.threads[thread.name] = thread
 
     def add_component(self, component: Component):
@@ -63,7 +96,13 @@ class App(contextlib.ExitStack):
         else:
             log.error("%s: component not claimed by any threads", component.name)
 
+    def send(self, msg: Message):
+        log.debug("%s → %s: %s", msg.src.name if msg.src else "None", msg.dst, msg)
+        for thread in self.threads.values():
+            thread.receive(msg)
+
     def shutdown(self):
+        self.send(Shutdown())
         self.shutting_down = True
         for c in self.threads.values():
             c.shutdown()
