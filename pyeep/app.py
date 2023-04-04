@@ -7,7 +7,7 @@ import sys
 import logging
 import threading
 from queue import Queue
-from typing import Callable, IO, Type
+from typing import Any, Callable, IO, Type
 
 try:
     import coloredlogs
@@ -128,14 +128,22 @@ class Hub:
         elif (c := self.components.get(msg.dst)) is not None:
             c.receive(msg)
 
-    def add_component(self, component_cls: Type[Component], **kwargs) -> Component:
+    def fill_component_kwargs(self, kwargs: dict[str, Any]):
+        """
+        Perform dependency injection on newly created components for this hub,
+        by adding keyword arguments to their constructor
+        """
+        kwargs["hub"] = self
+
+    def add_component(self, component: Component):
         """
         Add a new component to this hub
         """
-        kwargs["hub"] = self
-        component = component_cls(**kwargs)
+        self._hub_thread_add_component(component)
+
+    def _hub_thread_add_component(self, component):
         self.components[component.name] = component
-        return component
+        self.logger.debug("new component %r", component.name)
 
 
 class App(contextlib.ExitStack):
@@ -190,12 +198,13 @@ class App(contextlib.ExitStack):
         Add a new component to the application
         """
         if (hub := self.hubs.get(component_cls.HUB)) is None:
-            log.warning(
-                "Cannot schedule %s: missing hub %r",
-                component_cls.__module__ + "." + component_cls.__qualname__,
-                component_cls.HUB)
-            return
-        return hub.add_component(component_cls, **kwargs)
+            raise RuntimeError(
+                f"Cannot schedule {component_cls.__module__}.{component_cls.__qualname__}:"
+                f" missing hub {component_cls.HUB!r}")
+        hub.fill_component_kwargs(kwargs)
+        component = component_cls(**kwargs)
+        hub.add_component(component)
+        return component
 
     def send(self, msg: Message):
         """

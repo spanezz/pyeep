@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import threading
-from typing import Type
 
 from .app import App, Component, Hub, Message
 
@@ -84,13 +83,18 @@ class AIOThread(Hub):
         self.tasks.add(task)
         task.add_done_callback(self.tasks.discard)
 
-    def add_component(self, component_cls: Type[Component], **kwargs) -> Component:
-        component = super().add_component(component_cls, **kwargs)
+    def add_component(self, component: Component):
+        if self.loop is None:
+            self._hub_thread_add_component(component)
+        else:
+            self.loop.call_soon_threadsafe(self._hub_thread_add_component, component)
+
+    def _hub_thread_add_component(self, component):
+        super()._hub_thread_add_component(component)
         if self.loop:
             # If we have no loop, then all components in self.components are
             # scheduled to start when the loop starts
-            self.loop.call_soon_threadsafe(self._start_component, component)
-        return component
+            self._start_component(component)
 
 
 class AIOApp(App):

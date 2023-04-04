@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-from typing import Type
+from typing import Any
 
 import jack
 
-from .app import Component, App, Hub
+from .app import App, Component, Hub, Message
 
 
 class JackComponent(Component):
+    HUB = "jack"
+
     def __init__(self, jack_client: jack.Client, **kwargs):
         super().__init__(**kwargs)
         self.jack_client = jack_client
@@ -20,29 +22,29 @@ class JackComponent(Component):
 
 
 class JackHub(Hub):
-    def __init__(self, jack_name: str):
-        super().__init__(name="JACK")
+    def __init__(self, jack_name: str, **kwargs):
+        kwargs.setdefault("name", "jack")
+        super().__init__(**kwargs)
         self.jack_client = jack.Client(jack_name)
         self.jack_client.set_process_callback(self.on_process)
         self.stack = contextlib.ExitStack()
 
     def start(self):
-        self.stack.enter_context(self.jack_client)
         super().start()
+        self.stack.enter_context(self.jack_client)
 
-    def shutdown(self):
-        super().shutdown()
+    def join(self):
         self.stack.close()
+        super().join()
 
-    def add_component(self, component_cls: Type[Component], **kwargs) -> Component:
-        if issubclass(component_cls, JackComponent):
-            kwargs["hub"] = self
-            kwargs["jack_client"] = self.jack_client
-            component = component_cls(**kwargs)
-            self.components[component.name] = component
-            return component
+    def _hub_thread_receive(self, msg: Message):
+        super()._hub_thread_receive(msg)
+        if msg.name == "shutdown":
+            self.app.remove_hub(self)
 
-        return super().add_component(component_cls, **kwargs)
+    def fill_component_kwargs(self, kwargs: dict[str, Any]):
+        super().fill_component_kwargs(kwargs)
+        kwargs["jack_client"] = self.jack_client
 
     def on_process(self, frames: int):
         for c in self.components.values():
@@ -52,7 +54,7 @@ class JackHub(Hub):
 class JackApp(App):
     def __init__(self, args: argparse.Namespace, **kw):
         super().__init__(args, **kw)
-        self.add_hub(JackHub(jack_name=self.args.name))
+        self.add_hub(JackHub, jack_name=self.args.name)
 
     @classmethod
     def argparser(cls, name: str, description: str) -> argparse.ArgumentParser:

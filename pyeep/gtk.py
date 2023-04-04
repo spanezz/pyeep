@@ -76,6 +76,9 @@ class GtkHub(Hub):
         if msg.name == "shutdown":
             Gtk.main_quit()
 
+    def add_component(self, component: Component):
+        pyeep.gtk.GLib.idle_add(self._hub_thread_add_component, component)
+
     def run(self):
         Gtk.main()
         self.app.remove_hub(self)
