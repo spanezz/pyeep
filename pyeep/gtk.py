@@ -1,19 +1,19 @@
 from __future__ import annotations
 
 import argparse
-import contextlib
 import logging
-from typing import Generator, Type
+import threading
 
 import gi
 
-from .app import App, Hub, Message, Component
 import pyeep.gtk
+
+from .app import App, Component, Hub, Message, Shutdown
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GLib", "2.0")
 
-from gi.repository import Gtk, GLib  # noqa
+from gi.repository import GLib, Gtk  # noqa
 
 
 class LogView(Gtk.ScrolledWindow):
@@ -47,43 +47,48 @@ class GtkLoggingHandler(logging.Handler):
 
     def emit(self, record):
         line = self.format(record)
-        self.view.append(line)
+        pyeep.gtk.GLib.idle_add(self.view.append, line)
 
 
 class GtkComponent(Component):
-    pass
+    HUB = "gtk"
 
 
 class GtkHub(Hub):
-    def __init__(self):
-        super().__init__(name="gtk")
+    def __init__(self, **kwargs):
+        kwargs.setdefault("name", "gtk")
+        super().__init__(**kwargs)
+        self.thread = threading.Thread(name=self.name, target=self.run)
+
+    def start(self):
+        super().start()
+        self.thread.start()
+
+    def join(self):
+        super().join()
+        self.thread.join()
 
     def receive(self, msg: Message):
-        if self.shutting_down:
-            return
-        pyeep.gtk.GLib.idle_add(super().receive, msg)
+        pyeep.gtk.GLib.idle_add(self._hub_thread_receive, msg)
 
-    def shutdown(self):
-        pyeep.gtk.GLib.idle_add(super().shutdown)
+    def _hub_thread_receive(self, msg: Message):
+        super()._hub_thread_receive(msg)
+        if msg.name == "shutdown":
+            Gtk.main_quit()
 
-    def add_component(self, component_cls: Type[Component], **kwargs) -> Component:
-        if issubclass(component_cls, GtkComponent):
-            kwargs["hub"] = self
-            component = component_cls(**kwargs)
-            self.components[component.name] = component
-            return component
-
-        return super().add_component(component_cls, **kwargs)
+    def run(self):
+        Gtk.main()
+        self.app.remove_hub(self)
 
 
 class GtkApp(App):
     def __init__(self, args: argparse.Namespace, *, title: str, **kw):
         super().__init__(args, **kw)
-        self.add_hub(GtkHub())
+        self.add_hub(GtkHub)
 
         self.window = Gtk.Window(title=title)
         self.window.set_default_size(400, 300)
-        self.window.connect("destroy", Gtk.main_quit)
+        self.window.connect("destroy", self._destroy)
 
         self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.window.add(self.vbox)
@@ -91,21 +96,22 @@ class GtkApp(App):
         self.logview = LogView()
         self.vbox.pack_end(self.logview, True, True, 0)
 
-    @contextlib.contextmanager
-    def gtk_logging(self) -> Generator[None]:
+    def _destroy(self, win):
+        self.send(Shutdown())
+        Gtk.main_quit()
+
+    def setup_logging(self):
+        super().setup_logging()
+        pyeep.gtk.GLib.idle_add(self._setup_gtk_logging)
+
+    def _setup_gtk_logging(self):
         FORMAT = "%(levelname)s %(name)s %(message)s"
         formatter = logging.Formatter(FORMAT)
         log_handler = GtkLoggingHandler(self.logview)
         log_handler.setFormatter(formatter)
         # self.log_handler.propagate = False
         logging.getLogger().addHandler(log_handler)
-        try:
-            yield
-        finally:
-            logging.getLogger().removeHandler(log_handler)
 
-    def main_loop(self):
-        super().main_loop()
+    def main_init(self):
+        super().main_init()
         self.window.show_all()
-        with self.gtk_logging():
-            Gtk.main()
