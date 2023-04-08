@@ -10,10 +10,11 @@ import pyeep.gtk
 
 from .app import App, Component, Hub, Message, Shutdown
 
-gi.require_version("Gtk", "3.0")
+gi.require_version("Gtk", "4.0")
 gi.require_version("GLib", "2.0")
+gi.require_version('Adw', '1')
 
-from gi.repository import GLib, Gtk  # noqa
+from gi.repository import Adw, GLib, Gtk  # noqa
 
 
 class LogView(Gtk.ScrolledWindow):
@@ -23,7 +24,7 @@ class LogView(Gtk.ScrolledWindow):
         self.textview.set_editable(False)
         self.textview.set_cursor_visible(False)
         self.textview.set_monospace(True)
-        self.add(self.textview)
+        self.set_child(self.textview)
         self.max_lines = max_lines
 
     def append(self, text: str):
@@ -55,10 +56,11 @@ class GtkComponent(Component):
 
 
 class GtkHub(Hub):
-    def __init__(self, **kwargs):
+    def __init__(self, gtk_app: Gtk.Application, **kwargs):
         kwargs.setdefault("name", "gtk")
         super().__init__(**kwargs)
         self.thread = threading.Thread(name=self.name, target=self.run)
+        self.gtk_app = gtk_app
 
     def start(self):
         super().start()
@@ -74,34 +76,45 @@ class GtkHub(Hub):
     def _hub_thread_receive(self, msg: Message):
         super()._hub_thread_receive(msg)
         if msg.name == "shutdown":
-            Gtk.main_quit()
+            self.app.app.quit()
 
     def add_component(self, component: Component):
         pyeep.gtk.GLib.idle_add(self._hub_thread_add_component, component)
 
     def run(self):
-        Gtk.main()
+        self.gtk_app.run(None)
+        self.send(Shutdown())
         self.app.remove_hub(self)
 
 
 class GtkApp(App):
-    def __init__(self, args: argparse.Namespace, *, title: str, **kw):
-        super().__init__(args, **kw)
-        self.add_hub(GtkHub)
+    def __init__(
+            self,
+            args: argparse.Namespace, *,
+            application_id: str,
+            title: str,
+            **kwargs):
+        super().__init__(args, **kwargs)
+        self.gtk_app = Adw.Application(application_id=application_id)
+        self.gtk_app.connect("activate", self.on_activate)
 
-        self.window = Gtk.Window(title=title)
-        self.window.set_default_size(400, 300)
-        self.window.connect("destroy", self._destroy)
+        self.title = title
 
-        self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.window.add(self.vbox)
+        self.add_hub(GtkHub, gtk_app=self.gtk_app)
 
         self.logview = LogView()
-        self.vbox.pack_end(self.logview, True, True, 0)
 
-    def _destroy(self, win):
-        self.send(Shutdown())
-        Gtk.main_quit()
+        self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.vbox.append(self.logview)
+
+    def on_activate(self, gtk_app):
+        self.window = Gtk.ApplicationWindow(application=self.gtk_app)
+        self.window.set_title(self.title)
+        self.window.set_default_size(600, 300)
+
+        self.window.set_child(self.vbox)
+
+        self.window.present()
 
     def setup_logging(self):
         super().setup_logging()
@@ -114,7 +127,3 @@ class GtkApp(App):
         log_handler.setFormatter(formatter)
         # self.log_handler.propagate = False
         logging.getLogger().addHandler(log_handler)
-
-    def main_init(self):
-        super().main_init()
-        self.window.show_all()
