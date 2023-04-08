@@ -4,17 +4,20 @@ from typing import TYPE_CHECKING
 
 import numpy
 
+from pyeep.aio import AIOComponent
+from pyeep.app import Shutdown
+
 if TYPE_CHECKING:
     from .pattern import Pattern
 
 
-class Player:
+class Player(AIOComponent):
     """
     Abstract base infrastructure for an pattern player
     """
 
-    def __init__(self, sample_rate: int = 44100, numpy_type=numpy.float32):
-        super().__init__()
+    def __init__(self, *, sample_rate: int = 44100, numpy_type=numpy.float32, **kwargs):
+        super().__init__(**kwargs)
         # sampling rate, Hz, must be integer
         self.sample_rate = sample_rate
         # TODO: replace with a dict (and exploit its ordering properties)
@@ -25,6 +28,12 @@ class Player:
         # This is used to seamlessly join consecutive waveforms
         self.last_wave_value: float | None = None
         self.last_volume_value: float | None = None
+
+    def receive(self, msg):
+        # FIXME: hacky compatibility layer until this is refactored into a component
+        if isinstance(msg, Shutdown):
+            self.shutdown()
+        super().receive(msg)
 
     def start_mono(self, pattern: Pattern):
         """
@@ -103,7 +112,7 @@ class Player:
             waves[idx::len(self.channels)] = wave
         return waves
 
-    async def loop(self):
+    async def run(self):
         """
         Player main loop
         """

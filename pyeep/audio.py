@@ -37,23 +37,24 @@ def silence_output():
             os.close(fd)
 
 
-class PyAudioPlayer(Player, threading.Thread):
+class PyAudioPlayer(Player):
     """
     Play patterns on a sound device using PyAudio
     """
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
         with silence_output():
             self.audio = pyaudio.PyAudio()
         self.stream: Optional[pyaudio.Stream] = None
         self.shutting_down = False
+        self.thread = threading.Thread(target=self.thread_main)
 
     async def wait_for_patterns(self):
         while not self.shutting_down and not all(c.ended for c in self.channels):
             await asyncio.sleep(0.2)
 
-    async def loop(self):
-        self.start()
+    async def run(self):
+        self.thread.start()
         await self.wait_for_patterns()
 
     def shutdown(self):
@@ -64,7 +65,7 @@ class PyAudioPlayer(Player, threading.Thread):
                 time.sleep(0.1)
             self.stream.stop_stream()
             self.stream.close()
-        self.join()
+        self.thread.join()
 
         self.audio.terminate()
 
@@ -73,7 +74,7 @@ class PyAudioPlayer(Player, threading.Thread):
             return bytes(), pyaudio.paComplete
         return self.get_samples(frame_count).tobytes(), pyaudio.paContinue
 
-    def run(self):
+    def thread_main(self):
         # for paFloat32 sample values must be in range [-1.0, 1.0]
         self.stream = self.audio.open(
                 format=pyaudio.paFloat32,
