@@ -80,7 +80,7 @@ class GtkHub(Hub):
     def _hub_thread_receive(self, msg: Message):
         super()._hub_thread_receive(msg)
         if msg.name == "shutdown":
-            self.app.app.quit()
+            self.gtk_app.quit()
 
     def add_component(self, component: Component):
         pyeep.gtk.GLib.idle_add(self._hub_thread_add_component, component)
