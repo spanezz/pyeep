@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import logging
 import threading
 
@@ -14,7 +15,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("GLib", "2.0")
 gi.require_version('Adw', '1')
 
-from gi.repository import Adw, GLib, Gtk  # noqa
+from gi.repository import Adw, GLib, Gtk, Gio  # noqa
 
 
 class LogView(Gtk.ScrolledWindow):
@@ -57,6 +58,23 @@ class GtkComponentBox(Component, Gtk.Box):
     def __init__(self, *, orientation: Gtk.Orientation = Gtk.Orientation.HORIZONTAL, **kwargs):
         Component.__init__(self, **kwargs)
         Gtk.Box.__init__(self, orientation=orientation)
+
+
+class GtkComponentWindow(Component, Gtk.Window):
+    HUB = "gtk"
+
+    def __init__(self, **kwargs):
+        Component.__init__(self, **kwargs)
+        Gtk.Window.__init__(self)
+        self.connect("close-request", self.on_close)
+        self.build()
+        self.present()
+
+    def build(self):
+        pass
+
+    def on_close(self, win):
+        self.hub.remove_component(self)
 
 
 class GtkHub(Hub):
@@ -130,12 +148,13 @@ class GtkApp(App):
 
     def on_activate(self, gtk_app):
         self.window = Gtk.ApplicationWindow(application=self.gtk_app)
+        self.build_main_window()
+        self.window.present()
+
+    def build_main_window(self):
         self.window.set_title(self.title)
         self.window.set_default_size(600, 300)
-
         self.window.set_child(self.vbox)
-
-        self.window.present()
 
     def setup_logging(self):
         super().setup_logging()
