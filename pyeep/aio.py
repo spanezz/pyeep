@@ -86,6 +86,7 @@ class AIOHub(Hub):
             done, pending = await asyncio.wait(list(self.tasks), return_when=asyncio.FIRST_COMPLETED)
             for task in done:
                 self.logger.debug("component %r terminated", task.get_name())
+                # TODO: remove component
 
         self.loop = None
         self.app.remove_hub(self)
@@ -117,6 +118,15 @@ class AIOHub(Hub):
             # If we have no loop, then all components in self.components are
             # scheduled to start when the loop starts
             self._start_component(component)
+
+    def remove_component(self, component: Component):
+        if self.loop is None:
+            self.pre_loop_queue.put(functools.partial(
+                self._hub_thread_remove_component, component))
+        elif self._running_in_hub():
+            self._hub_thread_remove_component(component)
+        else:
+            self.loop.call_soon_threadsafe(self._hub_thread_remove_component, component)
 
 
 class AIOApp(App):

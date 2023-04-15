@@ -169,6 +169,17 @@ class Hub:
         self.components[component.name] = component
         self.logger.debug("new component %r", component.name)
 
+    def remove_component(self, component: Component):
+        """
+        Remove the component from this hub
+        """
+        self._hub_thread_remove_component(component)
+
+    @check_hub
+    def _hub_thread_remove_component(self, component):
+        del self.components[component.name]
+        self.logger.debug("removed component %r", component.name)
+
 
 class App(contextlib.ExitStack):
     """

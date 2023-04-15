@@ -96,6 +96,12 @@ class GtkHub(Hub):
         else:
             pyeep.gtk.GLib.idle_add(self._hub_thread_add_component, component)
 
+    def remove_component(self, component: Component):
+        if self._running_in_hub():
+            self._hub_thread_remove_component(component)
+        else:
+            pyeep.gtk.GLib.idle_add(self._hub_thread_remove_component, component)
+
     def run(self):
         self.gtk_app.run(None)
         self.send(Shutdown())
