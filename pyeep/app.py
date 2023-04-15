@@ -18,6 +18,19 @@ except ModuleNotFoundError:
 log = logging.getLogger(__name__)
 
 
+def check_hub(f):
+    """
+    Dectorator enforcing that a function is run in the context of the specific
+    hub
+    """
+    @functools.wraps(f)
+    def wrapper(self, *args, **kwargs):
+        if not self.hub._running_in_hub():
+            raise RuntimeError(f"function for hub {self.HUB} run outside of the hub context")
+        return f(self, *args, **kwargs)
+    return wrapper
+
+
 class Component:
     """
     A program component, managed by a Hub, that can send and receive messages
@@ -27,6 +40,7 @@ class Component:
         self.logger = logging.getLogger(name)
         self.hub = hub
 
+    @check_hub
     def send(self, msg: "Message"):
         """
         Send a message to other components
@@ -35,6 +49,7 @@ class Component:
         if self.hub is not None:
             self.hub.send(msg)
 
+    @check_hub
     def receive(self, msg: "Message"):
         """
         Function called by the hub to deliver a message to this component
@@ -75,6 +90,7 @@ class Hub:
 
     def __init__(self, *, app: "App"):
         self.app = app
+        self.hub = self
         self.components: dict[str, Component] = {}
         self.logger = logging.getLogger(self.HUB)
 
@@ -94,6 +110,13 @@ class Hub:
         """
         pass
 
+    def _running_in_hub(self) -> bool:
+        """
+        Check if we're running in the context of this hub
+        """
+        raise NotImplementedError(f"{self.__class__.__name__}._running_in_hub")
+
+    @check_hub
     def send(self, msg: Message):
         """
         Called by components to send messages
@@ -109,6 +132,7 @@ class Hub:
         """
         self._hub_thread_receive(msg)
 
+    @check_hub
     def _hub_thread_receive(self, msg: Message):
         """
         Called by App to deliver messages to components in this hub
@@ -122,7 +146,7 @@ class Hub:
         Dispatch a message to the Hub's components
         """
         if msg.dst is None:
-            for c in self.components.values():
+            for c in list(self.components.values()):
                 c.receive(msg)
         elif (c := self.components.get(msg.dst)) is not None:
             c.receive(msg)
@@ -140,6 +164,7 @@ class Hub:
         """
         self._hub_thread_add_component(component)
 
+    @check_hub
     def _hub_thread_add_component(self, component):
         self.components[component.name] = component
         self.logger.debug("new component %r", component.name)

@@ -8,7 +8,7 @@ import gi
 
 import pyeep.gtk
 
-from .app import App, Component, Hub, Message, Shutdown
+from .app import App, Component, Hub, Message, Shutdown, check_hub
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("GLib", "2.0")
@@ -75,16 +75,26 @@ class GtkHub(Hub):
         super().join()
         self.thread.join()
 
-    def receive(self, msg: Message):
-        pyeep.gtk.GLib.idle_add(self._hub_thread_receive, msg)
+    def _running_in_hub(self) -> bool:
+        return threading.current_thread() == self.thread
 
+    def receive(self, msg: Message):
+        if self._running_in_hub():
+            self._hub_thread_receive(msg)
+        else:
+            pyeep.gtk.GLib.idle_add(self._hub_thread_receive, msg)
+
+    @check_hub
     def _hub_thread_receive(self, msg: Message):
         super()._hub_thread_receive(msg)
-        if msg.name == "shutdown":
+        if isinstance(msg, Shutdown):
             self.gtk_app.quit()
 
     def add_component(self, component: Component):
-        pyeep.gtk.GLib.idle_add(self._hub_thread_add_component, component)
+        if self._running_in_hub():
+            self._hub_thread_add_component(component)
+        else:
+            pyeep.gtk.GLib.idle_add(self._hub_thread_add_component, component)
 
     def run(self):
         self.gtk_app.run(None)
