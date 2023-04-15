@@ -37,10 +37,11 @@ class AIOComponent(Component):
 
 
 class AIOThread(Hub):
+    HUB = "aio"
+
     def __init__(self, **kwargs):
-        kwargs.setdefault("name", "aio")
         super().__init__(**kwargs)
-        self.thread = threading.Thread(name=self.name, target=self.run)
+        self.thread = threading.Thread(name=self.HUB, target=self.run)
         self.loop: asyncio.AbstractEventLoop | None = None
         self.tasks: set[asyncio.Task] = set()
 

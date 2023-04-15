@@ -70,14 +70,13 @@ class Hub:
     """
     Manage a group of components that share a common technical infrastructure
     """
-    # Name of the hub on which to schedule this component
+    # Name of this hub
     HUB: str
 
-    def __init__(self, *, app: "App", name: str):
+    def __init__(self, *, app: "App"):
         self.app = app
-        self.name = name
         self.components: dict[str, Component] = {}
-        self.logger = logging.getLogger(name)
+        self.logger = logging.getLogger(self.HUB)
 
     def start(self):
         """
@@ -173,7 +172,7 @@ class App(contextlib.ExitStack):
         kwargs["app"] = self
         hub = hub_cls(**kwargs)
         with self.hubs_lock:
-            self.hubs[hub.name] = hub
+            self.hubs[hub.HUB] = hub
 
     def remove_hub(self, hub: Hub):
         """
@@ -188,9 +187,9 @@ class App(contextlib.ExitStack):
 
         This function is called from the App's thread.
         """
-        log.debug("%s: hub shutting down", hub.name)
+        log.debug("%s: hub shutting down", hub.HUB)
         with self.hubs_lock:
-            self.hubs.pop(hub.name)
+            self.hubs.pop(hub.HUB)
         hub.join()
 
     def add_component(self, component_cls: Type[Component], **kwargs) -> Component:

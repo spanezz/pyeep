@@ -60,10 +60,11 @@ class GtkComponentBox(Component, Gtk.Box):
 
 
 class GtkHub(Hub):
+    HUB = "gtk"
+
     def __init__(self, gtk_app: Gtk.Application, **kwargs):
-        kwargs.setdefault("name", "gtk")
         super().__init__(**kwargs)
-        self.thread = threading.Thread(name=self.name, target=self.run)
+        self.thread = threading.Thread(name=self.HUB, target=self.run)
         self.gtk_app = gtk_app
 
     def start(self):
