@@ -19,7 +19,7 @@ from gi.repository import Adw, GLib, Gtk, Gio  # noqa
 
 
 class LogView(Gtk.ScrolledWindow):
-    def __init__(self, max_lines: int = 10):
+    def __init__(self, max_lines: int = 500):
         super().__init__()
         self.textview = Gtk.TextView()
         self.textview.set_editable(False)
@@ -38,8 +38,11 @@ class LogView(Gtk.ScrolledWindow):
 
         if (lines := buffer.get_line_count()) > self.max_lines:
             start = buffer.get_start_iter()
-            line1 = buffer.get_iter_at_line(lines - self.max_lines)
+            found, line1 = buffer.get_iter_at_line(lines - self.max_lines)
             buffer.delete(start, line1)
+
+        mark = buffer.create_mark("end", buffer.get_end_iter(), False)
+        self.textview.scroll_mark_onscreen(mark)
 
 
 class GtkLoggingHandler(logging.Handler):
