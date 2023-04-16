@@ -143,9 +143,6 @@ class GtkApp(App):
 
         self.logview = LogView()
 
-        self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.vbox.append(self.logview)
-
     def on_activate(self, gtk_app):
         self.window = Gtk.ApplicationWindow(application=self.gtk_app)
         self.build_main_window()
@@ -154,7 +151,6 @@ class GtkApp(App):
     def build_main_window(self):
         self.window.set_title(self.title)
         self.window.set_default_size(600, 300)
-        self.window.set_child(self.vbox)
 
     def setup_logging(self):
         super().setup_logging()
