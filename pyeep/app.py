@@ -41,6 +41,13 @@ class Component:
         self.hub = hub
 
     @check_hub
+    def cleanup(self):
+        """
+        Cleanup/release resources before this component is removed
+        """
+        pass
+
+    @check_hub
     def send(self, msg: "Message"):
         """
         Send a message to other components
@@ -177,6 +184,7 @@ class Hub:
 
     @check_hub
     def _hub_thread_remove_component(self, component):
+        component.cleanup()
         del self.components[component.name]
         self.logger.debug("removed component %r", component.name)
 

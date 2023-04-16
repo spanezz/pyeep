@@ -86,7 +86,6 @@ class AIOHub(Hub):
             done, pending = await asyncio.wait(list(self.tasks), return_when=asyncio.FIRST_COMPLETED)
             for task in done:
                 self.logger.debug("component %r terminated", task.get_name())
-                # TODO: remove component
 
         self.loop = None
         self.app.remove_hub(self)
@@ -101,6 +100,11 @@ class AIOHub(Hub):
         task = asyncio.create_task(component.run(), name=component.name)
         self.tasks.add(task)
         task.add_done_callback(self.tasks.discard)
+
+        def on_done(task):
+            self.remove_component(component)
+
+        task.add_done_callback(on_done)
 
     def add_component(self, component: Component):
         if self.loop is None:
