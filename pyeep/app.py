@@ -80,6 +80,9 @@ class Message:
         else:
             self.name = name
 
+    def __str__(self) -> str:
+        return self.name
+
 
 class Shutdown(Message):
     """
