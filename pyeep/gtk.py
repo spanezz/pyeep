@@ -55,6 +55,22 @@ class GtkLoggingHandler(logging.Handler):
         pyeep.gtk.GLib.idle_add(self.view.append, line)
 
 
+class GtkComponentFrame(Component, Gtk.Frame):
+    HUB = "gtk"
+
+    def __init__(self, *, label: str, **kwargs):
+        Component.__init__(self, **kwargs)
+        Gtk.Frame.__init__(self, label=label)
+
+
+class GtkComponentExpander(Component, Gtk.Expander):
+    HUB = "gtk"
+
+    def __init__(self, *, label: str, **kwargs):
+        Component.__init__(self, **kwargs)
+        Gtk.Expander.__init__(self, label=label)
+
+
 class GtkComponentBox(Component, Gtk.Box):
     HUB = "gtk"
 
