@@ -20,6 +20,7 @@ class LSLComponent(AIOComponent):
         super().__init__(**kwargs)
         self.thread = threading.Thread(name=self.HUB + "_" + self.name, target=self.thread_run)
         self.stream_type = stream_type
+        self.stream_info: pylsl.StreamInfo | None = None
         self.max_samples = max_samples
         self.thread_stop = False
         self.thread.start()
@@ -33,8 +34,17 @@ class LSLComponent(AIOComponent):
 
     def thread_run(self):
         self.logger.info("connecting to stream inlet")
-        self.info = pylsl.resolve_stream('type', self.stream_type)[0]
-        self.inlet = pylsl.StreamInlet(self.info)
+        while not self.stream_info and not self.thread_stop:
+            # We need a high timeout or it can fail to connect in time even if the
+            # stream exists
+            info = pylsl.resolve_byprop(prop='type', value=self.stream_type, timeout=2)
+            if info:
+                self.stream_info = info[0]
+
+        if self.thread_stop:
+            return
+
+        self.inlet = pylsl.StreamInlet(self.stream_info)
         self.logger.info("connected to stream inlet")
 
         while not self.thread_stop:
