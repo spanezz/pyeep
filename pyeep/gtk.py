@@ -7,8 +7,6 @@ import threading
 
 import gi
 
-import pyeep.gtk
-
 from .app import App, Component, Hub, Message, Shutdown, check_hub
 
 gi.require_version("Gtk", "4.0")
@@ -25,7 +23,7 @@ def export(f):
     @functools.wraps(f)
     def wrapper(self, *args, **kwargs) -> None:
         if not self.hub._running_in_hub():
-            pyeep.gtk.GLib.idle_add(f, *args, **kwargs)
+            GLib.idle_add(f, *args, **kwargs)
         else:
             f(self, *args, **kwargs)
     return wrapper
@@ -67,7 +65,7 @@ class GtkLoggingHandler(logging.Handler):
 
     def emit(self, record):
         line = self.format(record)
-        pyeep.gtk.GLib.idle_add(self.view.append, line)
+        GLib.idle_add(self.view.append, line)
 
 
 class GtkComponent(Component):
@@ -110,7 +108,7 @@ class GtkHub(Hub):
         if self._running_in_hub():
             self._hub_thread_receive(msg)
         else:
-            pyeep.gtk.GLib.idle_add(self._hub_thread_receive, msg)
+            GLib.idle_add(self._hub_thread_receive, msg)
 
     @check_hub
     def _hub_thread_receive(self, msg: Message):
@@ -122,13 +120,13 @@ class GtkHub(Hub):
         if self._running_in_hub():
             self._hub_thread_add_component(component)
         else:
-            pyeep.gtk.GLib.idle_add(self._hub_thread_add_component, component)
+            GLib.idle_add(self._hub_thread_add_component, component)
 
     def remove_component(self, component: Component):
         if self._running_in_hub():
             self._hub_thread_remove_component(component)
         else:
-            pyeep.gtk.GLib.idle_add(self._hub_thread_remove_component, component)
+            GLib.idle_add(self._hub_thread_remove_component, component)
 
     def run(self):
         self.gtk_app.run(None)
@@ -168,7 +166,7 @@ class GtkApp(App):
     def setup_logging(self):
         super().setup_logging()
         if self.logview:
-            pyeep.gtk.GLib.idle_add(self._setup_gtk_logging)
+            GLib.idle_add(self._setup_gtk_logging)
 
     def _setup_gtk_logging(self):
         FORMAT = "%(levelname)s %(name)s %(message)s"
