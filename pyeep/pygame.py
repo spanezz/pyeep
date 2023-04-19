@@ -76,6 +76,7 @@ class PygameHub(Hub):
         else:
             self.hub_event_queue.put(functools.partial(
                 self._hub_thread_receive, msg))
+            self._notify_hub_event_queue()
 
     def add_component(self, component: Component):
         if self._running_in_hub():
@@ -83,6 +84,7 @@ class PygameHub(Hub):
         else:
             self.hub_event_queue.put(functools.partial(
                 self._hub_thread_add_component, component))
+            self._notify_hub_event_queue()
 
     @check_hub
     def _hub_thread_add_component(self, component):
@@ -96,6 +98,7 @@ class PygameHub(Hub):
         else:
             self.hub_event_queue.put(functools.partial(
                 self._hub_thread_remove_component, component))
+            self._notify_hub_event_queue()
 
     @check_hub
     def _hub_thread_remove_component(self, component):
