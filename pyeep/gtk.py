@@ -142,6 +142,7 @@ class GtkApp(App):
             args: argparse.Namespace, *,
             application_id: str,
             title: str,
+            gui_logging: bool = False,
             **kwargs):
         super().__init__(args, **kwargs)
         self.gtk_app = Adw.Application(application_id=application_id)
@@ -151,7 +152,9 @@ class GtkApp(App):
 
         self.add_hub(GtkHub, gtk_app=self.gtk_app)
 
-        self.logview = LogView()
+        self.logview: LogView | None = None
+        if gui_logging:
+            self.logview = LogView()
 
     def on_activate(self, gtk_app):
         self.window = Gtk.ApplicationWindow(application=self.gtk_app)
@@ -164,7 +167,8 @@ class GtkApp(App):
 
     def setup_logging(self):
         super().setup_logging()
-        pyeep.gtk.GLib.idle_add(self._setup_gtk_logging)
+        if self.logview:
+            pyeep.gtk.GLib.idle_add(self._setup_gtk_logging)
 
     def _setup_gtk_logging(self):
         FORMAT = "%(levelname)s %(name)s %(message)s"
