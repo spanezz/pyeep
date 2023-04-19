@@ -55,45 +55,21 @@ class GtkLoggingHandler(logging.Handler):
         pyeep.gtk.GLib.idle_add(self.view.append, line)
 
 
-class GtkComponentFrame(Component, Gtk.Frame):
+class GtkComponent(Component):
     HUB = "gtk"
 
-    def __init__(self, *, label: str, **kwargs):
-        Component.__init__(self, **kwargs)
-        Gtk.Frame.__init__(self, label=label)
+    @functools.cached_property
+    def widget(self) -> Gtk.Widget:
+        """
+        Return the widget to control this component
+        """
+        return self.build()
 
-
-class GtkComponentExpander(Component, Gtk.Expander):
-    HUB = "gtk"
-
-    def __init__(self, *, label: str, **kwargs):
-        Component.__init__(self, **kwargs)
-        Gtk.Expander.__init__(self, label=label)
-
-
-class GtkComponentBox(Component, Gtk.Box):
-    HUB = "gtk"
-
-    def __init__(self, *, orientation: Gtk.Orientation = Gtk.Orientation.HORIZONTAL, **kwargs):
-        Component.__init__(self, **kwargs)
-        Gtk.Box.__init__(self, orientation=orientation)
-
-
-class GtkComponentWindow(Component, Gtk.Window):
-    HUB = "gtk"
-
-    def __init__(self, **kwargs):
-        Component.__init__(self, **kwargs)
-        Gtk.Window.__init__(self)
-        self.connect("close-request", self.on_close)
-        self.build()
-        self.present()
-
-    def build(self):
-        pass
-
-    def on_close(self, win):
-        self.hub.remove_component(self)
+    def build(self) -> Gtk.Widget:
+        """
+        Build the widget to control this component
+        """
+        raise NotImplementedError(f"{self.__class__.__name__}.build not implemented")
 
 
 class GtkHub(Hub):
