@@ -18,6 +18,19 @@ gi.require_version('Adw', '1')
 from gi.repository import Adw, GLib, Gtk, Gio  # noqa
 
 
+def export(f):
+    """
+    Decorator that makes a component function callable from any hub context
+    """
+    @functools.wraps(f)
+    def wrapper(self, *args, **kwargs) -> None:
+        if not self.hub._running_in_hub():
+            pyeep.gtk.GLib.idle_add(f, *args, **kwargs)
+        else:
+            f(self, *args, **kwargs)
+    return wrapper
+
+
 class LogView(Gtk.ScrolledWindow):
     def __init__(self, max_lines: int = 500):
         super().__init__()

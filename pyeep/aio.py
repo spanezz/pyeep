@@ -10,6 +10,19 @@ from typing import Callable
 from .app import App, Component, Hub, Message, check_hub
 
 
+def export(f):
+    """
+    Decorator that makes a component function callable from any hub context
+    """
+    @functools.wraps(f)
+    def wrapper(self, *args, **kwargs) -> None:
+        if not self.hub._running_in_hub():
+            self.hub.loop.call_soon_threadsafe(f, *args, **kwargs)
+        else:
+            f(self, *args, **kwargs)
+    return wrapper
+
+
 class AIOComponent(Component):
     """
     Component running on an asyncio event loop
