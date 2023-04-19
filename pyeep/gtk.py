@@ -54,8 +54,10 @@ class LogView(Gtk.ScrolledWindow):
             found, line1 = buffer.get_iter_at_line(lines - self.max_lines)
             buffer.delete(start, line1)
 
-        mark = buffer.create_mark("end", buffer.get_end_iter(), False)
-        self.textview.scroll_mark_onscreen(mark)
+        if (lines := buffer.get_line_count()) > 0:
+            found, line1 = buffer.get_iter_at_line(lines - 1)
+            mark = buffer.create_mark(None, line1, False)
+            self.textview.scroll_mark_onscreen(mark)
 
 
 class GtkLoggingHandler(logging.Handler):
