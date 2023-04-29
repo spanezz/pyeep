@@ -6,7 +6,8 @@ from typing import Generator, Optional, Self
 import jack
 import mido
 
-from pyeep.deltalist import DeltaList, Event
+from .deltalist import DeltaList, Event
+from .jack import JackComponent
 
 # See:
 # https://github.com/jackaudio/jackaudio.github.com/wiki/WalkThrough_Dev_LatencyBufferProcess
@@ -73,16 +74,6 @@ class MidiEvent(Event):
         return f"MidiEvent({self.msg}, +{self.frame_delay})"
 
 
-class JackComponent:
-    def __init__(self, client: jack.Client):
-        super().__init__()
-        self.client = client
-        self.samplerate = self.client.samplerate
-
-    def on_process(self, frames: int):
-        raise NotImplementedError(f"{self.__class__.__name__}.on_process not implemented")
-
-
 class MidiPlayer(JackComponent):
     """
     JACK client that plays a queue of MIDI events
@@ -116,15 +107,12 @@ class MidiReceiver(JackComponent):
     """
     JACK client that receives MIDI events
     """
-    def __init__(self, client: jack.Client, inport: jack.OwnMidiPort | None = None):
-        super().__init__(client)
-        if inport is None:
-            self.inport = self.client.midi_inports.register('midi input')
-        else:
-            self.inport = inport
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.inport = self.jack_client.midi_inports.register('midi input')
 
     def read_events(self) -> Generator[MidiEvent, None, None]:
-        frame_time = self.client.last_frame_time
+        frame_time = self.jack_client.last_frame_time
         for offset, indata in self.inport.incoming_midi_events():
             msg = mido.parse([ord(b) for b in indata])
             msg.time = frame_time + offset
