@@ -40,6 +40,9 @@ class Component:
         self.logger = logging.getLogger(name)
         self.hub = hub
 
+    def __str__(self) -> str:
+        return self.name
+
     @check_hub
     def cleanup(self):
         """
@@ -103,6 +106,9 @@ class Hub:
         self.hub = self
         self.components: dict[str, Component] = {}
         self.logger = logging.getLogger(self.HUB)
+
+    def __str__(self) -> str:
+        return f"Hub({self.HUB})"
 
     def start(self):
         """

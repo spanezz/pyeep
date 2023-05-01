@@ -33,9 +33,11 @@ class AIOComponent(Component):
         super().__init__(**kwargs)
         self.message_queue: asyncio.Queue[Message] = asyncio.Queue()
 
+    @check_hub
     def receive(self, msg: Message):
         self.message_queue.put_nowait(msg)
 
+    @check_hub
     async def next_message(self, *, timeout: float | None = None) -> Message | None:
         """
         Wait for reception of a message, with an optional timeout
