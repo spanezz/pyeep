@@ -6,7 +6,7 @@ import functools
 import sys
 import logging
 import threading
-from queue import Queue
+from queue import SimpleQueue
 from typing import Any, Callable, IO, Type
 
 try:
@@ -201,7 +201,7 @@ class App(contextlib.ExitStack):
         self.args = args
         self.hubs: dict[str, Hub] = {}
         self.hubs_lock = threading.Lock()
-        self.command_queue: Queue[Callable] = Queue()
+        self.command_queue: SimpleQueue[Callable] = SimpleQueue()
 
     @classmethod
     def argparser(cls, description: str) -> argparse.ArgumentParser:

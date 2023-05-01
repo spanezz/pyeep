@@ -60,7 +60,7 @@ class AIOHub(Hub):
         self.thread = threading.Thread(name=self.HUB, target=self.run)
         self.loop: asyncio.AbstractEventLoop | None = None
         self.tasks: set[asyncio.Task] = set()
-        self.pre_loop_queue: queue.Queue[Callable] = queue.Queue()
+        self.pre_loop_queue: queue.SimpleQueue[Callable] = queue.SimpleQueue()
 
     def start(self):
         super().start()
