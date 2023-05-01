@@ -10,10 +10,11 @@ import gi
 from .app import App, Component, Hub, Message, Shutdown, check_hub
 
 gi.require_version("Gtk", "4.0")
+gi.require_version('Gdk', '4.0')
 gi.require_version("GLib", "2.0")
 gi.require_version('Adw', '1')
 
-from gi.repository import Adw, GLib, Gtk, Gio  # noqa
+from gi.repository import Adw, GLib, Gtk, Gio, Gdk  # noqa
 
 
 def export(f):
