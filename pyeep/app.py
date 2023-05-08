@@ -37,7 +37,7 @@ class Component:
     """
     def __init__(self, *, hub: "Hub", name: str | None = None):
         self.name = name if name is not None else self.__class__.__name__.lower()
-        self.logger = logging.getLogger(name)
+        self.logger = logging.getLogger(self.name)
         self.hub = hub
 
     def __str__(self) -> str:

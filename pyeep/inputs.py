@@ -48,6 +48,7 @@ class Input(Component):
     def get_input_controller(self) -> Type["InputController"]:
         return InputController
 
+    @property
     def is_active(self) -> bool:
         raise NotImplementedError(f"{self.__class__.__name__}._is_active not implemented")
 

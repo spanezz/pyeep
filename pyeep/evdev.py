@@ -25,6 +25,7 @@ class EvdevInput(Input, pyeep.aio.AIOComponent):
         self.active = False
 
     @pyeep.aio.export
+    @property
     def is_active(self) -> bool:
         return self.active
 
