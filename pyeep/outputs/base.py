@@ -51,6 +51,29 @@ class OutputController(GtkComponent):
         super().__init__(**kwargs)
         self.output = output
 
+        # Group ID
+        self.group = Gtk.Adjustment(
+                value=0,
+                lower=0,
+                upper=20,
+                step_increment=1,
+                page_increment=1,
+                page_size=0)
+
+    def build(self) -> Gtk.Grid:
+        grid = Gtk.Grid()
+
+        label_name = Gtk.Label(label=self.output.description)
+        label_name.wrap = True
+        label_name.set_halign(Gtk.Align.START)
+        grid.attach(label_name, 0, 0, 3, 1)
+
+        group = Gtk.SpinButton(adjustment=self.group, climb_rate=1.0, digits=0)
+        group.set_tooltip_text("Group number")
+        grid.attach(group, 0, 1, 1, 1)
+
+        return grid
+
 
 class OutputsModel(GtkComponent):
     """
