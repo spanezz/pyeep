@@ -17,7 +17,7 @@ def export(f):
     @functools.wraps(f)
     def wrapper(self, *args, **kwargs) -> None:
         if not self.hub._running_in_hub():
-            self.hub.loop.call_soon_threadsafe(f, *args, **kwargs)
+            self.hub.loop.call_soon_threadsafe(f, self, *args, **kwargs)
         else:
             f(self, *args, **kwargs)
     return wrapper
