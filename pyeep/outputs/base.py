@@ -55,7 +55,7 @@ class OutputController(GtkComponent):
         self.group = Gtk.Adjustment(
                 value=0,
                 lower=0,
-                upper=20,
+                upper=99,
                 step_increment=1,
                 page_increment=1,
                 page_size=0)
