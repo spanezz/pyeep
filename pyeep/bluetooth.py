@@ -104,7 +104,7 @@ class BluetoothComponent(AIOComponent):
                         break
                     case BluetoothDisconnect():
                         self.logger.warning("device disconnected")
-                        self.connect()
+                        await self.connect()
                     case _:
                         await self.run_message(msg)
         finally:
