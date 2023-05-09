@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import time
-from typing import NamedTuple
+from typing import NamedTuple, Type
 
 import bleak
 
 from .. import bluetooth
 from ..app import Message
-from .base import Input, InputSetActive, InputSetMode
+from ..gtk import Gtk
+from .base import Input, InputController, InputSetActive, InputSetMode
 
 HEART_RATE_UUID = "00002a37-0000-1000-8000-00805f9b34fb"
 
@@ -42,6 +43,9 @@ class HeartRateMonitor(Input, bluetooth.BluetoothComponent):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.active = False
+
+    def get_input_controller(self) -> Type["InputController"]:
+        return HeartRateInputController
 
     @property
     def is_active(self) -> bool:
@@ -116,3 +120,22 @@ class HeartRateMonitor(Input, bluetooth.BluetoothComponent):
             case InputSetMode():
                 if msg.input == self:
                     self.mode = getattr(self, "mode_" + msg.mode)
+
+
+class HeartRateInputController(InputController):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.current_rate = Gtk.Label(label="-- BPM")
+
+    def build(self) -> Gtk.Box:
+        grid = super().build()
+        grid.attach(self.current_rate, 0, 3, 1, 1)
+        return grid
+
+    def receive(self, msg: Message):
+        if msg.src != self.input:
+            return
+
+        match msg:
+            case HeartBeat():
+                self.current_rate.set_label(f"{msg.sample.rate} BPM")
