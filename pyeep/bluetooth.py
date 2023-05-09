@@ -190,7 +190,7 @@ class Bluetooth(AIOComponent):
                     case Shutdown():
                         break
                     case DeviceScanRequest():
-                        self.scan(duration=msg.duration)
+                        await self.scan(duration=msg.duration)
         finally:
             if self.scan_task is not None:
                 self.scan_task.cancel()
