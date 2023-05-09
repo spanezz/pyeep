@@ -3,8 +3,8 @@ from __future__ import annotations
 import inspect
 from typing import Type
 
-from .app import Message, Component
-from .gtk import Gio, GLib, Gtk, GtkComponent
+from ..app import Component, Message
+from ..gtk import Gio, GLib, Gtk, GtkComponent
 
 
 class InputSetActive(Message):

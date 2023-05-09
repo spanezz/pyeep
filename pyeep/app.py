@@ -3,11 +3,11 @@ from __future__ import annotations
 import argparse
 import contextlib
 import functools
-import sys
 import logging
+import sys
 import threading
 from queue import SimpleQueue
-from typing import Any, Callable, IO, Type
+from typing import IO, Any, Callable, Type
 
 try:
     import coloredlogs

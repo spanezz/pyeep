@@ -7,13 +7,13 @@ from typing import Type
 import aionotify
 import evdev
 
-import pyeep.aio
-from .app import Shutdown
+from ..app import Shutdown
+from ..aio import export, AIOComponent
 
-from .inputs import Input, InputSetActive, InputSetMode
+from .base import Input, InputSetActive, InputSetMode
 
 
-class EvdevInput(Input, pyeep.aio.AIOComponent):
+class EvdevInput(Input, AIOComponent):
     """
     Input device processing events from an evdev device
     """
@@ -24,7 +24,7 @@ class EvdevInput(Input, pyeep.aio.AIOComponent):
         self.device = device
         self.active = False
 
-    @pyeep.aio.export
+    @export
     @property
     def is_active(self) -> bool:
         return self.active
@@ -62,7 +62,7 @@ class EvdevInput(Input, pyeep.aio.AIOComponent):
                 reader.cancel()
 
 
-class EvdevDeviceManager(pyeep.aio.AIOComponent):
+class EvdevDeviceManager(AIOComponent):
     """
     Manage hotplugging of evdev devices.
 
