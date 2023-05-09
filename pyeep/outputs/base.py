@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Type
 
 from ..app import Component, Message, check_hub
-from ..gtk import Gtk, GtkComponent
+from ..gtk import Gio, GLib, Gtk, GtkComponent
+from .. import messages
 
 
 class NewOutput(Message):
@@ -60,11 +61,82 @@ class OutputController(GtkComponent):
                 page_increment=1,
                 page_size=0)
 
+        self.pause = Gio.SimpleAction.new_stateful(
+                name=self.name.replace("_", "-") + "-pause",
+                parameter_type=None,
+                state=GLib.Variant.new_boolean(False))
+        self.pause.connect("change-state", self.on_pause)
+        self.hub.app.gtk_app.add_action(self.pause)
+
+        self.manual = Gio.SimpleAction.new_stateful(
+                name=self.name.replace("_", "-") + "-manual",
+                parameter_type=None,
+                state=GLib.Variant.new_boolean(False))
+        self.manual.connect("change-state", self.on_manual)
+        self.hub.app.gtk_app.add_action(self.manual)
+
     def in_group(self, group: int) -> bool:
         """
         Check if this output is in the given group
         """
         return self.group.get_value() == group
+
+    @property
+    def is_paused(self) -> bool:
+        return self.pause.get_state().get_boolean()
+
+    @property
+    def is_manual(self) -> bool:
+        return self.manual.get_state().get_boolean()
+
+    @check_hub
+    def on_pause(self, action, parameter):
+        """
+        When the pause mode is disabled, restore the previous value
+        """
+        new_state = not self.pause.get_state().get_boolean()
+        self.set_paused(new_state)
+
+    @check_hub
+    def on_manual(self, action, parameter):
+        """
+        When the manual mode is disabled, leave the previous value
+        """
+        new_state = not self.manual.get_state().get_boolean()
+        self.set_manual(new_state)
+
+    @check_hub
+    def set_paused(self, paused: bool):
+        """
+        Enter/exit pause mode
+        """
+        self.pause.set_state(GLib.Variant.new_boolean(paused))
+
+    @check_hub
+    def set_manual(self, manual: bool):
+        """
+        When the manual mode is disabled, leave the previous value
+        """
+        self.manual.set_state(GLib.Variant.new_boolean(manual))
+
+    @check_hub
+    def emergency_stop(self):
+        """
+        Emergency stop of this output
+        """
+        self.set_paused(True)
+
+    @check_hub
+    def receive(self, msg: Message):
+        match msg:
+            case messages.EmergencyStop():
+                self.emergency_stop()
+            case messages.Pause():
+                if self.in_group(msg.group):
+                    self.set_paused(True)
+            case messages.Resume():
+                if self.in_group(msg.group):
+                    self.set_paused(False)
 
     def build(self) -> Gtk.Grid:
         grid = Gtk.Grid()
@@ -77,6 +149,14 @@ class OutputController(GtkComponent):
         group = Gtk.SpinButton(adjustment=self.group, climb_rate=1.0, digits=0)
         group.set_tooltip_text("Group number")
         grid.attach(group, 0, 1, 1, 1)
+
+        pause = Gtk.ToggleButton(label="Paused")
+        pause.set_action_name("app." + self.pause.get_name())
+        grid.attach(pause, 1, 1, 1, 1)
+
+        manual = Gtk.ToggleButton(label="Manual")
+        manual.set_action_name("app." + self.manual.get_name())
+        grid.attach(manual, 2, 1, 1, 1)
 
         return grid
 

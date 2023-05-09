@@ -33,3 +33,27 @@ class Shortcut(Message):
 
     def __str__(self):
         return super().__str__() + f"(command={self.command})"
+
+
+class Pause(Message):
+    """
+    Pause outputs in a group
+    """
+    def __init__(self, *, group: int, **kwargs):
+        super().__init__(**kwargs)
+        self.group = group
+
+    def __str__(self) -> str:
+        return super().__str__() + f"(group={self.group})"
+
+
+class Resume(Message):
+    """
+    Unpause outputs in a group
+    """
+    def __init__(self, *, group: int, **kwargs):
+        super().__init__(**kwargs)
+        self.group = group
+
+    def __str__(self) -> str:
+        return super().__str__() + f"(group={self.group})"
