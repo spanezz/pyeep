@@ -60,6 +60,12 @@ class OutputController(GtkComponent):
                 page_increment=1,
                 page_size=0)
 
+    def in_group(self, group: int) -> bool:
+        """
+        Check if this output is in the given group
+        """
+        return self.group.get_value() == group
+
     def build(self) -> Gtk.Grid:
         grid = Gtk.Grid()
 
