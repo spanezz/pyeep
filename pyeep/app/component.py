@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import functools
+import inspect
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterator, NamedTuple
 
 if TYPE_CHECKING:
     from .hub import Hub
@@ -66,3 +67,36 @@ class Component:
         Function called by the hub to deliver a message to this component
         """
         pass
+
+
+class ModeInfo(NamedTuple):
+    """
+    Information about one input mode
+    """
+    name: str
+    summary: str
+
+
+class ModeMixin(Component):
+    """
+    Mixin for components to implement multiple operational modes
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.set_mode("default")
+
+    def list_modes(self) -> Iterator[ModeInfo, None]:
+        """
+        List available modes
+        """
+        for name, value in inspect.getmembers(self, inspect.ismethod):
+            if not name.startswith("mode_"):
+                continue
+            yield ModeInfo(name[5:], inspect.getdoc(value))
+
+    @export
+    def set_mode(self, name: str) -> None:
+        """
+        Set the active mode
+        """
+        self.mode = getattr(self, "mode_" + name)

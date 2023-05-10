@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from .app import App
 from .component import Component, check_hub, export
 from .hub import Hub
-from .app import App
+
 # FIXME: compatibility, use messages.*
 from ..messages import Message, Shutdown
 
