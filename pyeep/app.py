@@ -31,6 +31,16 @@ def check_hub(f):
     return wrapper
 
 
+def export(f):
+    """
+    Decorator that makes a component function callable from any hub context
+    """
+    @functools.wraps(f)
+    def wrapper(self, *args, **kwargs) -> None:
+        self.hub.run_in_hub(f, self, *args, **kwargs)
+    return wrapper
+
+
 class Component:
     """
     A program component, managed by a Hub, that can send and receive messages
@@ -132,6 +142,13 @@ class Hub:
         """
         raise NotImplementedError(f"{self.__class__.__name__}._running_in_hub")
 
+    def run_in_hub(self, f: Callable[...], *args, **kw):
+        """
+        Call the function with the given arguments in the hub context as soon
+        as it's possible
+        """
+        raise NotImplementedError(f"{self.__class__.__name__}.run_in_hub")
+
     @check_hub
     def send(self, msg: Message):
         """
@@ -146,7 +163,7 @@ class Hub:
 
         This is called from the App's thread
         """
-        self._hub_thread_receive(msg)
+        self.run_in_hub(self._hub_thread_receive, msg)
 
     @check_hub
     def _hub_thread_receive(self, msg: Message):
@@ -178,7 +195,7 @@ class Hub:
         """
         Add a new component to this hub
         """
-        self._hub_thread_add_component(component)
+        self.run_in_hub(self._hub_thread_add_component, component)
 
     @check_hub
     def _hub_thread_add_component(self, component):
@@ -189,7 +206,7 @@ class Hub:
         """
         Remove the component from this hub
         """
-        self._hub_thread_remove_component(component)
+        self.run_in_hub(self._hub_thread_remove_component, component)
 
     @check_hub
     def _hub_thread_remove_component(self, component):

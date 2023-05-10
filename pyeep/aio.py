@@ -10,19 +10,6 @@ from typing import Callable
 from .app import App, Component, Hub, Message, check_hub
 
 
-def export(f):
-    """
-    Decorator that makes a component function callable from any hub context
-    """
-    @functools.wraps(f)
-    def wrapper(self, *args, **kwargs) -> None:
-        if not self.hub._running_in_hub():
-            self.hub.loop.call_soon_threadsafe(f, self, *args, **kwargs)
-        else:
-            f(self, *args, **kwargs)
-    return wrapper
-
-
 class AIOComponent(Component):
     """
     Component running on an asyncio event loop
@@ -75,14 +62,13 @@ class AIOHub(Hub):
     def _running_in_hub(self) -> bool:
         return threading.current_thread() == self.thread
 
-    def receive(self, msg: Message):
+    def run_in_hub(self, f: Callable[...], *args, **kwargs):
         if self.loop is None:
-            self.pre_loop_queue.put(functools.partial(
-                self._hub_thread_receive, msg))
+            self.pre_loop_queue.put(functools.partial(f, *args, **kwargs))
         elif self._running_in_hub():
-            self._hub_thread_receive(msg)
+            f(*args, **kwargs)
         else:
-            self.loop.call_soon_threadsafe(self._hub_thread_receive, msg)
+            self.loop.call_soon_threadsafe(f, *args, **kwargs)
 
     def run(self):
         asyncio.run(self.aio_main())
@@ -121,15 +107,6 @@ class AIOHub(Hub):
 
         task.add_done_callback(on_done)
 
-    def add_component(self, component: Component):
-        if self.loop is None:
-            self.pre_loop_queue.put(functools.partial(
-                self._hub_thread_add_component, component))
-        elif self._running_in_hub():
-            self._hub_thread_add_component(component)
-        else:
-            self.loop.call_soon_threadsafe(self._hub_thread_add_component, component)
-
     @check_hub
     def _hub_thread_add_component(self, component):
         super()._hub_thread_add_component(component)
@@ -137,15 +114,6 @@ class AIOHub(Hub):
             # If we have no loop, then all components in self.components are
             # scheduled to start when the loop starts
             self._start_component(component)
-
-    def remove_component(self, component: Component):
-        if self.loop is None:
-            self.pre_loop_queue.put(functools.partial(
-                self._hub_thread_remove_component, component))
-        elif self._running_in_hub():
-            self._hub_thread_remove_component(component)
-        else:
-            self.loop.call_soon_threadsafe(self._hub_thread_remove_component, component)
 
 
 class AIOApp(App):

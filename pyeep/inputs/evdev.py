@@ -7,8 +7,8 @@ from typing import Type
 import aionotify
 import evdev
 
-from ..app import Shutdown
-from ..aio import export, AIOComponent
+from ..app import Shutdown, export
+from ..aio import AIOComponent
 
 from .base import Input, InputSetActive, InputSetMode
 

@@ -3,8 +3,7 @@ from __future__ import annotations
 from typing import Type
 
 from .. import bluetooth
-from ..app import Message
-from ..aio import export
+from ..app import Message, export
 from ..types import Color
 from .base import OutputController
 from .color import ColorOutput, ColorOutputController

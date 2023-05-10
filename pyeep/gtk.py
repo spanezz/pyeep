@@ -4,6 +4,7 @@ import argparse
 import functools
 import logging
 import threading
+from typing import Callable
 
 import gi
 
@@ -15,19 +16,6 @@ gi.require_version("GLib", "2.0")
 gi.require_version('Adw', '1')
 
 from gi.repository import Adw, GLib, Gtk, Gio, Gdk  # noqa
-
-
-def export(f):
-    """
-    Decorator that makes a component function callable from any hub context
-    """
-    @functools.wraps(f)
-    def wrapper(self, *args, **kwargs) -> None:
-        if not self.hub._running_in_hub():
-            GLib.idle_add(f, *args, **kwargs)
-        else:
-            f(self, *args, **kwargs)
-    return wrapper
 
 
 class LogView(Gtk.ScrolledWindow):
@@ -105,29 +93,17 @@ class GtkHub(Hub):
     def _running_in_hub(self) -> bool:
         return threading.current_thread() == self.thread
 
-    def receive(self, msg: Message):
+    def run_in_hub(self, f: Callable[...], *args, **kwargs):
         if self._running_in_hub():
-            self._hub_thread_receive(msg)
+            f(*args, **kwargs)
         else:
-            GLib.idle_add(self._hub_thread_receive, msg)
+            GLib.idle_add(f, *args, **kwargs)
 
     @check_hub
     def _hub_thread_receive(self, msg: Message):
         super()._hub_thread_receive(msg)
         if isinstance(msg, Shutdown):
             self.gtk_app.quit()
-
-    def add_component(self, component: Component):
-        if self._running_in_hub():
-            self._hub_thread_add_component(component)
-        else:
-            GLib.idle_add(self._hub_thread_add_component, component)
-
-    def remove_component(self, component: Component):
-        if self._running_in_hub():
-            self._hub_thread_remove_component(component)
-        else:
-            GLib.idle_add(self._hub_thread_remove_component, component)
 
     def run(self):
         self.gtk_app.run(None)

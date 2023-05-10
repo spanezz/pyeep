@@ -12,18 +12,6 @@ from .app import Component, Hub, Message, Shutdown, check_hub
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import pygame  # Noqa
 
-# def export(f):
-#     """
-#     Decorator that makes a component function callable from any hub context
-#     """
-#     @functools.wraps(f)
-#     def wrapper(self, *args, **kwargs) -> None:
-#         if not self.hub._running_in_hub():
-#             pyeep.gtk.GLib.idle_add(f, *args, **kwargs)
-#         else:
-#             f(self, *args, **kwargs)
-#     return wrapper
-
 
 class PygameComponent(Component):
     HUB = "pygame"
@@ -68,37 +56,23 @@ class PygameHub(Hub):
     def _running_in_hub(self) -> bool:
         return threading.current_thread() == self.thread
 
+    def run_in_hub(self, f: Callable[...], *args, **kwargs):
+        if self._running_in_hub():
+            f(*args, **kwargs)
+        else:
+            self.hub_event_queue.put(functools.partial(f, *args, **kwargs))
+            self._notify_hub_event_queue()
+
     def receive(self, msg: Message):
         if isinstance(msg, Shutdown):
             pygame.event.post(pygame.event.Event(pygame.QUIT))
-        if self._running_in_hub():
-            self._hub_thread_receive(msg)
-        else:
-            self.hub_event_queue.put(functools.partial(
-                self._hub_thread_receive, msg))
-            self._notify_hub_event_queue()
-
-    def add_component(self, component: Component):
-        if self._running_in_hub():
-            self._hub_thread_add_component(component)
-        else:
-            self.hub_event_queue.put(functools.partial(
-                self._hub_thread_add_component, component))
-            self._notify_hub_event_queue()
+        super().receive(msg)
 
     @check_hub
     def _hub_thread_add_component(self, component):
         super()._hub_thread_add_component(component)
         for code in component.EVENTS:
             self.event_map[code].add(component)
-
-    def remove_component(self, component: Component):
-        if self._running_in_hub():
-            self._hub_thread_remove_component(component)
-        else:
-            self.hub_event_queue.put(functools.partial(
-                self._hub_thread_remove_component, component))
-            self._notify_hub_event_queue()
 
     @check_hub
     def _hub_thread_remove_component(self, component):
