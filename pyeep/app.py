@@ -8,6 +8,7 @@ import sys
 import threading
 from queue import SimpleQueue
 from typing import IO, Any, Callable, Type
+from .messages import Message, Shutdown
 
 try:
     import coloredlogs
@@ -75,33 +76,6 @@ class Component:
         Function called by the hub to deliver a message to this component
         """
         pass
-
-
-class Message:
-    """
-    Base class for messages sent between components
-    """
-    def __init__(
-            self, *,
-            src: Component | None = None,
-            dst: str | None = None,
-            name: str | None = None):
-        self.src = src
-        self.dst = dst
-        if name is None:
-            self.name = self.__class__.__name__.lower()
-        else:
-            self.name = name
-
-    def __str__(self) -> str:
-        return self.name
-
-
-class Shutdown(Message):
-    """
-    Message sent to initiate component shutdown
-    """
-    pass
 
 
 class Hub:

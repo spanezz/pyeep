@@ -1,6 +1,36 @@
 from __future__ import annotations
 
-from .app import Message
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .app import Component
+
+
+class Message:
+    """
+    Base class for messages sent between components
+    """
+    def __init__(
+            self, *,
+            src: Component | None = None,
+            dst: str | None = None,
+            name: str | None = None):
+        self.src = src
+        self.dst = dst
+        if name is None:
+            self.name = self.__class__.__name__.lower()
+        else:
+            self.name = name
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Shutdown(Message):
+    """
+    Message sent to initiate component shutdown
+    """
+    pass
 
 
 class EmergencyStop(Message):
