@@ -1,10 +1,18 @@
 from __future__ import annotations
 
 import inspect
-from typing import Type
+from typing import Iterator, NamedTuple, Type
 
 from ..app import Component, Message
 from ..gtk import Gio, GLib, Gtk, GtkComponent
+
+
+class ModeInfo(NamedTuple):
+    """
+    Information about one input mode
+    """
+    name: str
+    summary: str
 
 
 class InputSetActive(Message):
@@ -39,7 +47,7 @@ class Input(Component):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.mode = self.mode_default
+        self.set_mode("default")
 
     @property
     def description(self) -> str:
@@ -51,6 +59,21 @@ class Input(Component):
     @property
     def is_active(self) -> bool:
         raise NotImplementedError(f"{self.__class__.__name__}._is_active not implemented")
+
+    def list_modes(self) -> Iterator[ModeInfo, None]:
+        """
+        List available modes
+        """
+        for name, value in inspect.getmembers(self, inspect.ismethod):
+            if not name.startswith("mode_"):
+                continue
+            yield ModeInfo(name[5:], inspect.getdoc(value))
+
+    def set_mode(self, name: str) -> None:
+        """
+        Set the active mode
+        """
+        self.mode = getattr(self, "mode_" + name)
 
     def mode_default(self):
         """
@@ -76,10 +99,8 @@ class InputController(GtkComponent):
         self.hub.app.gtk_app.add_action(self.active)
 
         self.modes = Gtk.ListStore(str, str)
-        for name, value in inspect.getmembers(self.input, inspect.ismethod):
-            if not name.startswith("mode_"):
-                continue
-            self.modes.append([name[5:], inspect.getdoc(value)])
+        for info in self.input.list_modes():
+            self.modes.append([info.name, info.summary])
 
     def is_active(self) -> bool:
         return self.active.get_state().get_boolean()

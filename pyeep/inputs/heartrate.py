@@ -119,7 +119,7 @@ class HeartRateMonitor(Input, bluetooth.BluetoothComponent):
                     self.active = msg.value
             case InputSetMode():
                 if msg.input == self:
-                    self.mode = getattr(self, "mode_" + msg.mode)
+                    self.set_mode(msg.mode)
 
 
 class HeartRateInputController(InputController):
