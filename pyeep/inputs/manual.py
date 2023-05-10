@@ -4,7 +4,7 @@ from typing import Type
 
 from ..app import Message, check_hub
 from ..gtk import Gtk, GtkComponent
-from .base import Input, InputController, InputSetActive, InputSetMode
+from .base import Input, InputController, InputSetActive
 from .keyboards import Shortcut
 
 
@@ -41,9 +41,6 @@ class Manual(Input, GtkComponent):
             case InputSetActive():
                 if msg.input == self:
                     self.active = msg.value
-            case InputSetMode():
-                if msg.input == self:
-                    self.set_mode(msg.mode)
 
 
 class ManualInputController(InputController):

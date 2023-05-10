@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 from typing import Iterator, NamedTuple, Type
 
-from ..app import Component, Message
+from ..app import Component, Message, export
 from ..gtk import Gio, GLib, Gtk, GtkComponent
 
 
@@ -26,19 +26,6 @@ class InputSetActive(Message):
 
     def __str__(self) -> str:
         return super().__str__() + f"(input={self.input}, value={self.value})"
-
-
-class InputSetMode(Message):
-    """
-    Set the behaviour mode for an input
-    """
-    def __init__(self, *, input: "Input", mode: str, **kwargs):
-        super().__init__(**kwargs)
-        self.input = input
-        self.mode = mode
-
-    def __str__(self) -> str:
-        return super().__str__() + f"(input={self.input}, mode={self.mode})"
 
 
 class Input(Component):
@@ -69,6 +56,7 @@ class Input(Component):
                 continue
             yield ModeInfo(name[5:], inspect.getdoc(value))
 
+    @export
     def set_mode(self, name: str) -> None:
         """
         Set the active mode
@@ -115,7 +103,7 @@ class InputController(GtkComponent):
         if tree_iter is not None:
             model = combo.get_model()
             mode = model[tree_iter][0]
-            self.send(InputSetMode(input=self.input, mode=mode))
+            self.input.set_mode(mode)
 
     def build(self) -> Gtk.Box:
         """

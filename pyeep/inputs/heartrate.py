@@ -8,7 +8,7 @@ import bleak
 from .. import bluetooth
 from ..app import Message
 from ..gtk import Gtk
-from .base import Input, InputController, InputSetActive, InputSetMode
+from .base import Input, InputController, InputSetActive
 
 HEART_RATE_UUID = "00002a37-0000-1000-8000-00805f9b34fb"
 
@@ -117,9 +117,6 @@ class HeartRateMonitor(Input, bluetooth.BluetoothComponent):
             case InputSetActive():
                 if msg.input == self:
                     self.active = msg.value
-            case InputSetMode():
-                if msg.input == self:
-                    self.set_mode(msg.mode)
 
 
 class HeartRateInputController(InputController):

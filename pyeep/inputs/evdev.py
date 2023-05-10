@@ -10,7 +10,7 @@ import evdev
 from ..app import Shutdown, export
 from ..aio import AIOComponent
 
-from .base import Input, InputSetActive, InputSetMode
+from .base import Input, InputSetActive
 
 
 class EvdevInput(Input, AIOComponent):
@@ -55,9 +55,6 @@ class EvdevInput(Input, AIOComponent):
                         case InputSetActive():
                             if msg.input == self:
                                 self.active = msg.value
-                        case InputSetMode():
-                            if msg.input == self:
-                                self.set_mode(msg.mode)
             finally:
                 reader.cancel()
 
