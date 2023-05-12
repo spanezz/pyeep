@@ -3,6 +3,7 @@ from __future__ import annotations
 import functools
 import inspect
 import logging
+import time
 from typing import TYPE_CHECKING, Iterator, NamedTuple
 
 if TYPE_CHECKING:
@@ -58,6 +59,8 @@ class Component:
         Send a message to other components
         """
         msg.src = self
+        if msg.ts is None:
+            msg.ts = time.time()
         if self.hub is not None:
             self.hub.send(msg)
 

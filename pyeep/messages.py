@@ -12,9 +12,11 @@ class Message:
     """
     def __init__(
             self, *,
+            ts: float | None = None,
             src: Component | None = None,
             dst: str | None = None,
             name: str | None = None):
+        self.ts = ts
         self.src = src
         self.dst = dst
         if name is None:
