@@ -4,7 +4,7 @@ from typing import Type
 
 from ..app import Component, Message
 from ..app.component import ModeMixin
-from ..gtk import Gio, GLib, Gtk, GtkComponent
+from ..gtk import Gio, GLib, Gtk, GtkComponent, Controller
 
 
 class InputSetActive(Message):
@@ -36,7 +36,7 @@ class Input(ModeMixin, Component):
         raise NotImplementedError(f"{self.__class__.__name__}._is_active not implemented")
 
 
-class InputController(GtkComponent):
+class InputController(Controller):
     """
     User interface side for an input (controller and view)
     """

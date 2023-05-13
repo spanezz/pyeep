@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Type
 
 from ..app import Component, Message, check_hub
-from ..gtk import Gio, GLib, Gtk, GtkComponent
+from ..gtk import Gio, GLib, Gtk, GtkComponent, Controller
 from .. import messages
 
 
@@ -40,7 +40,7 @@ class Output(Component):
         return self.name
 
 
-class OutputController(GtkComponent):
+class OutputController(Controller):
     """
     Base class for output controllers.
 

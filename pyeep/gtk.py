@@ -111,6 +111,10 @@ class GtkHub(Hub):
         self.app.remove_hub(self)
 
 
+class Controller(GtkComponent):
+    pass
+
+
 class GtkApp(App):
     def __init__(
             self,
