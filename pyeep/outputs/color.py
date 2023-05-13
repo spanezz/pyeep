@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..animation import ColorAnimation, ColorAnimator
-from ..app import Message, check_hub
+from ..app import Component, Message, check_hub
 from ..gtk import Gtk
 from ..types import Color
 from .base import Output, OutputController
@@ -37,6 +37,8 @@ class ColorOutputController(OutputController):
         self.color = Gtk.ColorButton()
         self.color.connect("color-activated", self.on_color)
         self.color_animator = ColorAnimator(self.name, self.output.rate, self.set_animated_color)
+        self.colors: dict[Component, Color] = {}
+        self.animation_color: Color = Color(0, 0, 0)
 
     @check_hub
     def receive(self, msg: Message):
@@ -45,28 +47,28 @@ class ColorOutputController(OutputController):
                 if self.in_group(msg.group):
                     match msg.color:
                         case Color():
-                            self.set_color(msg.color)
+                            self.colors[msg.src] = msg.color
+                            self.update_color()
                         case ColorAnimation():
                             self.color_animator.start(msg.color)
             case _:
                 super().receive(msg)
 
-    def stop_animation(self):
-        self.color_animator.stop()
+    def update_color(self):
+        color = self.animation_color
+        if self.colors:
+            color = sum(self.colors.values(), start=color)
+        self.output.set_color(color)
+        self.color.set_rgba(color.as_rgba())
 
     def on_color(self, color):
-        self.stop_animation()
         rgba = color.get_rgba()
-        self.output.set_color(Color(rgba.red, rgba.green, rgba.blue))
-
-    def set_color(self, color: Color):
-        self.stop_animation()
-        self.color.set_rgba(color.as_rgba())
-        self.output.set_color(color)
+        self.colors[self] = Color(rgba.red, rgba.green, rgba.blue)
+        self.update_color()
 
     def set_animated_color(self, color: Color):
-        self.color.set_rgba(color.as_rgba())
-        self.output.set_color(color)
+        self.animation_color = color
+        self.update_color()
 
     def build(self) -> Gtk.Grid:
         grid = super().build()

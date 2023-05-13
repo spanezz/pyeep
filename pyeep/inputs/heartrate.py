@@ -110,7 +110,10 @@ class HeartRateMonitor(Input, bluetooth.BluetoothComponent):
         Handle a new heart rate sample
         """
         if self.active:
-            self.send(HeartBeat(sample=sample))
+            self.mode(sample=sample)
+
+    def mode_default(self, sample: Sample):
+        self.send(HeartBeat(sample=sample))
 
     async def run_message(self, msg: Message):
         match msg:
