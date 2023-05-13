@@ -76,6 +76,7 @@ class InputController(GtkComponent):
         Build the input view
         """
         grid = Gtk.Grid()
+        grid.set_margin_bottom(10)
 
         label_name = Gtk.Label(label=self.input.description)
         label_name.wrap = True

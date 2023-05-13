@@ -172,6 +172,7 @@ class OutputsModel(GtkComponent):
     def build(self) -> Gtk.Frame:
         w = Gtk.Frame(label="Outputs")
         w.set_vexpand(True)
+        w.set_margin_bottom(10)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         w.set_child(box)
         return w
