@@ -80,6 +80,7 @@ class InputController(GtkComponent):
         label_name = Gtk.Label(label=self.input.description)
         label_name.wrap = True
         label_name.set_halign(Gtk.Align.START)
+        label_name.set_hexpand(True)
         grid.attach(label_name, 0, 0, 1, 1)
 
         active = Gtk.CheckButton(label="Active")
