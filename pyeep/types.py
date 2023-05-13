@@ -39,6 +39,13 @@ class Color(NamedTuple):
             self._clip(self.blue + color.blue),
         )
 
+    def __mul__(self, value: float):
+        return Color(
+            self._clip(self.red * value),
+            self._clip(self.green * value),
+            self._clip(self.blue * value),
+        )
+
     def as_rgba(self) -> Gdk.RGBA:
         color = Gdk.RGBA()
         color.red = self.red

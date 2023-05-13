@@ -4,6 +4,7 @@ from typing import Type
 
 from .. import bluetooth
 from ..app import Message, export
+from ..gtk import Gtk
 from ..types import Color
 from .base import OutputController
 from .color import ColorOutput, ColorOutputController
@@ -40,9 +41,10 @@ class HappyLights(ColorOutput, bluetooth.BluetoothComponent):
         self.red: int = 0
         self.green: int = 0
         self.blue: int = 0
+        self.brightness: float = 1.0
 
     def get_output_controller(self) -> Type[OutputController]:
-        return ColorOutputController
+        return HappyLightsOutputController
 
     @staticmethod
     def cmd_color(r: int, g: int, b: int) -> bytes:
@@ -64,13 +66,40 @@ class HappyLights(ColorOutput, bluetooth.BluetoothComponent):
     def set_color(self, color: Color):
         self.receive(SetColor(color=color))
 
+    @export
+    def set_brightness(self, value: float):
+        self.brightness = value
+
     async def run_message(self, msg: Message):
         match msg:
             case SetColor():
+                color = msg.color * self.brightness
                 cmd = self.cmd_color(
-                     int(round(msg.color[0] * 255)),
-                     int(round(msg.color[1] * 255)),
-                     int(round(msg.color[2] * 255)),
+                     int(round(color[0] * 255)),
+                     int(round(color[1] * 255)),
+                     int(round(color[2] * 255)),
                 )
                 self.logger.debug("HappyLights command: %s", " ".join(f"{c:x}" for c in cmd))
                 await self.client.write_gatt_char(COMMAND_CHARACTERISTIC, cmd)
+
+
+class HappyLightsOutputController(ColorOutputController):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.brightness = Gtk.Adjustment(
+                lower=0.0, upper=1.0, step_increment=0.1, page_increment=0.3, value=1)
+        self.brightness.connect("value-changed", self.on_brightness)
+
+    def on_brightness(self, adjustment):
+        value = self.brightness.get_value()
+        self.output.set_brightness(value)
+
+    def build(self) -> Gtk.Grid:
+        grid = super().build()
+        grid.attach(Gtk.Label(label="Brightness"), 0, 2, 1, 1)
+
+        spinbutton = Gtk.SpinButton()
+        spinbutton.set_adjustment(self.brightness)
+        spinbutton.set_digits(1)
+        grid.attach(spinbutton, 1, 2, 1, 1)
+        return grid
