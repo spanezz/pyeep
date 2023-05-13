@@ -111,8 +111,11 @@ class GtkHub(Hub):
         self.app.remove_hub(self)
 
 
+# TODO: parameterize on component type
 class Controller(GtkComponent):
-    pass
+    def __init__(self, *, component: Component, **kwargs):
+        super().__init__(**kwargs)
+        self.component = component
 
 
 class GtkApp(App):

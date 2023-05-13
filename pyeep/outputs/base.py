@@ -49,7 +49,7 @@ class OutputController(Controller):
     """
     def __init__(self, *, output: Output, **kwargs):
         kwargs.setdefault("name", "output_model_" + output.name)
-        super().__init__(**kwargs)
+        super().__init__(component=output, **kwargs)
         self.output = output
 
         # Group ID

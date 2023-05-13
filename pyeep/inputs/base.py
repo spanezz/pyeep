@@ -42,7 +42,7 @@ class InputController(Controller):
     """
     def __init__(self, *, input: Input, **kwargs):
         kwargs.setdefault("name", "input_model_" + input.name)
-        super().__init__(**kwargs)
+        super().__init__(component=input, **kwargs)
         self.input = input
 
         self.active = Gio.SimpleAction.new_stateful(
