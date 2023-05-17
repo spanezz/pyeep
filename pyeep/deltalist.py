@@ -20,7 +20,7 @@ class DeltaList(Generic[EventType]):
     Delta list indexing a queue of events by the delay (in frames) at which
     they are scheduled to happen
     """
-    def __init__(self):
+    def __init__(self) -> None:
         self.events: deque[EventType] = deque()
 
     def add_event(self, event: EventType):

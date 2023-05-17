@@ -5,7 +5,7 @@ from typing import Type
 from .. import bluetooth
 from ..app import Message, export
 from ..gtk import Gtk
-from ..types import Color
+from ..color import Color
 from .base import OutputController
 from .color import ColorOutput, ColorOutputController
 

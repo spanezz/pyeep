@@ -1,19 +1,20 @@
 from __future__ import annotations
 
-from typing import NamedTuple
-
 from .gtk import Gdk
 
 
-class Color(NamedTuple):
+class Color:
     """
     Represent a RGB color, whose channels have values from 0 to 1
     """
-    red: float = 0
-    green: float = 0
-    blue: float = 0
+    __slots__ = ("red", "green", "blue")
 
-    def __str__(self):
+    def __init__(self, red: float = 0, green: float = 0, blue: float = 0):
+        self.red = red
+        self.green = green
+        self.blue = blue
+
+    def __str__(self) -> str:
         return (
             "#"
             f"{int(round(self.red * 255)):02x}"
@@ -32,14 +33,14 @@ class Color(NamedTuple):
             return 1
         return val
 
-    def __add__(self, color: Color):
+    def __add__(self, color: Color) -> Color:
         return Color(
             self._clip(self.red + color.red),
             self._clip(self.green + color.green),
             self._clip(self.blue + color.blue),
         )
 
-    def __mul__(self, value: float):
+    def __mul__(self, value: float) -> Color:
         return Color(
             self._clip(self.red * value),
             self._clip(self.green * value),

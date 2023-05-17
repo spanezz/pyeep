@@ -7,8 +7,10 @@ import logging
 import sys
 import threading
 from queue import SimpleQueue
-from typing import TYPE_CHECKING, IO, Callable, Type
+from typing import IO, TYPE_CHECKING, Callable, Type, TypeVar
+
 from ..messages import Message, Shutdown
+from .component import Component
 
 try:
     import coloredlogs
@@ -18,9 +20,10 @@ except ModuleNotFoundError:
 
 if TYPE_CHECKING:
     from .hub import Hub
-    from .component import Component
 
 log = logging.getLogger(__name__)
+
+C = TypeVar("C", bound=Component)
 
 
 class App(contextlib.ExitStack):
@@ -70,7 +73,7 @@ class App(contextlib.ExitStack):
             self.hubs.pop(hub.HUB)
         hub.join()
 
-    def add_component(self, component_cls: Type[Component], **kwargs) -> Component:
+    def add_component(self, component_cls: Type[C], **kwargs) -> C:
         """
         Add a new component to the application
         """

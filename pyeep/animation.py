@@ -4,7 +4,7 @@ import logging
 from typing import Callable, Generator, Generic, TypeVar
 
 from .gtk import GLib
-from .types import Color
+from .color import Color
 
 log = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class Animation(Generic[T]):
     """
     Base class for animation routines
     """
-    def values(self, rate: int) -> Generator[T]:
+    def values(self, rate: int) -> Generator[T, None, None]:
         """
         Generate the animation sequence using the given frame rate (frames per second)
         """
@@ -46,7 +46,7 @@ class Animator(Generic[T]):
         self.name = name
         self.rate = rate
         self.timeout: int | None = None
-        self.animations: set[Generator[T]] = set()
+        self.animations: set[Generator[T, None, None]] = set()
         self.on_value = on_value
 
     def __str__(self) -> str:
@@ -68,7 +68,7 @@ class Animator(Generic[T]):
     def merge(self, values: list[T]) -> T:
         raise NotImplementedError(f"{self.__class__.__name__}.merge not implmeented")
 
-    def on_frame(self):
+    def on_frame(self) -> bool:
         if not self.animations:
             # All animations have finished
             self.timeout = None
@@ -94,7 +94,7 @@ class PowerAnimator(Animator[float]):
     """
     Animation for power sequences
     """
-    def merge(self, values: list[T]) -> T:
+    def merge(self, values: list[float]) -> float:
         if len(values) == 1:
             return values[0]
         return sum(values, start=0.0)
@@ -104,7 +104,7 @@ class ColorAnimator(Animator[Color]):
     """
     Animation for color sequences
     """
-    def merge(self, values: list[T]) -> T:
+    def merge(self, values: list[Color]) -> Color:
         if len(values) == 1:
             return values[0]
         return sum(values, start=Color(0, 0, 0))

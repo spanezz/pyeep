@@ -38,6 +38,8 @@ class Component:
     """
     A program component, managed by a Hub, that can send and receive messages
     """
+    HUB: str
+
     def __init__(self, *, hub: "Hub", name: str | None = None):
         self.name = name if name is not None else self.__class__.__name__.lower()
         self.logger = logging.getLogger(self.name)
@@ -88,14 +90,14 @@ class ModeMixin(Component):
         super().__init__(**kwargs)
         self.set_mode("default")
 
-    def list_modes(self) -> Iterator[ModeInfo, None]:
+    def list_modes(self) -> Iterator[ModeInfo]:
         """
         List available modes
         """
         for name, value in inspect.getmembers(self, inspect.ismethod):
             if not name.startswith("mode_"):
                 continue
-            yield ModeInfo(name[5:], inspect.getdoc(value))
+            yield ModeInfo(name[5:], inspect.getdoc(value) or name)
 
     @export
     def set_mode(self, name: str) -> None:

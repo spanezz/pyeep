@@ -4,7 +4,7 @@ from typing import Type
 
 from ..app import Component, Message
 from ..app.component import ModeMixin
-from ..gtk import Gio, GLib, Gtk, GtkComponent, Controller
+from ..gtk import Gio, GLib, Gtk, Controller
 
 
 class InputSetActive(Message):
@@ -36,7 +36,7 @@ class Input(ModeMixin, Component):
         raise NotImplementedError(f"{self.__class__.__name__}._is_active not implemented")
 
 
-class InputController(Controller):
+class InputController(Controller[Input]):
     """
     User interface side for an input (controller and view)
     """
@@ -48,9 +48,9 @@ class InputController(Controller):
         self.active = Gio.SimpleAction.new_stateful(
                 name=self.name.replace("_", "-") + "-active",
                 parameter_type=None,
-                state=GLib.Variant.new_boolean(self.input.active))
+                state=GLib.Variant.new_boolean(self.input.is_active))
         self.active.connect("activate", self.on_activate)
-        self.hub.app.gtk_app.add_action(self.active)
+        self.hub.gtk_app.add_action(self.active)
 
         self.modes = Gtk.ListStore(str, str)
         for info in self.input.list_modes():

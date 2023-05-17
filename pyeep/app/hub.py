@@ -49,7 +49,7 @@ class Hub:
         """
         raise NotImplementedError(f"{self.__class__.__name__}._running_in_hub")
 
-    def run_in_hub(self, f: Callable[...], *args, **kw):
+    def run_in_hub(self, f: Callable, *args, **kw):
         """
         Call the function with the given arguments in the hub context as soon
         as it's possible
@@ -88,8 +88,8 @@ class Hub:
         if msg.dst is None:
             for c in list(self.components.values()):
                 c.receive(msg)
-        elif (c := self.components.get(msg.dst)) is not None:
-            c.receive(msg)
+        elif (comp := self.components.get(msg.dst)) is not None:
+            comp.receive(msg)
 
     def fill_component_kwargs(self, kwargs: dict[str, Any]):
         """

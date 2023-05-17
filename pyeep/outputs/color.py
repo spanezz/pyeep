@@ -3,7 +3,7 @@ from __future__ import annotations
 from ..animation import ColorAnimation, ColorAnimator
 from ..app import Component, Message, check_hub
 from ..gtk import Gtk
-from ..types import Color
+from ..color import Color
 from .base import Output, OutputController
 
 
@@ -32,7 +32,7 @@ class ColorOutputController(OutputController):
     """
     Output controller for ColorOutput outputs
     """
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.color = Gtk.ColorButton()
         self.color.connect("color-activated", self.on_color)

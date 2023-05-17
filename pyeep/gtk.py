@@ -4,7 +4,7 @@ import argparse
 import functools
 import logging
 import threading
-from typing import Callable
+from typing import Callable, Generic, TypeVar
 
 import gi
 
@@ -60,6 +60,10 @@ class GtkLoggingHandler(logging.Handler):
 class GtkComponent(Component):
     HUB = "gtk"
 
+    def __init__(self, *, hub: "GtkHub", **kwargs):
+        super().__init__(hub=hub, **kwargs)
+        self.hub: "GtkHub"
+
     @functools.cached_property
     def widget(self) -> Gtk.Widget:
         """
@@ -93,7 +97,7 @@ class GtkHub(Hub):
     def _running_in_hub(self) -> bool:
         return threading.current_thread() == self.thread
 
-    def run_in_hub(self, f: Callable[...], *args, **kwargs):
+    def run_in_hub(self, f: Callable, *args, **kwargs):
         if self._running_in_hub():
             f(*args, **kwargs)
         else:
@@ -111,9 +115,11 @@ class GtkHub(Hub):
         self.app.remove_hub(self)
 
 
-# TODO: parameterize on component type
-class Controller(GtkComponent):
-    def __init__(self, *, component: Component, **kwargs):
+C = TypeVar("C", bound=Component)
+
+
+class Controller(Generic[C], GtkComponent):
+    def __init__(self, *, component: C, **kwargs):
         super().__init__(**kwargs)
         self.component = component
 

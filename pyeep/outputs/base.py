@@ -40,7 +40,7 @@ class Output(Component):
         return self.name
 
 
-class OutputController(Controller):
+class OutputController(Controller[Output]):
     """
     Base class for output controllers.
 
@@ -66,14 +66,14 @@ class OutputController(Controller):
                 parameter_type=None,
                 state=GLib.Variant.new_boolean(False))
         self.pause.connect("change-state", self.on_pause)
-        self.hub.app.gtk_app.add_action(self.pause)
+        self.hub.gtk_app.add_action(self.pause)
 
         self.manual = Gio.SimpleAction.new_stateful(
                 name=self.name.replace("_", "-") + "-manual",
                 parameter_type=None,
                 state=GLib.Variant.new_boolean(False))
         self.manual.connect("change-state", self.on_manual)
-        self.hub.app.gtk_app.add_action(self.manual)
+        self.hub.gtk_app.add_action(self.manual)
 
     def in_group(self, group: int) -> bool:
         """
@@ -165,7 +165,7 @@ class OutputsModel(GtkComponent):
     """
     Container for output view widgets
     """
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.output_models: list[OutputController] = []
 
