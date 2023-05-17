@@ -20,7 +20,7 @@ class Sample(NamedTuple):
     # UNIX timestamp in nanoseconds
     time: int
     rate: float
-    rr: tuple[float] = ()
+    rr: tuple[float, ...] = ()
 
 
 class HeartBeat(Message):
@@ -94,7 +94,7 @@ class HeartRateMonitor(Input, bluetooth.BluetoothComponent):
             # ee = (data[i + 1] << 8) | data[i]
             i += 2
 
-        rr = []
+        rr: list[float] = []
         if have_rr:
             while i < len(data):
                 # Note: Need to divide the value by 1024 to get in seconds

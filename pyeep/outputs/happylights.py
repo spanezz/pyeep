@@ -23,7 +23,7 @@ class SetColor(Message):
     def __str__(self) -> str:
         return (
             super().__str__() +
-            f"(red={self.color[0]:.3f}, green={self.color[1]:.3f}, blue={self.color[2]:.3f})"
+            f"(color={self.color})"
         )
 
 
@@ -35,7 +35,7 @@ class HappyLights(ColorOutput, bluetooth.BluetoothComponent):
     # See https://github.com/sysofwan/ha-triones
     # See https://github.com/nfd/happylighting
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         kwargs.setdefault("rate", 32)
         super().__init__(**kwargs)
         self.red: int = 0
@@ -63,21 +63,21 @@ class HappyLights(ColorOutput, bluetooth.BluetoothComponent):
         return bytes([0xcc, 0x24, 0x33])
 
     @export
-    def set_color(self, color: Color):
+    def set_color(self, color: Color) -> None:
         self.receive(SetColor(color=color))
 
     @export
-    def set_brightness(self, value: float):
+    def set_brightness(self, value: float) -> None:
         self.brightness = value
 
-    async def run_message(self, msg: Message):
+    async def run_message(self, msg: Message) -> None:
         match msg:
             case SetColor():
                 color = msg.color * self.brightness
                 cmd = self.cmd_color(
-                     int(round(color[0] * 255)),
-                     int(round(color[1] * 255)),
-                     int(round(color[2] * 255)),
+                     int(round(color.red * 255)),
+                     int(round(color.green * 255)),
+                     int(round(color.blue * 255)),
                 )
                 self.logger.debug("HappyLights command: %s", " ".join(f"{c:x}" for c in cmd))
                 await self.client.write_gatt_char(COMMAND_CHARACTERISTIC, cmd)

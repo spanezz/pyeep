@@ -24,8 +24,8 @@ class EvdevInput(Input, AIOComponent):
         self.device = device
         self.active = False
 
-    @export
     @property
+    @export
     def is_active(self) -> bool:
         return self.active
 

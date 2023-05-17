@@ -114,7 +114,7 @@ class RingRemote(EvdevInput):
     Handle events from a Bluetooth tiktok scroll ring
     """
     # This has been tested with https://www.amazon.it/dp/B0BZC85G7F
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.active = True
 

@@ -16,7 +16,7 @@ class AIOComponent(Component):
     """
     HUB = "aio"
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.message_queue: asyncio.Queue[Message] = asyncio.Queue()
 
@@ -34,7 +34,7 @@ class AIOComponent(Component):
         except TimeoutError:
             return None
 
-    async def run(self):
+    async def run(self) -> None:
         """
         Main body of this component
         """
@@ -44,7 +44,7 @@ class AIOComponent(Component):
 class AIOHub(Hub):
     HUB = "aio"
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.thread = threading.Thread(name=self.HUB, target=self.run)
         self.loop: asyncio.AbstractEventLoop | None = None
@@ -62,7 +62,7 @@ class AIOHub(Hub):
     def _running_in_hub(self) -> bool:
         return threading.current_thread() == self.thread
 
-    def run_in_hub(self, f: Callable[...], *args, **kwargs):
+    def run_in_hub(self, f: Callable, *args, **kwargs):
         if self.loop is None:
             self.pre_loop_queue.put(functools.partial(f, *args, **kwargs))
         elif self._running_in_hub():

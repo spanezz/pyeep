@@ -16,7 +16,7 @@ import pygame  # Noqa
 class PygameComponent(Component):
     HUB = "pygame"
     # Code of events that the component listens to
-    EVENTS: tuple[int] = ()
+    EVENTS: tuple[int, ...] = ()
 
     @check_hub
     def pygame_event(self, event: pygame.event.Event):
@@ -26,7 +26,7 @@ class PygameComponent(Component):
 class PygameHub(Hub):
     HUB = "pygame"
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.thread = threading.Thread(name=self.HUB, target=self.run)
         self.EVENT_HUB = pygame.event.custom_type()
@@ -34,11 +34,11 @@ class PygameHub(Hub):
         self.pygame_initialized = False
         self.event_map: defaultdict[int, set[PygameComponent]] = defaultdict(set)
 
-    def start(self):
+    def start(self) -> None:
         super().start()
         self.thread.start()
 
-    def join(self):
+    def join(self) -> None:
         super().join()
         self.thread.join()
 
@@ -56,7 +56,7 @@ class PygameHub(Hub):
     def _running_in_hub(self) -> bool:
         return threading.current_thread() == self.thread
 
-    def run_in_hub(self, f: Callable[...], *args, **kwargs):
+    def run_in_hub(self, f: Callable, *args, **kwargs):
         if self._running_in_hub():
             f(*args, **kwargs)
         else:

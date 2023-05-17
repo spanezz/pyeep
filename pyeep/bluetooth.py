@@ -22,7 +22,7 @@ class Device(NamedTuple):
     component_cls: Type["BluetoothComponent"]
     # If not empty, the device detected must have service UUIDs that start wtih
     # all these strings
-    service_uuid: tuple[str] = ()
+    service_uuid: tuple[str, ...] = ()
 
 
 class BluetoothDisconnect(Message):
@@ -92,7 +92,7 @@ class BluetoothComponent(AIOComponent):
         #     if self.client.is_connected:
         #         await self.client.disconnect()
 
-    async def run_message(self):
+    async def run_message(self, msg: Message) -> None:
         pass
 
     async def run(self):
