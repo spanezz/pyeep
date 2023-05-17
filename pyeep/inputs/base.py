@@ -24,10 +24,6 @@ class Input(ModeMixin, Component):
     """
     Generic base for component managing inputs
     """
-    @property
-    def description(self) -> str:
-        return self.name
-
     def get_input_controller(self) -> Type["InputController"]:
         return InputController
 

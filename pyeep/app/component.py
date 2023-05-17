@@ -48,6 +48,10 @@ class Component:
     def __str__(self) -> str:
         return self.name
 
+    @property
+    def description(self) -> str:
+        return self.name
+
     @check_hub
     def cleanup(self):
         """

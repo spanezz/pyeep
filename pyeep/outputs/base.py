@@ -35,10 +35,6 @@ class Output(Component):
     def get_output_controller(self) -> Type["OutputController"]:
         return OutputController
 
-    @property
-    def description(self) -> str:
-        return self.name
-
 
 class OutputController(Controller[Output]):
     """
