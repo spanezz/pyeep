@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from ..animation import ColorAnimation, ColorAnimator
 from ..app import Component, Message, check_hub
-from ..gtk import Gtk
 from ..color import Color
+from ..gtk import ControllerWidget, Gtk
 from .base import Output, OutputController
 
 
@@ -70,7 +70,7 @@ class ColorOutputController(OutputController):
         self.animation_color = color
         self.update_color()
 
-    def build(self) -> Gtk.Grid:
-        grid = super().build()
-        grid.attach(self.color, 3, 1, 1, 1)
-        return grid
+    def build(self) -> ControllerWidget:
+        cw = super().build()
+        cw.grid.attach(self.color, 3, 1, 1, 1)
+        return cw

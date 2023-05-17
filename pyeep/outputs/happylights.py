@@ -4,8 +4,8 @@ from typing import Type
 
 from .. import bluetooth
 from ..app import Message, export
-from ..gtk import Gtk
 from ..color import Color
+from ..gtk import ControllerWidget, Gtk
 from .base import OutputController
 from .color import ColorOutput, ColorOutputController
 
@@ -94,12 +94,12 @@ class HappyLightsOutputController(ColorOutputController):
         value = self.brightness.get_value()
         self.output.set_brightness(value)
 
-    def build(self) -> Gtk.Grid:
-        grid = super().build()
-        grid.attach(Gtk.Label(label="Brightness"), 0, 2, 1, 1)
+    def build(self) -> ControllerWidget:
+        cw = super().build()
+        cw.grid.attach(Gtk.Label(label="Brightness"), 0, 2, 1, 1)
 
         spinbutton = Gtk.SpinButton()
         spinbutton.set_adjustment(self.brightness)
         spinbutton.set_digits(1)
-        grid.attach(spinbutton, 1, 2, 1, 1)
-        return grid
+        cw.grid.attach(spinbutton, 1, 2, 1, 1)
+        return cw

@@ -118,10 +118,23 @@ class GtkHub(Hub):
 C = TypeVar("C", bound=Component)
 
 
+class ControllerWidget(Gtk.Frame):
+    def __init__(self, *, label: str):
+        super().__init__(label=label)
+        self.set_margin_bottom(10)
+        self.grid = Gtk.Grid()
+        self.set_child(self.grid)
+
+
 class Controller(Generic[C], GtkComponent):
+    Widget: ControllerWidget = ControllerWidget
+
     def __init__(self, *, component: C, **kwargs):
         super().__init__(**kwargs)
         self.component = component
+
+    def build(self) -> ControllerWidget:
+        return ControllerWidget(label=self.component.description)
 
 
 class GtkApp(App):

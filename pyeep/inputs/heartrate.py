@@ -7,7 +7,7 @@ import bleak
 
 from .. import bluetooth
 from ..app import Message
-from ..gtk import Gtk
+from ..gtk import ControllerWidget, Gtk
 from .base import Input, InputController, InputSetActive
 
 HEART_RATE_UUID = "00002a37-0000-1000-8000-00805f9b34fb"
@@ -127,10 +127,10 @@ class HeartRateInputController(InputController):
         super().__init__(**kwargs)
         self.current_rate = Gtk.Label(label="-- BPM")
 
-    def build(self) -> Gtk.Box:
-        grid = super().build()
-        grid.attach(self.current_rate, 0, 3, 1, 1)
-        return grid
+    def build(self) -> ControllerWidget:
+        cw = super().build()
+        cw.grid.attach(self.current_rate, 0, 3, 1, 1)
+        return cw
 
     def receive(self, msg: Message):
         if msg.src != self.input:

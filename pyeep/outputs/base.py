@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Type
 
 from ..app import Component, Message, check_hub
-from ..gtk import Gio, GLib, Gtk, GtkComponent, Controller
+from ..gtk import Gio, GLib, Gtk, GtkComponent, Controller, ControllerWidget
 from .. import messages
 
 
@@ -134,27 +134,22 @@ class OutputController(Controller[Output]):
                 if self.in_group(msg.group):
                     self.set_paused(False)
 
-    def build(self) -> Gtk.Grid:
-        grid = Gtk.Grid()
-
-        label_name = Gtk.Label(label=self.output.description)
-        label_name.wrap = True
-        label_name.set_halign(Gtk.Align.START)
-        grid.attach(label_name, 0, 0, 3, 1)
+    def build(self) -> ControllerWidget:
+        cw = super().build()
 
         group = Gtk.SpinButton(adjustment=self.group, climb_rate=1.0, digits=0)
         group.set_tooltip_text("Group number")
-        grid.attach(group, 0, 1, 1, 1)
+        cw.grid.attach(group, 0, 1, 1, 1)
 
         pause = Gtk.ToggleButton(label="Paused")
         pause.set_action_name("app." + self.pause.get_name())
-        grid.attach(pause, 1, 1, 1, 1)
+        cw.grid.attach(pause, 1, 1, 1, 1)
 
         manual = Gtk.ToggleButton(label="Manual")
         manual.set_action_name("app." + self.manual.get_name())
-        grid.attach(manual, 2, 1, 1, 1)
+        cw.grid.attach(manual, 2, 1, 1, 1)
 
-        return grid
+        return cw
 
 
 class OutputsModel(GtkComponent):

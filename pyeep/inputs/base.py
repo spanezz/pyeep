@@ -4,7 +4,7 @@ from typing import Type
 
 from ..app import Component, Message
 from ..app.component import ModeMixin
-from ..gtk import Gio, GLib, Gtk, Controller
+from ..gtk import Gio, GLib, Gtk, Controller, ControllerWidget
 
 
 class InputSetActive(Message):
@@ -67,22 +67,15 @@ class InputController(Controller[Input]):
             mode = model[tree_iter][0]
             self.input.set_mode(mode)
 
-    def build(self) -> Gtk.Box:
+    def build(self) -> ControllerWidget:
         """
         Build the input view
         """
-        grid = Gtk.Grid()
-        grid.set_margin_bottom(10)
-
-        label_name = Gtk.Label(label=self.input.description)
-        label_name.wrap = True
-        label_name.set_halign(Gtk.Align.START)
-        label_name.set_hexpand(True)
-        grid.attach(label_name, 0, 0, 1, 1)
+        cw = super().build()
 
         active = Gtk.CheckButton(label="Active")
         active.set_action_name("app." + self.active.get_name())
-        grid.attach(active, 0, 1, 1, 1)
+        cw.grid.attach(active, 0, 1, 1, 1)
 
         if len(self.modes) > 1:
             modes = Gtk.ComboBox(model=self.modes)
@@ -92,6 +85,6 @@ class InputController(Controller[Input]):
             modes.add_attribute(renderer, "text", 1)
             modes.set_active_id("default")
             modes.connect("changed", self.on_mode_changed)
-            grid.attach(modes, 0, 2, 1, 1)
+            cw.grid.attach(modes, 0, 2, 1, 1)
 
-        return grid
+        return cw

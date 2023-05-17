@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Type
 
 from ..app import Message, check_hub
-from ..gtk import Gtk, GtkComponent
+from ..gtk import Gtk, GtkComponent, ControllerWidget
 from .base import Input, InputController, InputSetActive
 from .keyboards import Shortcut
 
@@ -44,12 +44,12 @@ class Manual(Input, GtkComponent):
 
 
 class ManualInputController(InputController):
-    def build(self) -> Gtk.Box:
-        grid = super().build()
+    def build(self) -> ControllerWidget:
+        cw = super().build()
         pulse = Gtk.Button(label="Pulse")
         pulse.connect("clicked", self.on_pulse)
-        grid.attach(pulse, 0, 3, 1, 1)
-        return grid
+        cw.grid.attach(pulse, 0, 3, 1, 1)
+        return cw
 
     def on_pulse(self, button):
         self.input.mode("PULSE")
