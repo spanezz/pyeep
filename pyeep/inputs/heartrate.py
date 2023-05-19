@@ -7,8 +7,9 @@ import bleak
 
 from .. import bluetooth
 from ..app import Message
+from ..app.component import BasicActiveMixin
 from ..gtk import ControllerWidget, Gtk
-from .base import BasicActiveMixin, Input, InputController
+from .base import Input, InputController
 
 HEART_RATE_UUID = "00002a37-0000-1000-8000-00805f9b34fb"
 
@@ -41,7 +42,7 @@ class HeartRateMonitor(BasicActiveMixin, Input, bluetooth.BluetoothComponent):
     """
     # This has been tested with a Moofit HW401
 
-    def get_input_controller(self) -> Type["InputController"]:
+    def get_controller(self) -> Type["InputController"]:
         return HeartRateInputController
 
     async def on_connect(self):

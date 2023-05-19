@@ -89,3 +89,15 @@ class Resume(Message):
 
     def __str__(self) -> str:
         return super().__str__() + f"(group={self.group})"
+
+
+class ComponentActiveStateChanged(Message):
+    """
+    Notify a change of active state for an input
+    """
+    def __init__(self, *, value: bool, **kwargs):
+        super().__init__(**kwargs)
+        self.value = value
+
+    def __str__(self) -> str:
+        return super().__str__() + f"(value={self.value})"

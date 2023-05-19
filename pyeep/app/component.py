@@ -4,11 +4,14 @@ import functools
 import inspect
 import logging
 import time
-from typing import TYPE_CHECKING, Iterator, NamedTuple
+from typing import TYPE_CHECKING, Iterator, NamedTuple, Type
+
+from ..messages import ComponentActiveStateChanged
 
 if TYPE_CHECKING:
     from .hub import Hub
     from ..messages import Message
+    from .gtk import Controller
 
 
 def check_hub(f):
@@ -52,6 +55,9 @@ class Component:
     def description(self) -> str:
         return self.name
 
+    def get_controller(self) -> Type["Controller"]:
+        raise NotImplementedError(f"{self.__class__.__name__}.get_controller not implemented")
+
     @check_hub
     def cleanup(self):
         """
@@ -76,6 +82,47 @@ class Component:
         Function called by the hub to deliver a message to this component
         """
         pass
+
+
+class ActivityToggleMixin(Component):
+    """
+    Mixin for components that can be activated and deactivated
+    """
+    @property
+    def is_active(self) -> bool:
+        """
+        Check if the input is active
+        """
+        raise NotImplementedError(f"{self.__class__.__name__}.is_active not implemented")
+
+    @export
+    def set_active(self, active: bool) -> None:
+        """
+        Change the active state for the input.
+
+        The function is expected to be idempotent
+        """
+        raise NotImplementedError(f"{self.__class__.__name__}.set_active not implemented")
+
+
+class BasicActiveMixin(ActivityToggleMixin):
+    """
+    Basic implementation of activity tracking
+    """
+    def __init__(self, *, active: bool = False, **kwargs):
+        super().__init__(**kwargs)
+        self.active = active
+
+    @property
+    def is_active(self) -> bool:
+        return self.active
+
+    @export
+    def set_active(self, active: bool) -> None:
+        if active == self.active:
+            return
+        self.active = active
+        self.send(ComponentActiveStateChanged(value=active))
 
 
 class ModeInfo(NamedTuple):

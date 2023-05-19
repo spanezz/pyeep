@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import Type
 
 from ..app import check_hub
-from ..gtk import Gtk, GtkComponent, ControllerWidget
-from .base import BasicActiveMixin, Input, InputController
+from ..app.component import BasicActiveMixin
+from ..gtk import ControllerWidget, Gtk, GtkComponent
+from .base import Input, InputController
 from .keyboards import Shortcut
 
 
@@ -23,7 +24,7 @@ class Manual(BasicActiveMixin, Input, GtkComponent):
     def description(self) -> str:
         return "Manual"
 
-    def get_input_controller(self) -> Type["InputController"]:
+    def get_controller(self) -> Type["InputController"]:
         return ManualInputController
 
     @check_hub

@@ -7,10 +7,10 @@ from typing import Type
 import aionotify
 import evdev
 
-from ..app import Shutdown
 from ..aio import AIOComponent
-
-from .base import BasicActiveMixin, Input
+from ..app import Shutdown
+from ..app.component import BasicActiveMixin
+from .base import Input
 
 
 class EvdevInput(BasicActiveMixin, Input, AIOComponent):

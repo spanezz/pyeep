@@ -3,9 +3,9 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Type
 
-from ..messages import Message
-from ..app.component import Component, ModeMixin, export
+from ..app.component import ActivityToggleMixin, Component, ModeMixin
 from ..gtk import Controller, ControllerWidget, Gio, GLib, Gtk
+from ..messages import ComponentActiveStateChanged, Message
 
 
 class ConnectedState(StrEnum):
@@ -29,24 +29,11 @@ class InputConnectedStateChanged(Message):
         return super().__str__() + f"(input={self.input}, value={self.value})"
 
 
-class InputActiveStateChanged(Message):
-    """
-    Notify a change of active state for an input
-    """
-    def __init__(self, *, input: "Input", value: bool, **kwargs):
-        super().__init__(**kwargs)
-        self.input = input
-        self.value = value
-
-    def __str__(self) -> str:
-        return super().__str__() + f"(input={self.input}, value={self.value})"
-
-
-class Input(ModeMixin, Component):
+class Input(ModeMixin, ActivityToggleMixin, Component):
     """
     Generic base for component managing inputs
     """
-    def get_input_controller(self) -> Type["InputController"]:
+    def get_controller(self) -> Type["Controller"]:
         return InputController
 
     def get_connected_state(self) -> ConnectedState:
@@ -54,42 +41,6 @@ class Input(ModeMixin, Component):
         Get the current connected state for the input
         """
         return ConnectedState.CONNECTED
-
-    @property
-    def is_active(self) -> bool:
-        """
-        Check if the input is active
-        """
-        raise NotImplementedError(f"{self.__class__.__name__}.is_active not implemented")
-
-    @export
-    def set_active(self, active: bool) -> None:
-        """
-        Change the active state for the input.
-
-        The function is expected to be idempotent
-        """
-        raise NotImplementedError(f"{self.__class__.__name__}.set_active not implemented")
-
-
-class BasicActiveMixin(Input):
-    """
-    Basic implementation of activity tracking
-    """
-    def __init__(self, *, active: bool = False, **kwargs):
-        super().__init__(**kwargs)
-        self.active = active
-
-    @property
-    def is_active(self) -> bool:
-        return self.active
-
-    @export
-    def set_active(self, active: bool) -> None:
-        if active == self.active:
-            return
-        self.active = active
-        self.send(InputActiveStateChanged(input=self, value=active))
 
 
 class InputControllerWidget(ControllerWidget):
@@ -159,7 +110,7 @@ class InputController(Controller[Input]):
             case InputConnectedStateChanged():
                 if msg.src == self.input:
                     self.widget.set_connected_state(msg.value)
-            case InputActiveStateChanged():
+            case ComponentActiveStateChanged():
                 if msg.src == self.input and self.active.get_state().get_boolean() != msg.value:
                     self.active.set_state(GLib.Variant.new_boolean(msg.value))
 
