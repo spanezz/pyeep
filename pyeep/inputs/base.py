@@ -100,6 +100,8 @@ class InputControllerWidget(ControllerWidget):
         super().__init__(**kwargs)
         self.connected = Gtk.Image(icon_name="user-offline")
         self.label_box.prepend(self.connected)
+        self.active = Gtk.Switch()
+        self.label_box.prepend(self.active)
 
     def set_connected_state(self, state: ConnectedState):
         """
@@ -162,9 +164,7 @@ class InputController(Controller[Input]):
         cw = super().build()
         cw.set_connected_state(self.input.get_connected_state())
 
-        active = Gtk.CheckButton(label="Active")
-        active.set_action_name("app." + self.active.get_name())
-        cw.grid.attach(active, 0, 1, 1, 1)
+        cw.active.set_action_name("app." + self.active.get_name())
 
         if len(self.modes) > 1:
             modes = Gtk.ComboBox(model=self.modes)
