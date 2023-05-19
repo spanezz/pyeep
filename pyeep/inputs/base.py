@@ -98,10 +98,28 @@ class InputControllerWidget(ControllerWidget):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.connected = Gtk.Image(icon_name="user-offline")
-        self.label_box.prepend(self.connected)
+
+        # Stop using the frame label
+        label = self.get_label_widget()
+        self.set_label_widget(None)
+
+        # Put a CenterBox at the top of the frame instead
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.set_child(box)
+        box.append(self.grid)
+
+        # Label at the center
+        self.header = Gtk.CenterBox()
+        box.prepend(self.header)
+        self.header.set_center_widget(label)
+
+        # Active state
         self.active = Gtk.Switch()
-        self.label_box.prepend(self.active)
+        self.header.set_start_widget(self.active)
+
+        # Connected status
+        self.connected = Gtk.Image(icon_name="user-offline")
+        self.header.set_end_widget(self.connected)
 
     def set_connected_state(self, state: ConnectedState):
         """

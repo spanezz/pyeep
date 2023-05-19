@@ -122,12 +122,6 @@ class ControllerWidget(Gtk.Frame):
     def __init__(self, *, label: str):
         super().__init__(label=label)
 
-        # Replace the label with a horizontal box
-        self.label_box = Gtk.Box()
-        label = self.get_label_widget()
-        self.set_label_widget(self.label_box)
-        self.label_box.append(label)
-
         self.set_margin_bottom(10)
         self.grid = Gtk.Grid()
         self.set_child(self.grid)
