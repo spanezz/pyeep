@@ -1,15 +1,37 @@
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import Type
 
-from ..app import Component, Message
-from ..app.component import ModeMixin
-from ..gtk import Gio, GLib, Gtk, Controller, ControllerWidget
+from ..messages import Message
+from ..app.component import Component, ModeMixin, export
+from ..gtk import Controller, ControllerWidget, Gio, GLib, Gtk
 
 
-class InputSetActive(Message):
+class ConnectedState(StrEnum):
     """
-    Activate/deactivate an input
+    Connection state of an input
+    """
+    CONNECTED = "connected"
+    DISCONNECTED = "disconnected"
+
+
+class InputConnectedStateChanged(Message):
+    """
+    Notify a change of connected state for an input
+    """
+    def __init__(self, *, input: "Input", value: ConnectedState, **kwargs):
+        super().__init__(**kwargs)
+        self.input = input
+        self.value = value
+
+    def __str__(self) -> str:
+        return super().__str__() + f"(input={self.input}, value={self.value})"
+
+
+class InputActiveStateChanged(Message):
+    """
+    Notify a change of active state for an input
     """
     def __init__(self, *, input: "Input", value: bool, **kwargs):
         super().__init__(**kwargs)
@@ -27,15 +49,75 @@ class Input(ModeMixin, Component):
     def get_input_controller(self) -> Type["InputController"]:
         return InputController
 
+    def get_connected_state(self) -> ConnectedState:
+        """
+        Get the current connected state for the input
+        """
+        return ConnectedState.CONNECTED
+
     @property
     def is_active(self) -> bool:
-        raise NotImplementedError(f"{self.__class__.__name__}._is_active not implemented")
+        """
+        Check if the input is active
+        """
+        raise NotImplementedError(f"{self.__class__.__name__}.is_active not implemented")
+
+    @export
+    def set_active(self, active: bool) -> None:
+        """
+        Change the active state for the input.
+
+        The function is expected to be idempotent
+        """
+        raise NotImplementedError(f"{self.__class__.__name__}.set_active not implemented")
+
+
+class BasicActiveMixin(Input):
+    """
+    Basic implementation of activity tracking
+    """
+    def __init__(self, *, active: bool = False, **kwargs):
+        super().__init__(**kwargs)
+        self.active = active
+
+    @property
+    def is_active(self) -> bool:
+        return self.active
+
+    @export
+    def set_active(self, active: bool) -> None:
+        if active == self.active:
+            return
+        self.active = active
+        self.send(InputActiveStateChanged(input=self, value=active))
+
+
+class InputControllerWidget(ControllerWidget):
+    """
+    Controller widget with common UI for managing inputs
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.connected = Gtk.Image(icon_name="user-offline")
+        self.label_box.prepend(self.connected)
+
+    def set_connected_state(self, state: ConnectedState):
+        """
+        Change the connected state displayed for the input
+        """
+        match state:
+            case ConnectedState.CONNECTED:
+                self.connected.set_from_icon_name("user-available")
+            case ConnectedState.DISCONNECTED:
+                self.connected.set_from_icon_name("user-offline")
 
 
 class InputController(Controller[Input]):
     """
     User interface side for an input (controller and view)
     """
+    Widget = InputControllerWidget
+
     def __init__(self, *, input: Input, **kwargs):
         kwargs.setdefault("name", "input_model_" + input.name)
         super().__init__(component=input, **kwargs)
@@ -52,13 +134,19 @@ class InputController(Controller[Input]):
         for info in self.input.list_modes():
             self.modes.append([info.name, info.summary])
 
-    def is_active(self) -> bool:
-        return self.active.get_state().get_boolean()
+    def receive(self, msg: Message):
+        match msg:
+            case InputConnectedStateChanged():
+                if msg.src == self.input:
+                    self.widget.set_connected_state(msg.value)
+            case InputActiveStateChanged():
+                if msg.src == self.input and self.active.get_state().get_boolean() != msg.value:
+                    self.active.set_state(GLib.Variant.new_boolean(msg.value))
 
     def on_activate(self, action, parameter):
         new_state = not self.active.get_state().get_boolean()
         self.active.set_state(GLib.Variant.new_boolean(new_state))
-        self.send(InputSetActive(input=self.input, value=new_state))
+        self.input.set_active(new_state)
 
     def on_mode_changed(self, combo):
         tree_iter = combo.get_active_iter()
@@ -72,6 +160,7 @@ class InputController(Controller[Input]):
         Build the input view
         """
         cw = super().build()
+        cw.set_connected_state(self.input.get_connected_state())
 
         active = Gtk.CheckButton(label="Active")
         active.set_action_name("app." + self.active.get_name())

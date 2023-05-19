@@ -2,23 +2,19 @@ from __future__ import annotations
 
 from typing import Type
 
-from ..app import Message, check_hub
+from ..app import check_hub
 from ..gtk import Gtk, GtkComponent, ControllerWidget
-from .base import Input, InputController, InputSetActive
+from .base import BasicActiveMixin, Input, InputController
 from .keyboards import Shortcut
 
 
-class Manual(Input, GtkComponent):
+class Manual(BasicActiveMixin, Input, GtkComponent):
     """
     Dummy manual input used for testing
     """
     def __init__(self, **kwargs):
+        kwargs.setdefault("active", True)
         super().__init__(**kwargs)
-        self.active = True
-
-    @property
-    def is_active(self) -> bool:
-        return self.active
 
     def build(self) -> None:
         return None
@@ -34,13 +30,6 @@ class Manual(Input, GtkComponent):
     def mode_default(self, value: str):
         if self.is_active:
             self.send(Shortcut(command=value))
-
-    @check_hub
-    def receive(self, msg: Message):
-        match msg:
-            case InputSetActive():
-                if msg.input == self:
-                    self.active = msg.value
 
 
 class ManualInputController(InputController):

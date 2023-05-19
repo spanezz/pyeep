@@ -8,7 +8,7 @@ import bleak
 from .. import bluetooth
 from ..app import Message
 from ..gtk import ControllerWidget, Gtk
-from .base import Input, InputController, InputSetActive
+from .base import BasicActiveMixin, Input, InputController
 
 HEART_RATE_UUID = "00002a37-0000-1000-8000-00805f9b34fb"
 
@@ -35,21 +35,14 @@ class HeartBeat(Message):
         return super().__str__() + f"(sample={self.sample})"
 
 
-class HeartRateMonitor(Input, bluetooth.BluetoothComponent):
+class HeartRateMonitor(BasicActiveMixin, Input, bluetooth.BluetoothComponent):
     """
     Monitor a Bluetooth LE heart rate monitor
     """
     # This has been tested with a Moofit HW401
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.active = False
 
     def get_input_controller(self) -> Type["InputController"]:
         return HeartRateInputController
-
-    @property
-    def is_active(self) -> bool:
-        return self.active
 
     async def on_connect(self):
         await super().on_connect()
@@ -114,12 +107,6 @@ class HeartRateMonitor(Input, bluetooth.BluetoothComponent):
 
     def mode_default(self, sample: Sample):
         self.send(HeartBeat(sample=sample))
-
-    async def run_message(self, msg: Message):
-        match msg:
-            case InputSetActive():
-                if msg.input == self:
-                    self.active = msg.value
 
 
 class HeartRateInputController(InputController):

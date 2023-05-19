@@ -7,13 +7,13 @@ from typing import Type
 import aionotify
 import evdev
 
-from ..app import Shutdown, export
+from ..app import Shutdown
 from ..aio import AIOComponent
 
-from .base import Input, InputSetActive
+from .base import BasicActiveMixin, Input
 
 
-class EvdevInput(Input, AIOComponent):
+class EvdevInput(BasicActiveMixin, Input, AIOComponent):
     """
     Input device processing events from an evdev device
     """
@@ -22,12 +22,6 @@ class EvdevInput(Input, AIOComponent):
         super().__init__(**kwargs)
         self.path = path
         self.device = device
-        self.active = False
-
-    @property
-    @export
-    def is_active(self) -> bool:
-        return self.active
 
     @property
     def description(self) -> str:
@@ -49,12 +43,9 @@ class EvdevInput(Input, AIOComponent):
             reader = tg.create_task(self.read_events())
             try:
                 while True:
-                    match (msg := await self.next_message()):
+                    match await self.next_message():
                         case Shutdown():
                             break
-                        case InputSetActive():
-                            if msg.input == self:
-                                self.active = msg.value
             finally:
                 reader.cancel()
 
