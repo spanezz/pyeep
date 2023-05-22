@@ -8,6 +8,7 @@ import bleak
 from .. import bluetooth
 from ..component.controller import ControllerWidget
 from ..component.active import SimpleActiveComponent
+from ..component.connected import ConnectedController
 from ..gtk import Gtk
 from ..messages import Message
 from .base import Input, InputController
@@ -111,7 +112,7 @@ class HeartRateMonitor(SimpleActiveComponent, Input, bluetooth.BluetoothComponen
         self.send(HeartBeat(sample=sample))
 
 
-class HeartRateInputController(InputController[HeartRateMonitor]):
+class HeartRateInputController(ConnectedController[HeartRateMonitor], InputController[HeartRateMonitor]):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.current_rate = Gtk.Label(label="-- BPM")

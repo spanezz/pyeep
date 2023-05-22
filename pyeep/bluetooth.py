@@ -8,6 +8,7 @@ import bleak
 import bleak.assigned_numbers
 
 from .component.aio import AIOComponent
+from .component.connected import ConnectedComponent, ConnectedState, ConnectedStateChanged
 from .messages import Message, Shutdown, DeviceScanRequest
 
 re_mangle = re.compile(r"[^\w]+")
@@ -31,7 +32,7 @@ class BluetoothDisconnect(Message):
     pass
 
 
-class BluetoothComponent(AIOComponent):
+class BluetoothComponent(ConnectedComponent, AIOComponent):
     """
     Base class for components handling Bluetooth-connected devices
     """
@@ -45,12 +46,22 @@ class BluetoothComponent(AIOComponent):
         )
         self.connect_task: asyncio.Task | None = None
         self.task_group = asyncio.TaskGroup()
+        self.connection_state: ConnectedState = ConnectedState.DISCONNECTED
+
+    def get_connected_state(self):
+        return self.connection_state
+
+    def _update_connected_state(self, value: ConnectedState) -> None:
+        if value == self.connection_state:
+            return
+        self.connection_state = value
+        self.send(ConnectedStateChanged(value=value))
 
     async def on_connect(self):
         """
         Hook called when the device connects
         """
-        pass
+        self._update_connected_state(ConnectedState.CONNECTED)
 
     def _on_disconnect(self, client: bleak.BleakClient):
         self.receive(BluetoothDisconnect())
@@ -103,6 +114,7 @@ class BluetoothComponent(AIOComponent):
                         break
                     case BluetoothDisconnect():
                         self.logger.warning("device disconnected")
+                        self._update_connected_state(ConnectedState.DISCONNECTED)
                         await self.connect()
                     case _:
                         await self.run_message(msg)
