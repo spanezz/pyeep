@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import Type
 
 from .. import bluetooth
-from ..app import Message, export
+from ..messages import Message
+from ..component.base import export
+from ..component.controller import ControllerWidget
 from ..color import Color
-from ..gtk import ControllerWidget, Gtk
+from ..gtk import Gtk
 from .base import OutputController
 from .color import ColorOutput, ColorOutputController
 

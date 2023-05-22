@@ -3,11 +3,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, Callable
 
-from .component import check_hub
+from ..component.base import check_hub
 
 if TYPE_CHECKING:
     from .app import App
-    from .component import Component
+    from ..component.base import Component
     from ..messages import Message
 
 

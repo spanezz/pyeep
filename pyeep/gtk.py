@@ -1,21 +1,22 @@
 from __future__ import annotations
 
 import argparse
-import functools
 import logging
 import threading
-from typing import Callable, Generic, TypeVar
+from typing import Callable
 
 import gi
 
-from .app import App, Component, Hub, Message, Shutdown, check_hub
+from .app import App, Hub
+from .component.base import check_hub
+from .messages import Message, Shutdown
 
 gi.require_version("Gtk", "4.0")
 gi.require_version('Gdk', '4.0')
 gi.require_version("GLib", "2.0")
 gi.require_version('Adw', '1')
 
-from gi.repository import Adw, GLib, Gtk, Gio, Gdk  # noqa
+from gi.repository import Adw, Gdk, Gio, GLib, Gtk  # noqa
 
 
 class LogView(Gtk.ScrolledWindow):
@@ -57,27 +58,6 @@ class GtkLoggingHandler(logging.Handler):
         GLib.idle_add(self.view.append, line)
 
 
-class GtkComponent(Component):
-    HUB = "gtk"
-
-    def __init__(self, *, hub: "GtkHub", **kwargs):
-        super().__init__(hub=hub, **kwargs)
-        self.hub: "GtkHub"
-
-    @functools.cached_property
-    def widget(self) -> Gtk.Widget:
-        """
-        Return the widget to control this component
-        """
-        return self.build()
-
-    def build(self) -> Gtk.Widget:
-        """
-        Build the widget to control this component
-        """
-        raise NotImplementedError(f"{self.__class__.__name__}.build not implemented")
-
-
 class GtkHub(Hub):
     HUB = "gtk"
 
@@ -113,29 +93,6 @@ class GtkHub(Hub):
         self.gtk_app.run(None)
         self.send(Shutdown())
         self.app.remove_hub(self)
-
-
-C = TypeVar("C", bound=Component)
-
-
-class ControllerWidget(Gtk.Frame):
-    def __init__(self, *, label: str):
-        super().__init__(label=label)
-
-        self.set_margin_bottom(10)
-        self.grid = Gtk.Grid()
-        self.set_child(self.grid)
-
-
-class Controller(Generic[C], GtkComponent):
-    Widget: ControllerWidget = ControllerWidget
-
-    def __init__(self, *, component: C, **kwargs):
-        super().__init__(**kwargs)
-        self.component = component
-
-    def build(self) -> ControllerWidget:
-        return self.Widget(label=self.component.description)
 
 
 class GtkApp(App):

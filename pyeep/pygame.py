@@ -7,7 +7,9 @@ from collections import defaultdict
 from queue import Empty, SimpleQueue
 from typing import Callable
 
-from .app import Component, Hub, Message, Shutdown, check_hub
+from .app import Hub
+from .component.base import Component, check_hub
+from .messages import Message, Shutdown
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import pygame  # Noqa

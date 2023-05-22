@@ -6,9 +6,10 @@ from typing import NamedTuple, Type
 import bleak
 
 from .. import bluetooth
-from ..app import Message
-from ..app.component import BasicActiveMixin
-from ..gtk import ControllerWidget, Gtk
+from ..component.controller import ControllerWidget
+from ..component.active import SimpleActiveComponent
+from ..gtk import Gtk
+from ..messages import Message
 from .base import Input, InputController
 
 HEART_RATE_UUID = "00002a37-0000-1000-8000-00805f9b34fb"
@@ -36,7 +37,7 @@ class HeartBeat(Message):
         return super().__str__() + f"(sample={self.sample})"
 
 
-class HeartRateMonitor(BasicActiveMixin, Input, bluetooth.BluetoothComponent):
+class HeartRateMonitor(SimpleActiveComponent, Input, bluetooth.BluetoothComponent):
     """
     Monitor a Bluetooth LE heart rate monitor
     """
@@ -110,7 +111,7 @@ class HeartRateMonitor(BasicActiveMixin, Input, bluetooth.BluetoothComponent):
         self.send(HeartBeat(sample=sample))
 
 
-class HeartRateInputController(InputController):
+class HeartRateInputController(InputController[HeartRateMonitor]):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.current_rate = Gtk.Label(label="-- BPM")
@@ -121,9 +122,11 @@ class HeartRateInputController(InputController):
         return cw
 
     def receive(self, msg: Message):
-        if msg.src != self.input:
+        if msg.src != self.component:
             return
 
         match msg:
             case HeartBeat():
                 self.current_rate.set_label(f"{msg.sample.rate} BPM")
+            case _:
+                super().receive(msg)

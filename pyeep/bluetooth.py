@@ -7,9 +7,8 @@ from typing import NamedTuple, Sequence, Type
 import bleak
 import bleak.assigned_numbers
 
-from .aio import AIOComponent
-from .app import Message, Shutdown
-from .messages import DeviceScanRequest
+from .component.aio import AIOComponent
+from .messages import Message, Shutdown, DeviceScanRequest
 
 re_mangle = re.compile(r"[^\w]+")
 

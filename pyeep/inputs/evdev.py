@@ -7,13 +7,13 @@ from typing import Type
 import aionotify
 import evdev
 
-from ..aio import AIOComponent
-from ..app import Shutdown
-from ..app.component import BasicActiveMixin
+from ..component.aio import AIOComponent
+from ..messages import Shutdown
+from ..component.active import SimpleActiveComponent
 from .base import Input
 
 
-class EvdevInput(BasicActiveMixin, Input, AIOComponent):
+class EvdevInput(SimpleActiveComponent, Input, AIOComponent):
     """
     Input device processing events from an evdev device
     """

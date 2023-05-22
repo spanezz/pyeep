@@ -6,7 +6,9 @@ from typing import Any
 
 import jack
 
-from .app import App, Component, Hub, Message
+from .app import App, Hub
+from .component.base import Component
+from .messages import Message
 
 
 class JackComponent(Component):

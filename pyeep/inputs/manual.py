@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from typing import Type
 
-from ..app import check_hub
-from ..app.component import BasicActiveMixin
-from ..gtk import ControllerWidget, Gtk, GtkComponent
+from ..component.active import SimpleActiveComponent
+from ..component.base import check_hub
+from ..component.controller import ControllerWidget
+from ..component.gtk import GtkComponent
+from ..gtk import Gtk
 from .base import Input, InputController
 from .keyboards import Shortcut
 
 
-class Manual(BasicActiveMixin, Input, GtkComponent):
+class Manual(SimpleActiveComponent, Input, GtkComponent):
     """
     Dummy manual input used for testing
     """
@@ -33,7 +35,7 @@ class Manual(BasicActiveMixin, Input, GtkComponent):
             self.send(Shortcut(command=value))
 
 
-class ManualInputController(InputController):
+class ManualInputController(InputController[Manual]):
     def build(self) -> ControllerWidget:
         cw = super().build()
         pulse = Gtk.Button(label="Pulse")
@@ -42,4 +44,4 @@ class ManualInputController(InputController):
         return cw
 
     def on_pulse(self, button):
-        self.input.mode("PULSE")
+        self.component.mode("PULSE")

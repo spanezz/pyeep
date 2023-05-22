@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from ..animation import ColorAnimation, ColorAnimator
-from ..app import Component, Message, check_hub
 from ..color import Color
-from ..gtk import ControllerWidget, Gtk
+from ..component.base import Component, check_hub
+from ..component.controller import ControllerWidget
+from ..gtk import Gtk
+from ..messages import Message
 from .base import Output, OutputController
 
 

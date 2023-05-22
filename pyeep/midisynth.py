@@ -10,7 +10,7 @@ import numpy
 import scipy.signal
 
 from . import jackmidi
-from .app import Message
+from .messages import Message
 
 
 class Note:

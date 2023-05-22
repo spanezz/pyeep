@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from typing import Type
 
-from ..app import Component, Message, check_hub
-from ..gtk import Gio, GLib, Gtk, GtkComponent, Controller, ControllerWidget
 from .. import messages
+from ..component.base import Component, check_hub
+from ..component.controller import Controller, ControllerWidget
+from ..component.gtk import GtkComponent
+from ..gtk import Gio, GLib, Gtk
+from ..messages import Message
 
 
 class NewOutput(Message):
