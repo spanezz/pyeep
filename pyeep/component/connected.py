@@ -57,8 +57,10 @@ class ConnectedControllerWidget(ControllerWidget):
         match state:
             case ConnectedState.CONNECTED:
                 self.connected.set_from_icon_name("user-available")
+                self.connected.set_tooltip_text(state)
             case ConnectedState.DISCONNECTED:
                 self.connected.set_from_icon_name("user-offline")
+                self.connected.set_tooltip_text(state)
 
 
 class ConnectedController(Controller[C]):
