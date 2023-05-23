@@ -7,19 +7,7 @@ from ..component.base import Component, check_hub
 from ..component.controller import Controller, ControllerWidget
 from ..component.gtk import GtkComponent
 from ..gtk import Gio, GLib, Gtk
-from ..messages import Message
-
-
-class NewOutput(Message):
-    """
-    Notify the instantiation of a new output
-    """
-    def __init__(self, *, output: "Output", **kwargs):
-        super().__init__(**kwargs)
-        self.output = output
-
-    def __str__(self):
-        return super().__str__() + f"({self.output.description})"
+from ..messages import Message, NewComponent
 
 
 class Output(Component):
@@ -31,9 +19,6 @@ class Output(Component):
 
         # Rate (changes per second) at which this output can take commands
         self.rate = rate
-
-    def __str__(self) -> str:
-        return f"Output({self.description})"
 
     def get_output_controller(self) -> Type["OutputController"]:
         return OutputController
@@ -174,9 +159,10 @@ class OutputsModel(GtkComponent):
     @check_hub
     def receive(self, msg: Message):
         match msg:
-            case NewOutput():
-                output_model = self.hub.app.add_component(
-                        msg.output.get_output_controller(),
-                        output=msg.output)
-                self.output_models.append(output_model)
-                self.widget.get_child().append(output_model.widget)
+            case NewComponent():
+                if isinstance(msg.src, Output):
+                    output_model = self.hub.app.add_component(
+                            msg.src.get_output_controller(),
+                            output=msg.src)
+                    self.output_models.append(output_model)
+                    self.widget.get_child().append(output_model.widget)

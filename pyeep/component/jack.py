@@ -13,6 +13,17 @@ class JackComponent(Component):
     """
     Component that gets called by the JACK realtime process function
     """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.jack_client: jack.Client
+
+    def set_jack_client(self, jack_client: jack.Client):
+        """
+        Set the JACK client when this component is registered with the Jack
+        component
+        """
+        self.jack_client = jack_client
+
     def jack_process(self, frames: int):
         """
         JACK process function, running in JACK's realtime thread
@@ -46,8 +57,9 @@ class Jack(AIOComponent):
         same as adding it only once
         """
         with self.jack_components_lock:
-            if component not in self.process_callbacks:
-                self.process_callbacks.append(component)
+            if component not in self.jack_components:
+                component.set_jack_client(self.jack_client)
+                self.jack_components.append(component)
 
     def remove_jack_component(self, component: JackComponent) -> None:
         """
