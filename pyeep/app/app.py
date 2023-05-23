@@ -6,11 +6,12 @@ import functools
 import logging
 import sys
 import threading
+import time
 from queue import SimpleQueue
 from typing import IO, TYPE_CHECKING, Callable, Type, TypeVar
 
-from ..messages import Message, Shutdown
 from ..component.base import Component
+from ..messages import Message, NewComponent, Shutdown
 
 try:
     import coloredlogs
@@ -84,7 +85,22 @@ class App(contextlib.ExitStack):
         hub.fill_component_kwargs(kwargs)
         component = component_cls(**kwargs)
         hub.add_component(component)
+
+        msg = NewComponent(src=component, ts=time.time())
+        self.send(msg)
+
         return component
+
+    def get_component(self, name: str) -> Component:
+        """
+        Lookup a component by name.
+
+        Raise KeyError if the component was not found in any hub
+        """
+        for hub in self.hubs.values():
+            if (c := hub.components.get(name)) is not None:
+                return c
+        raise KeyError(name)
 
     def send(self, msg: Message):
         """
