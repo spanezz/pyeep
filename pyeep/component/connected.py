@@ -28,6 +28,7 @@ class ConnectedState(StrEnum):
     Connection state of a component
     """
     CONNECTED = "connected"
+    CONNECTING = "connecting"
     DISCONNECTED = "disconnected"
 
 
@@ -57,6 +58,9 @@ class ConnectedControllerWidget(ControllerWidget):
         match state:
             case ConnectedState.CONNECTED:
                 self.connected.set_from_icon_name("user-available")
+                self.connected.set_tooltip_text(state)
+            case ConnectedState.CONNECTING:
+                self.connected.set_from_icon_name("user-busy")
                 self.connected.set_tooltip_text(state)
             case ConnectedState.DISCONNECTED:
                 self.connected.set_from_icon_name("user-offline")

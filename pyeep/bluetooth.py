@@ -73,11 +73,14 @@ class BluetoothComponent(ConnectedComponent, AIOComponent):
         """
         while not self.client.is_connected:
             self.logger.info("(re)connecting device")
+            self._update_connected_state(ConnectedState.CONNECTING)
             try:
-                await self.client.connect()
+                await self.client.connect(timeout=5)
             except bleak.exc.BleakError as e:
+                self._update_connected_state(ConnectedState.DISCONNECTED)
                 self.logger.warning("Cannot connect: %s", e)
             except TimeoutError as e:
+                self._update_connected_state(ConnectedState.DISCONNECTED)
                 self.logger.warning("Connect timeout: %s", e)
             else:
                 break
