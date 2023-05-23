@@ -7,11 +7,11 @@ import threading
 import queue
 from typing import TYPE_CHECKING, Callable
 
-from .app import App, Hub
-from .component.base import check_hub
+from . import App, Hub
+from ..component.base import check_hub
 
 if TYPE_CHECKING:
-    from .component.aio import AIOComponent
+    from ..component.aio import AIOComponent
 
 
 class AIOHub(Hub):
