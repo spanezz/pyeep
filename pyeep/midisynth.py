@@ -38,6 +38,42 @@ class SimpleSynth:
             array[i] += math.sin(self.phase) * envelope[i]
 
 
+class Envelope:
+    def __init__(
+            self,
+            frame_time: int,
+            rate: int,
+            velocity: float = 1.0,
+            attack_level: float = 1.0,
+            attack_time: float = 0.1,
+            decay_time: float = 0.2,
+            sustain_level: float = 0.9,
+            release_time: float = 0.2):
+        self.frame_time = frame_time
+        self.rate = rate
+        self.attack_level = attack_level * velocity
+        self.attack_frames = attack_time * rate
+        self.decay_frames = decay_time * rate
+        self.sustain_level = sustain_level * velocity
+        self.release_frames = release_time * rate
+        self.release_frame: int | None = None
+
+    def release(self, frame_time: int) -> None:
+        """
+        Notify of the instrument release
+        """
+        self.release_frame = frame_time
+
+    def generate(self, frame_time: int, frames: int) -> numpy.ndarray | None:
+        if self.release_frame is None:
+            pass
+        else:
+            if frame_time > self.release_frame + self.release_frames:
+                return None
+        # TODO: actually compute
+        return numpy.full(frames, self.sustain_level)
+
+
 class Note:
     def __init__(self, instrument: "Instrument", note: int):
         self.audio_config = instrument.audio_config
@@ -45,6 +81,7 @@ class Note:
         self.next_events: deque[mido.Message] = deque()
         self.last_note: mido.Message | None = None
         self.last_pitchwheel: mido.Message | None = None
+        self.envelope: Envelope | None = None
 
     def get_semitone(self) -> float:
         if (msg := self.last_pitchwheel) is not None and (t := msg.pitch):
@@ -62,8 +99,11 @@ class Note:
         match msg.type:
             case "note_on":
                 self.last_note = msg
+                self.envelope = Envelope(msg.time, velocity=msg.velocity / 127, rate=self.audio_config.out_samplerate)
             case "note_off":
                 self.last_note = None
+                if self.envelope is not None:
+                    self.envelope.release(msg.time)
             case "pitchwheel":
                 if msg.pitch == 0:
                     self.last_pitchwheel = None
@@ -89,14 +129,21 @@ class Note:
         raise NotImplementedError()
 
     def get_envelope(self, frame_time: int, frames: int) -> numpy.ndarray:
-        if self.last_note is None:
+        if self.envelope is None:
             return numpy.zeros(frames, dtype=self.audio_config.dtype)
-        return numpy.full(frames, self.last_note.velocity / 127, dtype=self.audio_config.dtype)
+
+        envelope = self.envelope.generate(frame_time, frames)
+        if envelope is None:
+            self.envelope = None
+            return numpy.zeros(frames, dtype=self.audio_config.dtype)
+
+        return envelope
 
     def synth(self, frame_time: int, array: numpy.ndarray) -> None:
         frames = len(array)
         envelope = self.get_envelope(frame_time, frames)
-        self.add_wave(frame_time, array, envelope)
+        if envelope is not None:
+            self.add_wave(frame_time, array, envelope)
 
     def generate(self, frame_time: int, array: numpy.ndarray) -> bool:
         """
@@ -110,7 +157,7 @@ class Note:
         events = self.get_events(frame_time, frames)
 
         if not events and not self.next_events:
-            if self.last_note is None:
+            if self.last_note is None and self.envelope is None:
                 return False
             # No events: continue from last known value
             self.synth(frame_time, array)
