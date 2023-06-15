@@ -6,14 +6,36 @@ from collections import deque
 from typing import NamedTuple, Sequence, Type
 
 import mido
+import numba
 import numpy
 import scipy.signal
+from numba.experimental import jitclass
 
 
 class AudioConfig(NamedTuple):
     in_samplerate: int
     out_samplerate: int
     dtype: type
+
+
+@jitclass([
+    ("rate", numba.int32),
+    ("phase", numba.float64),
+])
+class SimpleSynth:
+    """
+    Phase accumulation synthesis
+    """
+    # See https://www.gkbrk.com/wiki/PhaseAccumulator/
+
+    def __init__(self, rate: int):
+        self.rate: int = rate
+        self.phase: float = 0.0
+
+    def synth(self, array: numpy.ndarray, freq: float, envelope: numpy.ndarray) -> None:
+        for i in range(len(array)):
+            self.phase += 2.0 * math.pi * freq / self.rate
+            array[i] += math.sin(self.phase) * envelope[i]
 
 
 class Note:
@@ -109,17 +131,15 @@ class Note:
 
 
 class Sine(Note):
+    def __init__(self, instrument: "Instrument", note: int):
+        super().__init__(instrument, note)
+        # TODO: SimpleSynth hardcodes float as dtype
+        self.sine_synth = SimpleSynth(self.audio_config.out_samplerate)
+
     def add_wave(self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray) -> None:
         if self.last_note is None:
             return
-        dtype = self.audio_config.dtype
-        rate = self.audio_config.out_samplerate
-        # Use modulus to prevent passing large integer values to numpy.
-        # float32 would risk losing the least significant digits
-        factor = self.get_freq() * 2.0 * numpy.pi / rate
-        time = frame_time % rate
-        x = numpy.arange(time, time + len(array), dtype=dtype)
-        array += numpy.sin(x * factor, dtype=dtype) * envelope
+        self.sine_synth.synth(array, self.get_freq(), envelope)
 
 
 class Saw(Note):
