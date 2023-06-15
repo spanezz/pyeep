@@ -18,7 +18,6 @@ class AudioConfig(NamedTuple):
 
 class Note:
     def __init__(self, instrument: "Instrument", note: int):
-        self.instrument = instrument
         self.audio_config = instrument.audio_config
         self.note = note
         self.next_events: deque[mido.Message] = deque()
@@ -64,17 +63,18 @@ class Note:
                 events.append(msg)
         return events
 
-    def get_wave(self, frame_time: int, frames: int) -> numpy.ndarray:
+    def add_wave(self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray):
         raise NotImplementedError()
 
-    def get_attenuation(self, frame_time: int, frames: int) -> numpy.ndarray:
+    def get_envelope(self, frame_time: int, frames: int) -> numpy.ndarray:
         if self.last_note is None:
             return numpy.zeros(frames, dtype=self.audio_config.dtype)
         return numpy.full(frames, self.last_note.velocity / 127, dtype=self.audio_config.dtype)
 
     def synth(self, frame_time: int, array: numpy.ndarray) -> None:
         frames = len(array)
-        array += self.get_wave(frame_time, frames) * self.get_attenuation(frame_time, frames)
+        envelope = self.get_envelope(frame_time, frames)
+        self.add_wave(frame_time, array, envelope)
 
     def generate(self, frame_time: int, array: numpy.ndarray) -> bool:
         """
@@ -109,31 +109,31 @@ class Note:
 
 
 class Sine(Note):
-    def get_wave(self, frame_time: int, frames: int) -> numpy.ndarray:
-        dtype = self.audio_config.dtype
+    def add_wave(self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray) -> None:
         if self.last_note is None:
-            return numpy.zeros(frames, dtype=dtype)
+            return
+        dtype = self.audio_config.dtype
         rate = self.audio_config.out_samplerate
         # Use modulus to prevent passing large integer values to numpy.
         # float32 would risk losing the least significant digits
         factor = self.get_freq() * 2.0 * numpy.pi / rate
         time = frame_time % rate
-        x = numpy.arange(time, time + frames, dtype=dtype)
-        return numpy.sin(x * factor, dtype=dtype)
+        x = numpy.arange(time, time + len(array), dtype=dtype)
+        array += numpy.sin(x * factor, dtype=dtype) * envelope
 
 
 class Saw(Note):
-    def get_wave(self, frame_time: int, frames: int) -> numpy.ndarray:
-        dtype = self.audio_config.dtype
+    def add_wave(self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray) -> None:
         if self.last_note is None:
-            return numpy.zeros(frames, dtype=dtype)
+            return
+        dtype = self.audio_config.dtype
         rate = self.audio_config.out_samplerate
         factor = self.get_freq() / rate
         # Use modulus to prevent passing large integer values to numpy.
         # float32 would risk losing the least significant digits
         time = frame_time % rate
-        x = numpy.arange(time, time + frames, dtype=dtype)
-        return scipy.signal.sawtooth(2 * numpy.pi * factor * x)
+        x = numpy.arange(time, time + len(array), dtype=dtype)
+        array += scipy.signal.sawtooth(2 * numpy.pi * factor * x) * envelope
 
 
 class Instrument:
@@ -164,13 +164,9 @@ class Instrument:
             note.add_event(msg)
 
     def generate(self, frame_time: int, array: numpy.ndarray) -> numpy.ndarray:
-        off: list[int] = []
-        for note_id, note in self.notes.items():
+        for note_id, note in list(self.notes.items()):
             if not note.generate(frame_time, array):
-                off.append(note_id)
-
-        for note_id in off:
-            del self.notes[note_id]
+                del self.notes[note_id]
 
 
 class Instruments:
