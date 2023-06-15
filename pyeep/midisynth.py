@@ -3,22 +3,24 @@ from __future__ import annotations
 import math
 import threading
 from collections import deque
-from typing import Type
+from typing import NamedTuple, Sequence, Type
 
 import mido
 import numpy
 import scipy.signal
 
-from . import jackmidi
-from .messages import Message
+
+class AudioConfig(NamedTuple):
+    in_samplerate: int
+    out_samplerate: int
+    dtype: type
 
 
 class Note:
-    def __init__(self, instrument: "Instrument", note: int, samplerate: int, dtype):
+    def __init__(self, instrument: "Instrument", note: int):
         self.instrument = instrument
+        self.audio_config = instrument.audio_config
         self.note = note
-        self.samplerate = samplerate
-        self.dtype = dtype
         self.next_events: deque[mido.Message] = deque()
         self.last_note: mido.Message | None = None
         self.last_pitchwheel: mido.Message | None = None
@@ -67,8 +69,8 @@ class Note:
 
     def get_attenuation(self, frame_time: int, frames: int) -> numpy.ndarray:
         if self.last_note is None:
-            return numpy.zeros(frames, dtype=self.dtype)
-        return numpy.full(frames, self.last_note.velocity / 127, dtype=self.dtype)
+            return numpy.zeros(frames, dtype=self.audio_config.dtype)
+        return numpy.full(frames, self.last_note.velocity / 127, dtype=self.audio_config.dtype)
 
     def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
         return self.get_wave(frame_time, frames) * self.get_attenuation(frame_time, frames)
@@ -87,7 +89,7 @@ class Note:
             # No events: continue from last known value
             return self.synth(frame_time, frames)
 
-        sample: numpy.ndarray = numpy.zeros(frames, dtype=self.dtype)
+        sample: numpy.ndarray = numpy.zeros(frames, dtype=self.audio_config.dtype)
         last_offset = 0
         for msg in events:
             offset = msg.time - frame_time
@@ -104,39 +106,42 @@ class Note:
 
 class Sine(Note):
     def get_wave(self, frame_time: int, frames: int) -> numpy.ndarray:
+        dtype = self.audio_config.dtype
         if self.last_note is None:
-            return numpy.zeros(frames, dtype=self.dtype)
+            return numpy.zeros(frames, dtype=dtype)
+        rate = self.audio_config.out_samplerate
         # Use modulus to prevent passing large integer values to numpy.
         # float32 would risk losing the least significant digits
-        factor = self.get_freq() * 2.0 * numpy.pi / self.samplerate
-        time = frame_time % self.samplerate
-        x = numpy.arange(time, time + frames, dtype=self.dtype)
-        return numpy.sin(x * factor, dtype=self.dtype)
+        factor = self.get_freq() * 2.0 * numpy.pi / rate
+        time = frame_time % rate
+        x = numpy.arange(time, time + frames, dtype=dtype)
+        return numpy.sin(x * factor, dtype=dtype)
 
 
 class Saw(Note):
     def get_wave(self, frame_time: int, frames: int) -> numpy.ndarray:
+        dtype = self.audio_config.dtype
         if self.last_note is None:
-            return numpy.zeros(frames, dtype=self.dtype)
-        factor = self.get_freq() / self.samplerate
+            return numpy.zeros(frames, dtype=dtype)
+        rate = self.audio_config.out_samplerate
+        factor = self.get_freq() / rate
         # Use modulus to prevent passing large integer values to numpy.
         # float32 would risk losing the least significant digits
-        time = frame_time % self.samplerate
-        x = numpy.arange(time, time + frames, dtype=self.dtype)
+        time = frame_time % rate
+        x = numpy.arange(time, time + frames, dtype=dtype)
         return scipy.signal.sawtooth(2 * numpy.pi * factor * x)
 
 
 class Instrument:
-    def __init__(self, channel: int, note_cls: Type[Note], samplerate: int, dtype):
+    def __init__(self, audio_config: AudioConfig, channel: int, note_cls: Type[Note]):
+        self.audio_config = audio_config
         self.channel = channel
         self.note_cls = note_cls
-        self.samplerate = samplerate
-        self.dtype = dtype
         self.notes: dict[int, Note] = {}
 
     def add_note(self, msg: mido.Message) -> bool:
         if (note := self.notes.get(msg.note)) is None:
-            note = self.note_cls(self, msg.note, self.samplerate, self.dtype)
+            note = self.note_cls(self, msg.note)
             self.notes[msg.note] = note
 
         note.add_event(msg)
@@ -170,23 +175,24 @@ class Instrument:
         if samples:
             return sum(samples)
         else:
-            return numpy.zeros(frames, dtype=self.dtype)
+            return numpy.zeros(frames, dtype=self.audio_config.dtype)
 
 
 class Instruments:
-    def __init__(self, in_samplerate: int, out_samplerate: int, dtype):
-        self.in_samplerate = in_samplerate
-        self.out_samplerate = out_samplerate
+    """
+    One instrument bank, mapping channel numbers to Instrument instances
+    """
+    def __init__(self, audio_config: AudioConfig):
+        self.audio_config = audio_config
         self.out_last_frame_time: int = 0
-        self.dtype = dtype
         self.instruments: dict[int, Instrument] = {}
 
         self.samplerate_conversion: float | None = None
-        if self.out_samplerate != self.in_samplerate:
-            self.samplerate_conversion = self.out_samplerate / self.in_samplerate
+        if self.audio_config.out_samplerate != self.audio_config.in_samplerate:
+            self.samplerate_conversion = self.audio_config.out_samplerate / self.audio_config.in_samplerate
 
     def set(self, channel: int, note_cls: Type[Note]):
-        self.instruments[channel] = Instrument(channel, note_cls, self.out_samplerate, self.dtype)
+        self.instruments[channel] = Instrument(self.audio_config, channel, note_cls)
 
     def start_input_frame(self, in_last_frame_time: int):
         if self.samplerate_conversion is not None:
@@ -230,50 +236,39 @@ class Instruments:
         if samples:
             return numpy.clip(0, 1, sum(samples))
         else:
-            return numpy.zeros(out_frames, dtype=self.dtype)
+            return numpy.zeros(out_frames, dtype=self.audio_config.dtype)
 
 
-class MidiProcessed(Message):
-    def __init__(self, messages: list[mido.Message], **kwargs):
-        super().__init__(**kwargs)
-        self.messages = messages
-
-
-class MidiSynth(jackmidi.MidiReceiver):
+class MidiSynth:
     """
     Dispatch MIDI events to a software bank of instruments and notes, and
     generate the mixed waveforms
     """
-    def __init__(self, *, out_samplerate: int | None = None, midi_snoop: bool = False, **kwargs):
-        super().__init__(**kwargs)
-        if out_samplerate is None:
-            self.out_samplerate = self.samplerate
-        else:
-            self.out_samplerate = out_samplerate
-        self.midi_snoop = midi_snoop
-        self.dtype = numpy.float32
-        self.instrument_banks: set[Instruments] = set()
+    def __init__(self, *, in_samplerate: int):
+        self.in_samplerate = in_samplerate
+        self.instrument_banks: list[Instruments] = []
         self.instrument_banks_lock = threading.Lock()
 
-    def add_instrument_bank(self, instruments: Instruments):
+    def add_output(self, instruments: Instruments) -> None:
+        """
+        Create a new output synthesizer
+        """
+        if instruments.audio_config.in_samplerate != self.in_samplerate:
+            raise RuntimeError(
+                    "Audio config in_samplerate mismatch:"
+                    f" ours is {self.audio_config.in_samplerate},"
+                    f" new instruments is {instruments.audio_config.in_samplerate}")
         with self.instrument_banks_lock:
-            self.instrument_banks.add(instruments)
+            self.instrument_banks.append(instruments)
 
-    def on_process(self, frames: int):
+    def add_messages(self, last_frame_time: int, messages: Sequence[mido.Message]):
         """
-        JACK processing: enqueue midi events in the right instruments/notes
+        Enqueue midi events in the right instruments/notes
         """
-        midi_processed: list[mido.Message] | None = (
-                [] if self.midi_snoop is not None else None)
-
         with self.instrument_banks_lock:
             for instruments in self.instrument_banks:
-                instruments.start_input_frame(self.jack_client.last_frame_time)
+                instruments.start_input_frame(last_frame_time)
 
-            for msg in self.read_events():
-                if any(i.add_event(msg) for i in self.instrument_banks):
-                    if midi_processed is not None:
-                        midi_processed.append(msg)
-
-        if midi_processed:
-            self.send(MidiProcessed(messages=midi_processed))
+            for msg in messages:
+                for i in self.instrument_banks:
+                    i.add_event(msg)

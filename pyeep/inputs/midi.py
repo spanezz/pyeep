@@ -8,13 +8,18 @@ from ..component.jack import JackComponent
 from ..messages import Message
 
 
-class MidiMessage(Message):
-    def __init__(self, msg: mido.Message, **kwargs):
+class MidiMessages(Message):
+    def __init__(self, last_frame_time: int, frames: int, messages: list[mido.Message], **kwargs):
         super().__init__(**kwargs)
-        self.msg = msg
+        self.last_frame_time = last_frame_time
+        self.frames = frames
+        self.messages = messages
 
     def __str__(self) -> str:
-        return super().__str__() + f"(msg={self.msg})"
+        return super().__str__() + (
+                f"(last_frame_time={self.last_frame_time},"
+                f" frames={self.frames},"
+                f" messages={self.messages})")
 
 
 class MidiInput(JackComponent, AIOComponent):
@@ -28,11 +33,14 @@ class MidiInput(JackComponent, AIOComponent):
         for offset, indata in self.inport.incoming_midi_events():
             msg = mido.parse([ord(b) for b in indata])
             msg.time = frame_time + offset
-            # TODO
             messages.append(msg)
 
-        self.hub.loop.call_soon_threadsafe(self._send_mido_messages, messages)
+        if not messages:
+            return
 
-    def _send_mido_messages(self, messages: list[mido.Message]):
-        for msg in messages:
-            self.send(MidiMessage(msg=msg))
+        # TODO: as a future optimization, the message could be left somewhere
+        # where other jack_process callbacks can find it, to reduce latency
+
+        self.hub.loop.call_soon_threadsafe(
+                self.send, MidiMessages(
+                    last_frame_time=frame_time, frames=frames, messages=messages))
