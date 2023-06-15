@@ -72,36 +72,40 @@ class Note:
             return numpy.zeros(frames, dtype=self.audio_config.dtype)
         return numpy.full(frames, self.last_note.velocity / 127, dtype=self.audio_config.dtype)
 
-    def synth(self, frame_time: int, frames: int) -> numpy.ndarray:
-        return self.get_wave(frame_time, frames) * self.get_attenuation(frame_time, frames)
+    def synth(self, frame_time: int, array: numpy.ndarray) -> None:
+        frames = len(array)
+        array += self.get_wave(frame_time, frames) * self.get_attenuation(frame_time, frames)
 
-    def generate(self, frame_time: int, frames: int) -> numpy.ndarray | None:
+    def generate(self, frame_time: int, array: numpy.ndarray) -> bool:
         """
-        Return `frames` samples at the given frame time.
+        Generate samples and add them to the values in the array, effectively
+        mixing the output of this note into the array.
 
-        If it returns None, it means this note is completely turned off
+        Return False if this note is completely turned off, True if it will
+        generate more samples in the future
         """
+        frames = len(array)
         events = self.get_events(frame_time, frames)
 
         if not events and not self.next_events:
             if self.last_note is None:
-                return None
+                return False
             # No events: continue from last known value
-            return self.synth(frame_time, frames)
+            self.synth(frame_time, array)
+            return True
 
-        sample: numpy.ndarray = numpy.zeros(frames, dtype=self.audio_config.dtype)
         last_offset = 0
         for msg in events:
             offset = msg.time - frame_time
             if offset > last_offset:
-                sample[last_offset:offset] = self.synth(frame_time + last_offset, offset - last_offset)
+                self.synth(frame_time + last_offset, array[last_offset:offset])
             self._process_event(msg)
             last_offset = offset
 
         if frames > last_offset:
-            sample[last_offset:frames] = self.synth(frame_time + last_offset, frames - last_offset)
+            self.synth(frame_time + last_offset, array[last_offset:frames])
 
-        return sample
+        return True
 
 
 class Sine(Note):
@@ -159,23 +163,14 @@ class Instrument:
         for note in self.notes.values():
             note.add_event(msg)
 
-    def generate(self, frame_time: int, frames: int) -> numpy.ndarray:
+    def generate(self, frame_time: int, array: numpy.ndarray) -> numpy.ndarray:
         off: list[int] = []
-        samples: list[numpy.ndarray] = []
         for note_id, note in self.notes.items():
-            sample = note.generate(frame_time, frames)
-            if sample is None:
+            if not note.generate(frame_time, array):
                 off.append(note_id)
-            else:
-                samples.append(sample)
 
         for note_id in off:
             del self.notes[note_id]
-
-        if samples:
-            return sum(samples)
-        else:
-            return numpy.zeros(frames, dtype=self.audio_config.dtype)
 
 
 class Instruments:
@@ -224,19 +219,14 @@ class Instruments:
             case _:
                 return False
 
-    def generate(self, out_frame_time: int, out_frames: int) -> numpy.ndarray:
+    def generate(self, out_frame_time: int, array: numpy.ndarray) -> numpy.ndarray:
         """
         Generate a waveform for the given time, expressed as the output frame
         rate
         """
-        samples: list[numpy.ndarray] = []
+        array[:] = 0
         for instrument in self.instruments.values():
-            samples.append(instrument.generate(out_frame_time, out_frames))
-
-        if samples:
-            return numpy.clip(0, 1, sum(samples))
-        else:
-            return numpy.zeros(out_frames, dtype=self.audio_config.dtype)
+            instrument.generate(out_frame_time, array)
 
 
 class MidiSynth:
