@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 import numpy
 
-from pyeep.aio import AIOComponent
-from pyeep.app import Shutdown
+from pyeep.component.aio import AIOComponent
+from pyeep.messages import Shutdown
 
 if TYPE_CHECKING:
     from .pattern import Pattern
