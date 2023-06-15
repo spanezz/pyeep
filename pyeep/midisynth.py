@@ -43,35 +43,87 @@ class Envelope:
             self,
             frame_time: int,
             rate: int,
+            start_level: float = 0.0,
             velocity: float = 1.0,
             attack_level: float = 1.0,
             attack_time: float = 0.1,
             decay_time: float = 0.2,
             sustain_level: float = 0.9,
             release_time: float = 0.2):
-        self.frame_time = frame_time
+        self.start_frame = frame_time
         self.rate = rate
         self.attack_level = attack_level * velocity
-        self.attack_frames = attack_time * rate
-        self.decay_frames = decay_time * rate
+        self.sustain_start = (attack_time + decay_time) * rate
         self.sustain_level = sustain_level * velocity
-        self.release_frames = release_time * rate
-        self.release_frame: int | None = None
+        self.release_frames = round(release_time * rate)
+        self.release_start: int | None = None
+        # Precomputed lead values
+        self.head = numpy.concatenate((
+                numpy.linspace(start_level, self.attack_level, round(attack_time * rate)),
+                numpy.linspace(self.attack_level, self.sustain_level, round(decay_time * rate))))
+        self.tail: numpy.ndarray | None = None
 
     def release(self, frame_time: int) -> None:
         """
         Notify of the instrument release
         """
-        self.release_frame = frame_time
+        self.release_start = frame_time - self.start_frame
+        if (elapsed := frame_time - self.start_frame) < len(self.head):
+            # Release happened during the attack/decay phase
+            start_level = self.head[elapsed]
+        else:
+            # Release happened during the sustain phase
+            start_level = self.sustain_level
+        self.tail = numpy.linspace(start_level, 0, self.release_frames)
+
+    def get_chunk(self, frame_time: int, frames: int) -> numpy.ndarray | None:
+        elapsed = frame_time - self.start_frame
+        # print(f"get_chunk {frame_time=} {frames=} {elapsed=}")
+
+        if self.release_start is not None and elapsed >= self.release_start:
+            if elapsed >= self.release_start + len(self.tail):
+                # Silence after release
+                # print("  post-r")
+                return None
+            else:
+                # Release
+                offset = elapsed - self.release_start
+                size = min(frames, len(self.tail))
+                # print(f"  r {offset=} {size=}")
+                return self.tail[offset:offset + size]
+        elif elapsed >= len(self.head):
+            # Sustain
+            if self.release_start is None:
+                count = frames
+            else:
+                count = min(frames, self.release_start - elapsed)
+            # print(f"  s {count=}")
+            return numpy.full(count, self.sustain_level)
+        else:
+            # Attack/decay
+            size = min(frames, len(self.head))
+            if self.release_start is not None:
+                size = min(size, self.release_start - elapsed)
+            # print(f"  ad {elapsed=} {size=}")
+            return self.head[elapsed:elapsed + size]
 
     def generate(self, frame_time: int, frames: int) -> numpy.ndarray | None:
-        if self.release_frame is None:
-            pass
-        else:
-            if frame_time > self.release_frame + self.release_frames:
-                return None
-        # TODO: actually compute
-        return numpy.full(frames, self.sustain_level)
+        res = numpy.zeros(frames)
+        start = 0
+        has_data = False
+
+        while start < frames:
+            chunk = self.get_chunk(frame_time + start, frames - start)
+            if chunk is None:
+                if not has_data:
+                    return None
+                chunk = numpy.zeros(frames - start)
+            else:
+                has_data = True
+            res[start:start+len(chunk)] = chunk
+            start += len(chunk)
+
+        return res
 
 
 class Note:
@@ -99,7 +151,17 @@ class Note:
         match msg.type:
             case "note_on":
                 self.last_note = msg
-                self.envelope = Envelope(msg.time, velocity=msg.velocity / 127, rate=self.audio_config.out_samplerate)
+                if self.envelope is not None:
+                    if (chunk := self.envelope.generate(msg.time, 1)) is not None:
+                        start_level = chunk[0]
+                    else:
+                        start_level = 0
+                else:
+                    start_level = 0
+                self.envelope = Envelope(
+                        msg.time, velocity=msg.velocity / 127,
+                        rate=self.audio_config.out_samplerate,
+                        start_level=start_level)
             case "note_off":
                 self.last_note = None
                 if self.envelope is not None:
@@ -130,19 +192,16 @@ class Note:
 
     def get_envelope(self, frame_time: int, frames: int) -> numpy.ndarray:
         if self.envelope is None:
-            return numpy.zeros(frames, dtype=self.audio_config.dtype)
+            return None
 
-        envelope = self.envelope.generate(frame_time, frames)
-        if envelope is None:
-            self.envelope = None
-            return numpy.zeros(frames, dtype=self.audio_config.dtype)
+        if (envelope := self.envelope.generate(frame_time, frames)) is None:
+            return None
 
         return envelope
 
     def synth(self, frame_time: int, array: numpy.ndarray) -> None:
         frames = len(array)
-        envelope = self.get_envelope(frame_time, frames)
-        if envelope is not None:
+        if (envelope := self.get_envelope(frame_time, frames)) is not None:
             self.add_wave(frame_time, array, envelope)
 
     def generate(self, frame_time: int, array: numpy.ndarray) -> bool:
@@ -184,15 +243,11 @@ class Sine(Note):
         self.sine_synth = SimpleSynth(self.audio_config.out_samplerate)
 
     def add_wave(self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray) -> None:
-        if self.last_note is None:
-            return
         self.sine_synth.synth(array, self.get_freq(), envelope)
 
 
 class Saw(Note):
     def add_wave(self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray) -> None:
-        if self.last_note is None:
-            return
         dtype = self.audio_config.dtype
         rate = self.audio_config.out_samplerate
         factor = self.get_freq() / rate
