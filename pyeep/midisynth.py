@@ -131,7 +131,6 @@ class Note:
         self.audio_config = instrument.audio_config
         self.note = note
         self.next_events: deque[mido.Message] = deque()
-        self.last_note: mido.Message | None = None
         self.last_pitchwheel: mido.Message | None = None
         self.envelope: Envelope | None = None
 
@@ -150,7 +149,6 @@ class Note:
     def _process_event(self, msg: mido.Message):
         match msg.type:
             case "note_on":
-                self.last_note = msg
                 if self.envelope is not None:
                     if (chunk := self.envelope.generate(msg.time, 1)) is not None:
                         start_level = chunk[0]
@@ -163,7 +161,6 @@ class Note:
                         rate=self.audio_config.out_samplerate,
                         start_level=start_level)
             case "note_off":
-                self.last_note = None
                 if self.envelope is not None:
                     self.envelope.release(msg.time)
             case "pitchwheel":
@@ -216,7 +213,7 @@ class Note:
         events = self.get_events(frame_time, frames)
 
         if not events and not self.next_events:
-            if self.last_note is None and self.envelope is None:
+            if self.envelope is None:
                 return False
             # No events: continue from last known value
             self.synth(frame_time, array)
