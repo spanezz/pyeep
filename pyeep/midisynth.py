@@ -165,7 +165,7 @@ class Envelope:
 
 
 class Note:
-    def __init__(self, instrument: "Instrument", note: int, envelope: EnvelopeShape):
+    def __init__(self, *, instrument: "Instrument", note: int, envelope: EnvelopeShape):
         self.audio_config = instrument.audio_config
         self.note = note
         self.envelope_shape = envelope
@@ -186,7 +186,10 @@ class Note:
         # msg.time seems to always grow monotonically
         self.next_events.append(msg)
 
-    def _process_event(self, msg: mido.Message):
+    def _update_note_state(self, msg: mido.Message):
+        """
+        Update the state of the node with the effect of the event in msg
+        """
         match msg.type:
             case "note_on":
                 if self.envelope is not None:
@@ -221,7 +224,7 @@ class Note:
             msg = self.next_events.popleft()
             if msg.time < frame_time:
                 log.warning("MIDI input buffer underrun")
-                self._process_event(msg)
+                self._update_note_state(msg)
             else:
                 events.append(msg)
         return events
@@ -261,23 +264,24 @@ class Note:
             self.synth(frame_time, array)
             return True
 
+        # Time offset from frame_time that has been processed/generated
         last_offset = 0
         for msg in events:
             offset = msg.time - frame_time
             if offset > last_offset:
                 self.synth(frame_time + last_offset, array[last_offset:offset])
-            self._process_event(msg)
+            self._update_note_state(msg)
             last_offset = offset
 
-        if frames > last_offset:
+        if last_offset < frames:
             self.synth(frame_time + last_offset, array[last_offset:frames])
 
         return True
 
 
 class Sine(Note):
-    def __init__(self, instrument: "Instrument", note: int):
-        super().__init__(instrument, note)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         # TODO: SimpleSynth hardcodes float as dtype
         self.sine_synth = SimpleSynth(self.audio_config.out_samplerate)
 
@@ -312,7 +316,7 @@ class Instrument:
 
     def add_note(self, msg: mido.Message) -> bool:
         if (note := self.notes.get(msg.note)) is None:
-            note = self.note_cls(self, msg.note, self.envelope)
+            note = self.note_cls(instrument=self, note=msg.note, envelope=self.envelope)
             self.notes[msg.note] = note
 
         note.add_event(msg)
@@ -349,8 +353,8 @@ class Instruments:
         if self.audio_config.out_samplerate != self.audio_config.in_samplerate:
             self.samplerate_conversion = self.audio_config.out_samplerate / self.audio_config.in_samplerate
 
-    def set(self, channel: int, note_cls: Type[Note]):
-        self.instruments[channel] = Instrument(self.audio_config, channel, note_cls)
+    def set(self, channel: int, note_cls: Type[Note], envelope: EnvelopeShape):
+        self.instruments[channel] = Instrument(self.audio_config, channel, note_cls, envelope=envelope)
 
     def start_input_frame(self, in_last_frame_time: int):
         if self.samplerate_conversion is not None:
