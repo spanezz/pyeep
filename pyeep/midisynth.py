@@ -93,7 +93,7 @@ class Envelope:
         # Precomputed lead values
         self.head = numpy.concatenate((
                 numpy.linspace(
-                    start_level * velocity, self.shape.attack_level * velocity,
+                    start_level, self.shape.attack_level * velocity,
                     round(self.shape.attack_time * rate)),
                 numpy.linspace(
                     self.shape.attack_level * velocity, self.shape.sustain_level * velocity,
