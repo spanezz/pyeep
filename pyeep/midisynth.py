@@ -38,49 +38,84 @@ class SimpleSynth:
             array[i] += math.sin(self.phase) * envelope[i]
 
 
-class Envelope:
+@jitclass([
+    ("attack_level", numba.float64),
+    ("attack_time", numba.float64),
+    ("decay_time", numba.float64),
+    ("sustain_level", numba.float64),
+    ("release_time", numba.float64),
+])
+class EnvelopeShape:
     def __init__(
             self,
-            frame_time: int,
-            rate: int,
-            start_level: float = 0.0,
-            velocity: float = 1.0,
             attack_level: float = 1.0,
             attack_time: float = 0.1,
             decay_time: float = 0.2,
             sustain_level: float = 0.9,
             release_time: float = 0.2):
+        self.attack_level = attack_level
+        self.attack_time = attack_time
+        self.decay_time = decay_time
+        self.sustain_level = sustain_level
+        self.release_time = release_time
+
+
+@jitclass([
+    ("start_frame", numba.int32),
+    ("rate", numba.int32),
+    ("velocity", numba.float64),
+    ("sustain_start", numba.int32),
+    ("release_frames", numba.int32),
+    ("release_start", numba.int32),
+    ("head", numba.float64[:]),
+    ("tail", numba.float64[:]),
+])
+class Envelope:
+    shape: EnvelopeShape
+
+    def __init__(
+            self,
+            shape: EnvelopeShape,
+            frame_time: int,
+            rate: int,
+            start_level: float = 0.0,
+            velocity: float = 1.0):
+        self.shape = shape
         self.start_frame = frame_time
         self.rate = rate
-        self.attack_level = attack_level * velocity
-        self.sustain_start = (attack_time + decay_time) * rate
-        self.sustain_level = sustain_level * velocity
-        self.release_frames = round(release_time * rate)
-        self.release_start: int | None = None
+        self.velocity = velocity
+        self.sustain_start = round((self.shape.attack_time + self.shape.decay_time) * rate)
+        self.release_frames = round(self.shape.release_time * rate)
+        self.release_start: int = 0
         # Precomputed lead values
         self.head = numpy.concatenate((
-                numpy.linspace(start_level, self.attack_level, round(attack_time * rate)),
-                numpy.linspace(self.attack_level, self.sustain_level, round(decay_time * rate))))
-        self.tail: numpy.ndarray | None = None
+                numpy.linspace(
+                    start_level * velocity, self.shape.attack_level * velocity,
+                    round(self.shape.attack_time * rate)),
+                numpy.linspace(
+                    self.shape.attack_level * velocity, self.shape.sustain_level * velocity,
+                    round(self.shape.decay_time * rate))))
+        self.tail: numpy.zeros(1)
 
     def release(self, frame_time: int) -> None:
         """
         Notify of the instrument release
         """
         self.release_start = frame_time - self.start_frame
-        if (elapsed := frame_time - self.start_frame) < len(self.head):
+        elapsed = frame_time - self.start_frame
+        if elapsed < len(self.head):
             # Release happened during the attack/decay phase
             start_level = self.head[elapsed]
         else:
             # Release happened during the sustain phase
-            start_level = self.sustain_level
+            start_level = self.shape.sustain_level * self.velocity
         self.tail = numpy.linspace(start_level, 0, self.release_frames)
 
     def get_chunk(self, frame_time: int, frames: int) -> numpy.ndarray | None:
         elapsed = frame_time - self.start_frame
         # print(f"get_chunk {frame_time=} {frames=} {elapsed=}")
 
-        if self.release_start is not None and elapsed >= self.release_start:
+        if self.release_start > 0 and elapsed >= self.release_start:
             if elapsed >= self.release_start + len(self.tail):
                 # Silence after release
                 # print("  post-r")
@@ -93,16 +128,16 @@ class Envelope:
                 return self.tail[offset:offset + size]
         elif elapsed >= len(self.head):
             # Sustain
-            if self.release_start is None:
+            if self.release_start == 0:
                 count = frames
             else:
                 count = min(frames, self.release_start - elapsed)
             # print(f"  s {count=}")
-            return numpy.full(count, self.sustain_level)
+            return numpy.full(count, self.shape.sustain_level * self.velocity)
         else:
             # Attack/decay
             size = min(frames, len(self.head))
-            if self.release_start is not None:
+            if self.release_start > 0:
                 size = min(size, self.release_start - elapsed)
             # print(f"  ad {elapsed=} {size=}")
             return self.head[elapsed:elapsed + size]
@@ -127,9 +162,10 @@ class Envelope:
 
 
 class Note:
-    def __init__(self, instrument: "Instrument", note: int):
+    def __init__(self, instrument: "Instrument", note: int, envelope: EnvelopeShape):
         self.audio_config = instrument.audio_config
         self.note = note
+        self.envelope_shape = envelope
         self.next_events: deque[mido.Message] = deque()
         self.last_pitchwheel: mido.Message | None = None
         self.envelope: Envelope | None = None
@@ -157,6 +193,7 @@ class Note:
                 else:
                     start_level = 0
                 self.envelope = Envelope(
+                        self.envelope_shape,
                         msg.time, velocity=msg.velocity / 127,
                         rate=self.audio_config.out_samplerate,
                         start_level=start_level)
@@ -256,15 +293,21 @@ class Saw(Note):
 
 
 class Instrument:
-    def __init__(self, audio_config: AudioConfig, channel: int, note_cls: Type[Note]):
+    def __init__(
+            self,
+            audio_config: AudioConfig,
+            channel: int,
+            note_cls: Type[Note],
+            envelope: EnvelopeShape):
         self.audio_config = audio_config
         self.channel = channel
         self.note_cls = note_cls
+        self.envelope = envelope
         self.notes: dict[int, Note] = {}
 
     def add_note(self, msg: mido.Message) -> bool:
         if (note := self.notes.get(msg.note)) is None:
-            note = self.note_cls(self, msg.note)
+            note = self.note_cls(self, msg.note, self.envelope)
             self.notes[msg.note] = note
 
         note.add_event(msg)

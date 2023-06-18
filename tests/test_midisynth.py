@@ -2,17 +2,16 @@ from __future__ import annotations
 
 import unittest
 
-import numpy
-
-from pyeep.midisynth import Envelope
+from pyeep.midisynth import Envelope, EnvelopeShape
 
 
 class TestEnvelope(unittest.TestCase):
+    shape = EnvelopeShape(
+        attack_level=1.0, attack_time=0.1,
+        decay_time=0.2, sustain_level=0.9, release_time=0.2)
+
     def test_adsr(self):
-        e = Envelope(
-                frame_time=0, rate=50,
-                velocity=1.0, attack_level=1.0, attack_time=0.1,
-                decay_time=0.2, sustain_level=0.9, release_time=0.2)
+        e = Envelope(self.shape, frame_time=0, rate=50, velocity=1.0)
         chunk = e.generate(0, 20)
         self.assertEqual(list(chunk), [
             0.0, 0.25, 0.5, 0.75, 1.0,
@@ -37,10 +36,7 @@ class TestEnvelope(unittest.TestCase):
         self.assertIsNone(e.generate(50, 10))
 
     def test_adsr_start_level(self):
-        e = Envelope(
-                frame_time=0, rate=50, start_level=0.5,
-                velocity=1.0, attack_level=1.0, attack_time=0.1,
-                decay_time=0.2, sustain_level=0.9, release_time=0.2)
+        e = Envelope(self.shape, frame_time=0, rate=50, start_level=0.5, velocity=1.0)
         chunk = e.generate(0, 20)
         self.assertEqual(list(chunk), [
             0.5, 0.625, 0.75, 0.875, 1.0,
@@ -65,10 +61,7 @@ class TestEnvelope(unittest.TestCase):
         self.assertIsNone(e.generate(50, 10))
 
     def test_adr(self):
-        e = Envelope(
-                frame_time=0, rate=50,
-                velocity=1.0, attack_level=1.0, attack_time=0.1,
-                decay_time=0.2, sustain_level=0.9, release_time=0.2)
+        e = Envelope(self.shape, frame_time=0, rate=50, velocity=1.0)
         e.release(10)
         chunk = e.generate(0, 20)
         self.assertEqual(list(chunk), [
@@ -84,10 +77,7 @@ class TestEnvelope(unittest.TestCase):
         self.assertIsNone(e.generate(20, 10))
 
     def test_ar(self):
-        e = Envelope(
-                frame_time=0, rate=50,
-                velocity=1.0, attack_level=1.0, attack_time=0.1,
-                decay_time=0.2, sustain_level=0.9, release_time=0.2)
+        e = Envelope(self.shape, frame_time=0, rate=50, velocity=1.0)
         e.release(3)
         chunk = e.generate(0, 15)
         self.assertEqual(list(chunk), [
