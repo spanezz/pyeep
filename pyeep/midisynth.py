@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import math
 import threading
 from collections import deque
@@ -10,6 +11,8 @@ import numba
 import numpy
 import scipy.signal
 from numba.experimental import jitclass
+
+log = logging.getLogger(__name__)
 
 
 class AudioConfig(NamedTuple):
@@ -180,6 +183,7 @@ class Note:
         return 440.0 * math.exp2(self.get_semitone() / 12)
 
     def add_event(self, msg: mido.Message):
+        # msg.time seems to always grow monotonically
         self.next_events.append(msg)
 
     def _process_event(self, msg: mido.Message):
@@ -216,6 +220,7 @@ class Note:
         while self.next_events and self.next_events[0].time < frame_time + frames:
             msg = self.next_events.popleft()
             if msg.time < frame_time:
+                log.warning("MIDI input buffer underrun")
                 self._process_event(msg)
             else:
                 events.append(msg)
