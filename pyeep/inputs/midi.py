@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from typing import Callable
+
 import jack
 import mido
 
 from ..component.aio import AIOComponent
 from ..component.jack import JackComponent
-from ..messages import Message
+from pyeep.messages import Message, Shutdown
 
 
 class MidiMessages(Message):
@@ -26,6 +28,10 @@ class MidiInput(JackComponent, AIOComponent):
     def set_jack_client(self, jack_client: jack.Client):
         super().set_jack_client(jack_client)
         self.inport = self.jack_client.midi_inports.register('midi input')
+        self.midi_sinks: list[Callable[[MidiMessages], None]] = []
+
+    def add_midi_sink(self, callback: Callable[[MidiMessages], None]) -> None:
+        self.midi_sinks.append(callback)
 
     def jack_process(self, frames: int):
         messages: list[mido.Message] = []
@@ -38,9 +44,18 @@ class MidiInput(JackComponent, AIOComponent):
         if not messages:
             return
 
-        # TODO: as a future optimization, the message could be left somewhere
-        # where other jack_process callbacks can find it, to reduce latency
+        msg = MidiMessages(last_frame_time=frame_time, frames=frames, messages=messages)
 
-        self.hub.loop.call_soon_threadsafe(
-                self.send, MidiMessages(
-                    last_frame_time=frame_time, frames=frames, messages=messages))
+        # Send MIDI messages to other JACK components that operate in the
+        # realtime thread, so they can be processed in this same frame
+        for cb in self.midi_sinks:
+            cb(msg)
+
+        self.hub.loop.call_soon_threadsafe(self.send, msg)
+
+    async def run(self) -> None:
+        while True:
+            msg = await self.next_message()
+            match msg:
+                case Shutdown():
+                    break
