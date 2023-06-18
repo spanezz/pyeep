@@ -9,7 +9,6 @@ from typing import NamedTuple, Sequence, Type
 import mido
 import numba
 import numpy
-import scipy.signal
 from numba.experimental import jitclass
 
 log = logging.getLogger(__name__)
@@ -25,7 +24,7 @@ class AudioConfig(NamedTuple):
     ("rate", numba.int32),
     ("phase", numba.float64),
 ])
-class SimpleSynth:
+class SineWave:
     """
     Phase accumulation synthesis
     """
@@ -39,6 +38,26 @@ class SimpleSynth:
         for i in range(len(array)):
             self.phase += 2.0 * math.pi * freq / self.rate
             array[i] += math.sin(self.phase) * envelope[i]
+
+
+@jitclass([
+    ("rate", numba.int32),
+    ("phase", numba.float64),
+])
+class SawWave:
+    """
+    Phase accumulation synthesis
+    """
+    # See https://www.gkbrk.com/wiki/PhaseAccumulator/
+
+    def __init__(self, rate: int):
+        self.rate: int = rate
+        self.phase: float = 0.0
+
+    def synth(self, array: numpy.ndarray, freq: float, envelope: numpy.ndarray) -> None:
+        for i in range(len(array)):
+            self.phase += freq / self.rate
+            array[i] += (1 - (self.phase % 2)) * envelope[i]
 
 
 @jitclass([
@@ -282,23 +301,19 @@ class Note:
 class Sine(Note):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # TODO: SimpleSynth hardcodes float as dtype
-        self.sine_synth = SimpleSynth(self.audio_config.out_samplerate)
+        self.sine_synth = SineWave(self.audio_config.out_samplerate)
 
     def add_wave(self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray) -> None:
         self.sine_synth.synth(array, self.get_freq(), envelope)
 
 
 class Saw(Note):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.saw_synth = SawWave(self.audio_config.out_samplerate)
+
     def add_wave(self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray) -> None:
-        dtype = self.audio_config.dtype
-        rate = self.audio_config.out_samplerate
-        factor = self.get_freq() / rate
-        # Use modulus to prevent passing large integer values to numpy.
-        # float32 would risk losing the least significant digits
-        time = frame_time % rate
-        x = numpy.arange(time, time + len(array), dtype=dtype)
-        array += scipy.signal.sawtooth(2 * numpy.pi * factor * x) * envelope
+        self.saw_synth.synth(array, self.get_freq(), envelope)
 
 
 class Instrument:
