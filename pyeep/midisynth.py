@@ -36,7 +36,7 @@ class SineWave:
 
     def synth(self, array: numpy.ndarray, freq: float, envelope: numpy.ndarray) -> None:
         for i in range(len(array)):
-            self.phase += 2.0 * math.pi * freq / self.rate
+            self.phase = (self.phase + 2.0 * math.pi * freq / self.rate) % (2 * math.pi)
             array[i] += math.sin(self.phase) * envelope[i]
 
 
@@ -56,8 +56,8 @@ class SawWave:
 
     def synth(self, array: numpy.ndarray, freq: float, envelope: numpy.ndarray) -> None:
         for i in range(len(array)):
-            self.phase += freq / self.rate
-            array[i] += (1 - (self.phase % 2)) * envelope[i]
+            self.phase = (self.phase + freq / self.rate) % 2
+            array[i] += (1 - self.phase) * envelope[i]
 
 
 @jitclass([
