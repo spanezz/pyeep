@@ -34,6 +34,14 @@ class SineWave:
         self.rate: int = rate
         self.phase: float = 0.0
 
+    def skip(self, frames: int, freq: float):
+        self.phase = (self.phase + frames * 2.0 * math.pi * freq / self.rate) % (2 * math.pi)
+
+    def wave(self, array: numpy.ndarray, freq: float) -> None:
+        for i in range(len(array)):
+            self.phase = (self.phase + 2.0 * math.pi * freq / self.rate) % (2 * math.pi)
+            array[i] += math.sin(self.phase)
+
     def synth(self, array: numpy.ndarray, freq: float, envelope: numpy.ndarray) -> None:
         for i in range(len(array)):
             self.phase = (self.phase + 2.0 * math.pi * freq / self.rate) % (2 * math.pi)
