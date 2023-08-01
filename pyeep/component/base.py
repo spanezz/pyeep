@@ -3,7 +3,7 @@ from __future__ import annotations
 import functools
 import logging
 import time
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING, Any, Type
 
 if TYPE_CHECKING:
     from ..messages import Message
@@ -48,6 +48,15 @@ class Component:
     def __str__(self) -> str:
         return self.name
 
+    @check_hub
+    def load_config(self, config: dict[str, Any]):
+        """
+        Load configuration from a dict.
+
+        This is called just after component initialization, if config exists
+        """
+        pass
+
     @property
     def description(self) -> str:
         return self.name
@@ -79,3 +88,10 @@ class Component:
         Function called by the hub to deliver a message to this component
         """
         pass
+
+    @check_hub
+    def get_config(self) -> dict[str, Any]:
+        """
+        Return the configuration for this component as a dict
+        """
+        return {}

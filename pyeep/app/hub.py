@@ -4,11 +4,22 @@ import logging
 from typing import TYPE_CHECKING, Any, Callable
 
 from ..component.base import check_hub
+from ..messages import ConfigSaveRequest
+from ..messages import Message
 
 if TYPE_CHECKING:
     from .app import App
     from ..component.base import Component
-    from ..messages import Message
+
+
+class HubConfig(Message):
+    def __init__(self, *, hub: str, components: dict[str, dict[str, Any]], **kwargs):
+        super().__init__(**kwargs)
+        self.hub = hub
+        self.components = components
+
+    def __str__(self):
+        return super().__str__() + f"(hub={self.hub}, components={self.components!r})"
 
 
 class Hub:
@@ -79,7 +90,22 @@ class Hub:
 
         This is called from the Hub's thread
         """
-        self._dispatch_to_components(msg)
+        match msg:
+            case ConfigSaveRequest():
+                self._hub_thread_harvest_component_config()
+            case _:
+                self._dispatch_to_components(msg)
+
+    @check_hub
+    def _hub_thread_harvest_component_config(self):
+        """
+        Collect configuration from all components and send the result as a
+        HubConfig message
+        """
+        config = {}
+        for name, component in self.components.items():
+            config[name] = component.get_config()
+        self.send(HubConfig(hub=self.HUB, components=config))
 
     def _dispatch_to_components(self, msg: Message):
         """

@@ -55,6 +55,13 @@ class DeviceScanRequest(Message):
         return super().__str__() + f"(duration={self.duration})"
 
 
+class ConfigSaveRequest(Message):
+    """
+    Message sent to initiate saving configuration
+    """
+    pass
+
+
 class Shortcut(Message):
     """
     Event notifying the trigger of a named keyboard shortcut
