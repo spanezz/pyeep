@@ -41,7 +41,7 @@ class AIOHub(Hub):
         elif self._running_in_hub():
             f(*args, **kwargs)
         else:
-            self.loop.call_soon_threadsafe(f, *args, **kwargs)
+            self.loop.call_soon_threadsafe(functools.partial(f, *args, **kwargs))
 
     def run(self):
         asyncio.run(self.aio_main())
