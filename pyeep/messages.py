@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .component.base import Component
@@ -60,6 +60,18 @@ class ConfigSaveRequest(Message):
     Message sent to initiate saving configuration
     """
     pass
+
+
+class Configure(Message):
+    """
+    Message sent to a component to restore its configuration
+    """
+    def __init__(self, *, config: dict[str, Any], **kwargs):
+        super().__init__(**kwargs)
+        self.config = config
+
+    def __str__(self):
+        return super().__str__() + f"(config={self.config!r})"
 
 
 class Shortcut(Message):

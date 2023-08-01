@@ -5,9 +5,9 @@ from typing import Any
 
 import yaml
 
-from ..component.aio import AIOComponent
 from ..app.hub import HubConfig
-from ..messages import NewComponent, Shutdown
+from ..component.aio import AIOComponent
+from ..messages import Configure, NewComponent, Shutdown
 
 
 class ConfigManager(AIOComponent):
@@ -36,7 +36,7 @@ class ConfigManager(AIOComponent):
                     break
                 case NewComponent():
                     if (config := self.components.get(msg.src.name)):
-                        print("TODO: CONFIG FOR", msg.src.name, config)
+                        self.send(Configure(dst=msg.src.name, config=config))
                 case HubConfig():
                     self.components |= msg.components
 
