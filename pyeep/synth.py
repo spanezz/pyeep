@@ -64,12 +64,12 @@ class SawWave:
     def wave(self, array: numpy.ndarray, freq: float) -> None:
         for i in range(len(array)):
             self.phase = (self.phase + freq / self.rate) % 2
-            array[i] += (1 - self.phase)
+            array[i] += self.phase - 1
 
     def synth(self, array: numpy.ndarray, freq: float, envelope: numpy.ndarray) -> None:
         for i in range(len(array)):
             self.phase = (self.phase + freq / self.rate) % 2
-            array[i] += (1 - self.phase) * envelope[i]
+            array[i] += (self.phase - 1) * envelope[i]
 
 
 @jitclass([
