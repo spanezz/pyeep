@@ -7,11 +7,23 @@ import numpy
 from numba.experimental import jitclass
 
 
+class Wave():
+    """
+    Base class for wave synthesizers
+    """
+
+    def wave(self, array: numpy.ndarray, freq: float) -> None:
+        raise NotImplementedError(f"{self.__class__.__name__}.wave")
+
+    def synth(self, array: numpy.ndarray, freq: float, envelope: numpy.ndarray) -> None:
+        raise NotImplementedError(f"{self.__class__.__name__}.synth")
+
+
 @jitclass([
     ("rate", numba.int32),
     ("phase", numba.float64),
 ])
-class SineWave:
+class SineWave(Wave):
     """
     Phase accumulation synthesis
     """
@@ -48,6 +60,11 @@ class SawWave:
     def __init__(self, rate: int):
         self.rate: int = rate
         self.phase: float = 0.0
+
+    def wave(self, array: numpy.ndarray, freq: float) -> None:
+        for i in range(len(array)):
+            self.phase = (self.phase + freq / self.rate) % 2
+            array[i] += (1 - self.phase)
 
     def synth(self, array: numpy.ndarray, freq: float, envelope: numpy.ndarray) -> None:
         for i in range(len(array)):
