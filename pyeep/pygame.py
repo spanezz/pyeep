@@ -9,7 +9,8 @@ from typing import Callable
 
 from .app import Hub
 from .component.base import Component, check_hub
-from .messages import Message, Shutdown
+from .messages.message import Message
+from .messages.component import Shutdown
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import pygame  # Noqa

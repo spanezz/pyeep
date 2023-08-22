@@ -4,7 +4,7 @@ import threading
 
 import jack
 
-from ..messages import NewComponent, Shutdown
+from ..messages.component import NewComponent, Shutdown
 from .base import Component
 from .aio import AIOComponent
 

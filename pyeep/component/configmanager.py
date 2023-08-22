@@ -7,7 +7,8 @@ import yaml
 
 from ..app.hub import HubConfig
 from ..component.aio import AIOComponent
-from ..messages import Configure, NewComponent, Shutdown
+from ..messages.config import Configure
+from ..messages.component import NewComponent, Shutdown
 
 
 class ConfigManager(AIOComponent):

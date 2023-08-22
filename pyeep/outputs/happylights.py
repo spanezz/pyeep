@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Type
 
 from .. import bluetooth
-from ..messages import Message
+from ..messages.message import Message
 from ..component.base import export
 from ..component.controller import ControllerWidget
 from ..color import Color

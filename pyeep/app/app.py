@@ -11,7 +11,8 @@ from queue import SimpleQueue
 from typing import IO, TYPE_CHECKING, Callable, Type, TypeVar
 
 from ..component.base import Component
-from ..messages import Message, NewComponent, Shutdown
+from ..messages.message import Message
+from ..messages.component import NewComponent, Shutdown
 
 try:
     import coloredlogs

@@ -5,7 +5,7 @@ from ..color import Color
 from ..component.base import Component, check_hub
 from ..component.controller import ControllerWidget
 from ..gtk import Gtk
-from ..messages import Message
+from ..messages.message import Message
 from .base import Output, OutputController
 
 

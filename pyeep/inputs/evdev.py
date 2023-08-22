@@ -8,7 +8,7 @@ import aionotify
 import evdev
 
 from ..component.aio import AIOComponent
-from ..messages import Shutdown
+from ..messages.component import Shutdown
 from ..component.active import SimpleActiveComponent
 from .base import Input
 

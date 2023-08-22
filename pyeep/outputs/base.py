@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from typing import Type
 
-from .. import messages
+from ..messages.input import EmergencyStop, Pause, Resume
 from ..component.base import Component, check_hub
 from ..component.controller import Controller, ControllerWidget
 from ..component.gtk import GtkComponent
 from ..gtk import Gio, GLib, Gtk
-from ..messages import Message, NewComponent
+from ..messages.message import Message
+from ..messages.component import NewComponent
 
 
 class Output(Component):
@@ -113,12 +114,12 @@ class OutputController(Controller[Output]):
     @check_hub
     def receive(self, msg: Message):
         match msg:
-            case messages.EmergencyStop():
+            case EmergencyStop():
                 self.emergency_stop()
-            case messages.Pause():
+            case Pause():
                 if self.in_group(msg.group):
                     self.set_paused(True)
-            case messages.Resume():
+            case Resume():
                 if self.in_group(msg.group):
                     self.set_paused(False)
 

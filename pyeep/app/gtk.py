@@ -7,7 +7,8 @@ from typing import Callable
 
 from . import App, Hub
 from ..component.base import check_hub
-from ..messages import Message, Shutdown
+from ..messages.message import Message
+from ..messages.component import Shutdown
 
 from ..gtk import Adw, GLib, Gtk
 

@@ -9,7 +9,8 @@ import bleak.assigned_numbers
 
 from .component.aio import AIOComponent
 from .component.connected import ConnectedComponent, ConnectedState, ConnectedStateChanged
-from .messages import Message, Shutdown, DeviceScanRequest
+from .messages.message import Message
+from .messages.component import Shutdown, DeviceScanRequest
 
 re_mangle = re.compile(r"[^\w]+")
 

@@ -10,7 +10,7 @@ from ..component.controller import ControllerWidget
 from ..component.active import SimpleActiveComponent
 from ..component.connected import ConnectedController
 from ..gtk import Gtk
-from ..messages import Message
+from ..messages.message import Message
 from .base import Input, InputController
 
 HEART_RATE_UUID = "00002a37-0000-1000-8000-00805f9b34fb"

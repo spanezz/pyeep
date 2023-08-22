@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Type, TypeVar
 
 from ..gtk import Gio, GLib, Gtk
-from ..messages import ComponentActiveStateChanged, Message
+from ..messages.component import ComponentActiveStateChanged
+from ..messages.message import Message
 from .base import Component, export
 from .controller import Controller, ControllerWidget
 

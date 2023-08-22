@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import evdev
 
-from ..messages import EmergencyStop, Shortcut
+from ..messages.input import EmergencyStop, Shortcut
 from .evdev import EvdevInput
 
 

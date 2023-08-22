@@ -7,7 +7,8 @@ import mido
 
 from ..component.aio import AIOComponent
 from ..component.jack import JackComponent
-from pyeep.messages import Message, Shutdown
+from ..messages.message import Message
+from ..messages.component import Shutdown
 
 
 class MidiMessages(Message):

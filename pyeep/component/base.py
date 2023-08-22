@@ -6,7 +6,7 @@ import time
 from typing import TYPE_CHECKING, Any, Type
 
 if TYPE_CHECKING:
-    from ..messages import Message
+    from ..messages.message import Message
     from .controller import Controller
     from ..app import Hub
 

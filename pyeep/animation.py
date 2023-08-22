@@ -6,7 +6,7 @@ from typing import Any, Callable, Generator, Generic, TypeVar
 
 from .gtk import GLib
 from .color import Color
-from pyeep.messages import Jsonable
+from pyeep.messages.jsonable import Jsonable
 
 log = logging.getLogger(__name__)
 

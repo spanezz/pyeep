@@ -6,7 +6,7 @@ from typing import TypeVar, Type
 from ..gtk import Gtk
 from .base import Component
 from .controller import Controller, ControllerWidget
-from ..messages import Message
+from ..messages.message import Message
 
 C = TypeVar("C", bound="ConnectedComponent")
 

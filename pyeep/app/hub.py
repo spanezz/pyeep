@@ -4,8 +4,8 @@ import logging
 from typing import TYPE_CHECKING, Any, Callable
 
 from ..component.base import check_hub
-from ..messages import ConfigSaveRequest
-from ..messages import Message
+from ..messages.config import ConfigSaveRequest
+from ..messages.message import Message
 
 if TYPE_CHECKING:
     from .app import App
