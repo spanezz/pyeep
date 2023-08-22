@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING, Any
 
 from .jsonable import Jsonable
@@ -21,7 +22,7 @@ class Message(Jsonable):
             src: Component | None = None,
             dst: str | None = None,
             name: str | None = None):
-        self.ts = ts
+        self.ts = ts if ts is not None else time.time()
         self.src = src
         self.dst = dst
         if name is None:

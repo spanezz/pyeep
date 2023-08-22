@@ -31,6 +31,11 @@ class ComponentActiveStateChanged(Message):
         super().__init__(**kwargs)
         self.value = value
 
+    def as_jsonable(self) -> dict[str, Any]:
+        res = super().as_jsonable()
+        res["value"] = self.value
+        return res
+
     def __str__(self) -> str:
         return super().__str__() + f"(value={self.value})"
 
@@ -43,6 +48,11 @@ class DeviceScanRequest(Message):
         super().__init__(**kwargs)
         # Duration in seconds of the scan
         self.duration = duration
+
+    def as_jsonable(self) -> dict[str, Any]:
+        res = super().as_jsonable()
+        res["duration"] = self.duration
+        return res
 
     def __str__(self):
         return super().__str__() + f"(duration={self.duration})"
