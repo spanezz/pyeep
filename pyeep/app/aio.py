@@ -76,6 +76,9 @@ class AIOHub(Hub):
         task.add_done_callback(self.tasks.discard)
 
         def on_done(task):
+            if (exc := task.exception()):
+                import traceback
+                traceback.print_exception(exc)
             self.remove_component(component)
 
         task.add_done_callback(on_done)
