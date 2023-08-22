@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import unittest
-from unittest import mock
 
 from pyeep.messages.component import (ComponentActiveStateChanged,
                                       DeviceScanRequest, NewComponent,
                                       Shutdown)
+from pyeep.messages.config import ConfigSaveRequest, Configure
+from pyeep.messages.input import EmergencyStop, Pause, Resume, Shortcut
 from pyeep.messages.jsonable import Jsonable
 from pyeep.messages.message import Message
 
@@ -94,3 +95,87 @@ class TestComponent(MessageMixin, unittest.TestCase):
         self.assertIsNone(m1.src)
         self.assertIsNone(m1.dst)
         self.assertEqual(m1.duration, 3.14)
+
+
+class TestConfig(MessageMixin, unittest.TestCase):
+    def test_configsaverequest(self):
+        m = ConfigSaveRequest()
+        self.assertEqual(m.name, "configsaverequest")
+        self.assertIsInstance(m.ts, float)
+        self.assertIsNone(m.src)
+        self.assertIsNone(m.dst)
+
+        m1 = self.assertSerializes(m)
+        self.assertEqual(m1.name, "configsaverequest")
+        self.assertIsNone(m1.src)
+        self.assertIsNone(m1.dst)
+
+    def test_configure(self):
+        m = Configure(config={"test": "val"})
+        self.assertEqual(m.name, "configure")
+        self.assertIsInstance(m.ts, float)
+        self.assertIsNone(m.src)
+        self.assertIsNone(m.dst)
+        self.assertEqual(m.config, {"test": "val"})
+
+        m1 = self.assertSerializes(m)
+        self.assertEqual(m1.name, "configure")
+        self.assertIsNone(m1.src)
+        self.assertIsNone(m1.dst)
+        self.assertEqual(m1.config, {"test": "val"})
+
+
+class TestInput(MessageMixin, unittest.TestCase):
+    def test_emergencystop(self):
+        m = EmergencyStop()
+        self.assertEqual(m.name, "emergencystop")
+        self.assertIsInstance(m.ts, float)
+        self.assertIsNone(m.src)
+        self.assertIsNone(m.dst)
+
+        m1 = self.assertSerializes(m)
+        self.assertEqual(m1.name, "emergencystop")
+        self.assertIsNone(m1.src)
+        self.assertIsNone(m1.dst)
+
+    def test_shortcut(self):
+        m = Shortcut(command="test")
+        self.assertEqual(m.name, "shortcut")
+        self.assertIsInstance(m.ts, float)
+        self.assertIsNone(m.src)
+        self.assertIsNone(m.dst)
+        self.assertEqual(m.command, "test")
+
+        m1 = self.assertSerializes(m)
+        self.assertEqual(m1.name, "shortcut")
+        self.assertIsNone(m1.src)
+        self.assertIsNone(m1.dst)
+        self.assertEqual(m1.command, "test")
+
+    def test_pause(self):
+        m = Pause(group=3)
+        self.assertEqual(m.name, "pause")
+        self.assertIsInstance(m.ts, float)
+        self.assertIsNone(m.src)
+        self.assertIsNone(m.dst)
+        self.assertEqual(m.group, 3)
+
+        m1 = self.assertSerializes(m)
+        self.assertEqual(m1.name, "pause")
+        self.assertIsNone(m1.src)
+        self.assertIsNone(m1.dst)
+        self.assertEqual(m1.group, 3)
+
+    def test_resume(self):
+        m = Resume(group=3)
+        self.assertEqual(m.name, "resume")
+        self.assertIsInstance(m.ts, float)
+        self.assertIsNone(m.src)
+        self.assertIsNone(m.dst)
+        self.assertEqual(m.group, 3)
+
+        m1 = self.assertSerializes(m)
+        self.assertEqual(m1.name, "resume")
+        self.assertIsNone(m1.src)
+        self.assertIsNone(m1.dst)
+        self.assertEqual(m1.group, 3)

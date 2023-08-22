@@ -43,6 +43,11 @@ class Pause(Message):
     def __str__(self) -> str:
         return super().__str__() + f"(group={self.group})"
 
+    def as_jsonable(self) -> dict[str, Any]:
+        res = super().as_jsonable()
+        res["group"] = self.group
+        return res
+
 
 class Resume(Message):
     """
@@ -55,3 +60,7 @@ class Resume(Message):
     def __str__(self) -> str:
         return super().__str__() + f"(group={self.group})"
 
+    def as_jsonable(self) -> dict[str, Any]:
+        res = super().as_jsonable()
+        res["group"] = self.group
+        return res

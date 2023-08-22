@@ -24,3 +24,8 @@ class Configure(Message):
 
     def __str__(self):
         return super().__str__() + f"(config={self.config!r})"
+
+    def as_jsonable(self) -> dict[str, Any]:
+        res = super().as_jsonable()
+        res["config"] = self.config
+        return res
