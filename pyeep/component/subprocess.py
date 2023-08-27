@@ -132,7 +132,6 @@ class BottomComponent(AIOComponent):
                     self.logger.error("cannot instantiate message: %s", e)
                     continue
 
-                print("RECEIVED", msg)
                 self.send(msg)
         finally:
             self.receive(Shutdown())
@@ -147,7 +146,6 @@ class BottomComponent(AIOComponent):
                     break
                 case _:
                     if msg.src != self:
-                        print("SEND", msg)
                         line = json.dumps(msg.as_jsonable()) + "\n"
                         self.writer.write(line.encode())
                         await self.writer.drain()

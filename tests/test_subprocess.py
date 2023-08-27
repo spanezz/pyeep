@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pyeep.component.subprocess import SubprocessComponent
+from pyeep.component.subprocess import TopComponent
 from pyeep.messages.component import DeviceScanRequest, Shutdown
 from pyeep.messages.message import Message
 
@@ -33,7 +33,7 @@ class TestSubprocess(unittest.IsolatedAsyncioTestCase):
         scriptfile.write_text("#!/bin/sh\nsleep 100")
         scriptfile.chmod(0o755)
 
-        class Comp(SubprocessComponent):
+        class Comp(TopComponent):
             def get_commandline(self):
                 return [scriptfile]
 
@@ -58,7 +58,7 @@ class TestSubprocess(unittest.IsolatedAsyncioTestCase):
         scriptfile.write_text(f"#!/bin/sh\nnc -U $1 > {outfile}")
         scriptfile.chmod(0o755)
 
-        class Comp(SubprocessComponent):
+        class Comp(TopComponent):
             def get_commandline(self):
                 return [scriptfile, self.workdir / "socket"]
 
@@ -104,7 +104,7 @@ class TestSubprocess(unittest.IsolatedAsyncioTestCase):
         scriptfile.write_text(f"#!/bin/sh\necho {encoded} | nc -U $1 > {outfile}")
         scriptfile.chmod(0o755)
 
-        class Comp(SubprocessComponent):
+        class Comp(TopComponent):
             def get_commandline(self):
                 return [scriptfile, self.workdir / "socket"]
 
@@ -114,8 +114,6 @@ class TestSubprocess(unittest.IsolatedAsyncioTestCase):
 
         while comp.proc is None:
             await asyncio.sleep(0.1)
-
-        comp.receive(DeviceScanRequest(duration=3.14, ts=12.34))
 
         comp.receive(Shutdown())
 
