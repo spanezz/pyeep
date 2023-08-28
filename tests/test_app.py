@@ -15,5 +15,5 @@ class TestApp(unittest.TestCase):
     def test_app(self):
         app = pyeep.app.App(args=MockNamespace())
         with app:
-            with mock.patch("pyeep.app.Queue.get", side_effect=KeyboardInterrupt):
+            with mock.patch("pyeep.app.app.App._next_command", side_effect=KeyboardInterrupt):
                 app.main()

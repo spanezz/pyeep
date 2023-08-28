@@ -145,13 +145,19 @@ class App(contextlib.ExitStack):
         for hub in self.hubs.values():
             hub.start()
 
+    def _next_command(self) -> Callable:
+        """
+        Mockable wrapper around self.command_queue.get()
+        """
+        return self.command_queue.get()
+
     def main_loop(self):
         """
         Main loop. The application will shut down after this function returns
         """
         while self.hubs:
             try:
-                c = self.command_queue.get()
+                c = self._next_command()
             except KeyboardInterrupt:
                 log.info("Keyboard interrupt received: shutting down application")
                 self.send(Shutdown())
