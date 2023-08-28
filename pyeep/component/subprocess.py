@@ -52,6 +52,7 @@ class TopComponent(AIOComponent):
                     self.logger.error("cannot instantiate message: %s", e)
                     continue
 
+                # print("Top received", msg, msg.src)
                 self.send(msg)
         finally:
             self.receive(Shutdown())
@@ -97,6 +98,7 @@ class TopComponent(AIOComponent):
                         break
                     case _:
                         if msg.src != self and self.writer is not None:
+                            # print("Top send", msg, msg.src, self)
                             line = json.dumps(msg.as_jsonable()) + "\n"
                             self.writer.write(line.encode())
                             await self.writer.drain()
@@ -120,6 +122,7 @@ class BottomComponent(AIOComponent):
     async def _read_messages(self):
         try:
             while (line := await self.reader.readline()):
+                # print("Bottom receivd line", line)
                 jsonable = json.loads(line)
                 cls = Jsonable.jsonable_class(jsonable)
                 if cls is None:
@@ -133,11 +136,13 @@ class BottomComponent(AIOComponent):
                     self.logger.error("cannot instantiate message: %s", e)
                     continue
 
+                # print("Bottom received", msg)
                 self.send(msg)
         finally:
             self.receive(Shutdown())
 
     async def run(self):
+        # print("Bottom open")
         self.reader, self.writer = await asyncio.open_unix_connection(path=self.path)
         self.read_messages_task = asyncio.create_task(self._read_messages())
 
@@ -149,6 +154,7 @@ class BottomComponent(AIOComponent):
                     pass
                 case _:
                     if msg.src != self:
+                        # print("Bottom sent", msg)
                         line = json.dumps(msg.as_jsonable()) + "\n"
                         self.writer.write(line.encode())
                         await self.writer.drain()

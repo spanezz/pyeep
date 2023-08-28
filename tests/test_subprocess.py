@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pyeep.component.subprocess import TopComponent
+from pyeep.component.subprocess import TopComponent, BottomComponent
 from pyeep.messages.component import DeviceScanRequest, Shutdown
 from pyeep.messages.message import Message
 
@@ -51,7 +51,7 @@ class TestSubprocess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ProcessLookupError):
             os.kill(pid, 0)
 
-    async def test_send(self):
+    async def test_top_send(self):
         outfile = self.workdir / "output"
 
         scriptfile = self.workdir / "script"
@@ -86,7 +86,7 @@ class TestSubprocess(unittest.IsolatedAsyncioTestCase):
             'src': None,
             'ts': 12.34})
 
-    async def test_receive(self):
+    async def test_top_receive(self):
         payload = {
             '__class__': 'DeviceScanRequest',
             '__module__': 'pyeep.messages.component',
@@ -126,3 +126,70 @@ class TestSubprocess(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(msg.ts, 12.34)
 
         self.assertEqual(outfile.read_text(), "")
+
+    async def test_bottom_receive(self):
+        payload = {
+            '__class__': 'DeviceScanRequest',
+            '__module__': 'pyeep.messages.component',
+            'dst': None,
+            'duration': 3.14,
+            'name': 'devicescanrequest',
+            'src': None,
+            'ts': 12.34,
+        }
+
+        socket_path = self.workdir / "socket"
+
+        class MockTop:
+            def __init__(self):
+                self.received: list[str] = []
+                self.sent = False
+                self.done = False
+
+            async def run(self):
+                # print("Top start")
+                self.server = await asyncio.start_unix_server(
+                        self.on_server_connect,
+                        path=socket_path)
+
+                while not self.done:
+                    await asyncio.sleep(0.3)
+
+            async def _read_messages(self):
+                while (line := await self.reader.readline()):
+                    # print("TOP received", line)
+                    self.received.append(line)
+
+            async def on_server_connect(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+                self.reader = reader
+                self.writer = writer
+                self.read_messages_task = asyncio.create_task(self._read_messages())
+                self.writer.write(json.dumps(payload).encode() + b"\n")
+                await self.writer.drain()
+                self.sent = True
+
+        top = MockTop()
+        top_task = asyncio.create_task(top.run())
+
+        hub = MockHub()
+        bottom = BottomComponent(hub=hub, path=socket_path)
+        bottom_task = asyncio.create_task(bottom.run())
+
+        while not top.sent:
+            await asyncio.sleep(0.5)
+
+        bottom.receive(Shutdown())
+        await bottom_task
+
+        top.done = True
+        await top_task
+
+        self.assertEqual(top.received, [])
+
+        # self.assertEqual(len(hub.messages_sent), 1)
+        # msg = hub.messages_sent[0]
+        # self.assertIsInstance(msg, DeviceScanRequest)
+        # self.assertEqual(msg.duration, 3.14)
+        # self.assertEqual(msg.ts, 12.34)
+
+        # self.assertEqual(outfile.read_text(), "")
