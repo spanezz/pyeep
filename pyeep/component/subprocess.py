@@ -6,15 +6,16 @@ import tempfile
 from pathlib import Path
 from typing import Sequence
 
-from ..messages.component import Shutdown
+from ..messages.component import (ComponentActiveStateChanged, NewComponent,
+                                  Shutdown)
 from ..messages.jsonable import Jsonable
 from .aio import AIOComponent
 
 
 # See https://bugs.python.org/issue43884
 # It looks like asyncio is currently not very good at doing subprocess pipes
-# reading from stdout, and it might be better to create and pass a socket
-# instead, as argument
+# reading from stdout, and a Unix Domain Socket is a working and more stable
+# replacement
 
 class TopComponent(AIOComponent):
     """
@@ -144,6 +145,8 @@ class BottomComponent(AIOComponent):
             match (msg := await self.next_message()):
                 case Shutdown():
                     break
+                case NewComponent() | ComponentActiveStateChanged():
+                    pass
                 case _:
                     if msg.src != self:
                         line = json.dumps(msg.as_jsonable()) + "\n"
