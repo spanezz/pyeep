@@ -34,11 +34,11 @@ class App(GtkApp, JackApp, AIOApp):
 
 
 def main():
-    parser = App.argparser(name="midisynth", description="Simple MIDI synthesizer")
+    parser = App.argparser(name="midievents", description="MIDI event reader")
     parser.add_argument("--controller", action="store", metavar="socket", help="Controller socket")
     args = parser.parse_args()
 
-    with App(args, title="MIDI Synth", application_id="org.enricozini.midisynth") as app:
+    with App(args, title="MIDI Events", application_id="org.enricozini.midievents") as app:
         app.main()
 
 
