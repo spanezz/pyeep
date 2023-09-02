@@ -36,6 +36,11 @@ class PowerOutputTop(TopComponent, PowerOutput):
     def set_power(self, power: float):
         self.forward_message(SetPower(power=power))
 
+    async def process_remote_message(self, msg: Message):
+        match msg:
+            case SetRate():
+                self.set_rate(msg.rate)
+
 
 class PowerOutputBottom(BottomComponent):
     """
@@ -44,11 +49,36 @@ class PowerOutputBottom(BottomComponent):
     def __init__(self, output: PowerOutput, **kwargs):
         super().__init__(**kwargs)
         self.output = output
+        self.output.add_set_rate_callback(self._notify_set_rate)
+
+    @export
+    def _notify_set_rate(self, rate: int):
+        self.forward_message(SetRate(rate=rate))
 
     async def process_remote_message(self, msg: Message):
         match msg:
             case SetPower():
                 self.output.set_power(msg.power)
+
+
+class SetRate(Message):
+    """
+    Notify the sample rate of a component
+
+    This is mainly used to for communication between a PowerOutputBottom and a
+    PowerOutputTop
+    """
+    def __init__(self, *, rate: float, **kwargs):
+        super().__init__(**kwargs)
+        self.rate = rate
+
+    def __str__(self) -> str:
+        return super().__str__() + f"(rate={self.rate})"
+
+    def as_jsonable(self) -> dict[str, Any]:
+        res = super().as_jsonable()
+        res["rate"] = self.rate
+        return res
 
 
 class SetPower(Message):
@@ -176,7 +206,7 @@ class PowerOutputController(OutputController):
                 page_size=0)
         self.power_max.connect("value_changed", self.on_power_max)
 
-        self.power_animator = PowerAnimator(self.name, self.output.rate, self.set_animated_power)
+        self.power_animator: PowerAnimator | None = None
 
         self.power_levels: dict[Component, float] = {}
 
@@ -279,6 +309,15 @@ class PowerOutputController(OutputController):
         if (power := config.get("power")):
             self.power.set_value(power)
 
+    def _start_power_animation(self, animation: PowerAnimation):
+        if self.output.rate == 0:
+            self.logger.warning("skipping animation %r as output rate is still unknown", animation)
+            return
+
+        if self.power_animator is None:
+            self.power_animator = PowerAnimator(self.name, self.output.rate, self.set_animated_power)
+        self.power_animator.start(animation)
+
     @check_hub
     def receive(self, msg: Message):
         match msg:
@@ -289,7 +328,7 @@ class PowerOutputController(OutputController):
                 if self.in_group(msg.group):
                     match msg.amount:
                         case PowerAnimation():
-                            self.power_animator.start(msg.amount)
+                            self._start_power_animation(msg.amount)
             case Configure():
                 # TODO: forward config to the controller? Does it exist
                 # yet? Change Hub to enqueue messages for not-yet-existing

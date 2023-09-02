@@ -61,7 +61,7 @@ class Pulses(PowerOutput, JackComponent, AIOComponent):
     def set_jack_client(self, jack_client: jack.Client):
         super().set_jack_client(jack_client)
         self.outport = self.jack_client.outports.register('pulses')
-        self.rate = jack_client.samplerate
+        self.set_rate(jack_client.samplerate)
         self.synth = SimpleSynth(self.rate)
 
     def jack_process(self, frames: int) -> None:

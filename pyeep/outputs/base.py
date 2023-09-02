@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Type
+from typing import Callable, Type
 
 from ..messages.input import EmergencyStop, Pause, Resume
 from ..component.base import Component, check_hub
@@ -15,11 +15,29 @@ class Output(Component):
     """
     Generic base for output components
     """
-    def __init__(self, *, rate: int, **kwargs):
+    def __init__(self, *, rate: int = 0, **kwargs):
         super().__init__(**kwargs)
 
         # Rate (changes per second) at which this output can take commands
         self.rate = rate
+        # Functions to notify when we have an output rate
+        self.set_rate_callbacks: list[Callable[[int], None]] = []
+
+    def set_rate(self, rate: int):
+        if self.rate == 0:
+            self.rate = rate
+
+            for cb in self.set_rate_callbacks:
+                cb(self.rate)
+            self.set_rate_callbacks.clear()
+        else:
+            raise RuntimeError(f"Rate was already set to {self.rate}")
+
+    def add_set_rate_callback(self, cb: Callable[[int], None]):
+        if self.rate == 0:
+            self.set_rate_callbacks.append(cb)
+        else:
+            cb(self.rate)
 
     def get_output_controller(self) -> Type["OutputController"]:
         return OutputController

@@ -37,7 +37,7 @@ class Synth(Output, JackComponent, AIOComponent):
         reader.add_midi_sink(self.jack_add_messages)
 
         self.outport = self.jack_client.outports.register('synth')
-        self.rate = jack_client.samplerate
+        self.set_rate(jack_client.samplerate)
 
         self.synth = midisynth.MidiSynth(in_samplerate=self.rate)
 
