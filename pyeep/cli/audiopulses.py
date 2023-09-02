@@ -9,7 +9,7 @@ from ..app.gtk import GtkApp
 from ..app.jack import JackApp
 from ..gtk import Gtk
 from ..outputs.audiopulses import Pulses
-from ..component.subprocess import BottomComponent
+from ..outputs.power import PowerOutputBottom
 
 log = logging.getLogger(__name__)
 
@@ -17,9 +17,9 @@ log = logging.getLogger(__name__)
 class App(GtkApp, JackApp, AIOApp):
     def __init__(self, args: argparse.Namespace, **kwargs):
         super().__init__(args, **kwargs)
-        self.add_component(Pulses)
+        pulses = self.add_component(Pulses)
         if args.controller:
-            self.add_component(BottomComponent, path=args.controller)
+            self.add_component(PowerOutputBottom, path=args.controller, output=pulses)
 
     def build_main_window(self):
         super().build_main_window()

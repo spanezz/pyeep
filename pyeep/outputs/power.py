@@ -2,18 +2,18 @@ from __future__ import annotations
 
 from typing import Any, Type
 
-from .base import OutputController
 from ..animation import PowerAnimation, PowerAnimator
 from ..color import Color
 from ..component.aio import AIOComponent
 from ..component.base import Component, check_hub, export
 from ..component.controller import ControllerWidget
+from ..component.subprocess import BottomComponent, TopComponent
 from ..gtk import GLib, Gtk
+from ..messages.component import Shutdown
 from ..messages.config import Configure
 from ..messages.message import Message
-from ..messages.component import Shutdown
-from ..outputs.base import Output
-from ..outputs.color import ColorOutput, ColorOutputController
+from .base import Output, OutputController
+from .color import ColorOutput, ColorOutputController
 
 
 class PowerOutput(Output):
@@ -26,6 +26,49 @@ class PowerOutput(Output):
 
     def get_output_controller(self) -> Type["PowerOutputController"]:
         return PowerOutputController
+
+
+class PowerOutputTop(TopComponent, PowerOutput):
+    """
+    PowerOutput sending power commands to a subprocess
+    """
+    @export
+    def set_power(self, power: float):
+        self.forward_message(SetPower(power=power))
+
+
+class PowerOutputBottom(BottomComponent):
+    """
+    PowerOutput forwarding power commands from a TopComponent to a PowerOutput
+    """
+    def __init__(self, output: PowerOutput, **kwargs):
+        super().__init__(**kwargs)
+        self.output = output
+
+    async def process_remote_message(self, msg: Message):
+        match msg:
+            case SetPower():
+                self.output.set_power(msg.power)
+
+
+class SetPower(Message):
+    """
+    Set the power of an output.
+
+    This is mainly used to send power commands from a PowerOutputTop to a
+    PowerOutputBottom
+    """
+    def __init__(self, *, power: float, **kwargs):
+        super().__init__(**kwargs)
+        self.power = power
+
+    def __str__(self) -> str:
+        return super().__str__() + f"(power={self.power})"
+
+    def as_jsonable(self) -> dict[str, Any]:
+        res = super().as_jsonable()
+        res["power"] = self.power
+        return res
 
 
 class SetGroupPower(Message):
