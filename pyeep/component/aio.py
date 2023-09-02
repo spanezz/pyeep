@@ -26,7 +26,9 @@ class AIOComponent(Component):
         Wait for reception of a message, with an optional timeout
         """
         try:
-            return await asyncio.wait_for(self.message_queue.get(), timeout=timeout)
+            msg = await asyncio.wait_for(self.message_queue.get(), timeout=timeout)
+            self.message_queue.task_done()
+            return msg
         except TimeoutError:
             return None
 

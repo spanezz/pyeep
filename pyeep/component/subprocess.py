@@ -29,6 +29,8 @@ class SubprocessComponent(AIOComponent):
         self.reader: asyncio.StreamReader | None = None
         self.writer: asyncio.StreamWriter | None = None
         self.read_messages_task: asyncio.Task | None = None
+        self.write_messages_task: asyncio.Task | None = None
+        self.outbox = asyncio.Queue()
 
     async def _read_messages(self):
         """
@@ -53,28 +55,50 @@ class SubprocessComponent(AIOComponent):
         finally:
             self.receive(Shutdown())
 
-    async def forward_message(self, msg: Message):
+    async def _write_messages(self):
+        while True:
+            msg = await self.outbox.get()
+            line = json.dumps(msg.as_jsonable()) + "\n"
+            self.writer.write(line.encode())
+            if self.outbox.empty():
+                await self.writer.drain()
+            self.outbox.task_done()
+
+    def _on_connect(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+        """
+        Start tasks when the remote endpoint is connected
+        """
+        self.reader = reader
+        self.writer = writer
+        self.read_messages_task = asyncio.create_task(self._read_messages())
+        self.write_messages_task = asyncio.create_task(self._write_messages())
+
+    def forward_message(self, msg: Message):
         """
         Forward a message to the remote endpoint
         """
-        line = json.dumps(msg.as_jsonable()) + "\n"
-        self.writer.write(line.encode())
-        await self.writer.drain()
+        self.outbox.put_nowait(msg)
 
     async def main_loop(self):
-        while True:
-            match (msg := await self.next_message()):
-                case Shutdown():
-                    break
-                case _:
-                    await self.process_local_message(msg)
+        try:
+            while True:
+                match (msg := await self.next_message()):
+                    case Shutdown():
+                        break
+                    case _:
+                        await self.process_local_message(msg)
+        finally:
+            if self.read_messages_task is not None:
+                self.read_messages_task.cancel()
+            if self.write_messages_task is not None:
+                self.write_messages_task.cancel()
 
     async def process_local_message(self, msg: Message):
         """
         Process a message received from the local hub
         """
         # if msg.src != self and self.writer is not None:
-        #     await self.forward_message(msg)
+        #     self.forward_message(msg)
         pass
 
     async def process_remote_message(self, msg: Message):
@@ -120,9 +144,7 @@ class TopComponent(SubprocessComponent):
             self.proc = None
 
     async def on_server_connect(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-        self.reader = reader
-        self.writer = writer
-        self.read_messages_task = asyncio.create_task(self._read_messages())
+        self._on_connect(reader, writer)
 
     async def run(self):
         with tempfile.TemporaryDirectory() as workdir_str:
@@ -155,6 +177,6 @@ class BottomComponent(SubprocessComponent):
         self.workdir: Path | None = None
 
     async def run(self):
-        self.reader, self.writer = await asyncio.open_unix_connection(path=self.path)
-        self.read_messages_task = asyncio.create_task(self._read_messages())
+        reader, writer = await asyncio.open_unix_connection(path=self.path)
+        self._on_connect(reader, writer)
         await self.main_loop()

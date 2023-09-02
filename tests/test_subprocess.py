@@ -62,16 +62,14 @@ class TestSubprocess(unittest.IsolatedAsyncioTestCase):
             def get_commandline(self):
                 return [scriptfile, self.workdir / "socket"]
 
-            async def process_local_message(self, msg: Message):
-                await self.forward_message(msg)
-
         comp = Comp(hub=MockHub())
         comp_task = asyncio.create_task(comp.run())
 
         while comp.proc is None:
             await asyncio.sleep(0.1)
 
-        comp.receive(DeviceScanRequest(duration=3.14, ts=12.34))
+        comp.forward_message(DeviceScanRequest(duration=3.14, ts=12.34))
+        await comp.outbox.join()
 
         comp.receive(Shutdown())
 
