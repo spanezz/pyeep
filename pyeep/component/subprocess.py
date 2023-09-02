@@ -4,12 +4,14 @@ import asyncio
 import json
 import tempfile
 from pathlib import Path
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
-from ..messages.component import (ComponentActiveStateChanged, NewComponent,
-                                  Shutdown)
+from ..messages.component import Shutdown
 from ..messages.jsonable import Jsonable
 from .aio import AIOComponent
+
+if TYPE_CHECKING:
+    from ..messages.message import Message
 
 
 # See https://bugs.python.org/issue43884
@@ -17,26 +19,21 @@ from .aio import AIOComponent
 # reading from stdout, and a Unix Domain Socket is a working and more stable
 # replacement
 
-class TopComponent(AIOComponent):
-    """
-    Component that manages a child process
 
-    This is the controller side of a BottomComponent
+class SubprocessComponent(AIOComponent):
+    """
+    Common functionality for the top and bottom end of a subprocess component
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.proc: asyncio.subprocess.Process | None = None
-        self.read_messages_task: asyncio.Task | None = None
-        self.returncode: int | None = None
-        self.workdir: Path | None = None
-        self.server: asyncio.Server | None = None
         self.reader: asyncio.StreamReader | None = None
         self.writer: asyncio.StreamWriter | None = None
-
-    def get_commandline(self) -> Sequence[str]:
-        raise NotImplementedError(f"{self.__class__.__name__}.get_commandline not implemented")
+        self.read_messages_task: asyncio.Task | None = None
 
     async def _read_messages(self):
+        """
+        Task used to read messages from the remote endpoint
+        """
         try:
             while (line := await self.reader.readline()):
                 jsonable = json.loads(line)
@@ -52,10 +49,57 @@ class TopComponent(AIOComponent):
                     self.logger.error("cannot instantiate message: %s", e)
                     continue
 
-                # print("Top received", msg, msg.src)
-                self.send(msg)
+                await self.process_remote_message(msg)
         finally:
             self.receive(Shutdown())
+
+    async def forward_message(self, msg: Message):
+        """
+        Forward a message to the remote endpoint
+        """
+        line = json.dumps(msg.as_jsonable()) + "\n"
+        self.writer.write(line.encode())
+        await self.writer.drain()
+
+    async def main_loop(self):
+        while True:
+            match (msg := await self.next_message()):
+                case Shutdown():
+                    break
+                case _:
+                    await self.process_local_message(msg)
+
+    async def process_local_message(self, msg: Message):
+        """
+        Process a message received from the local hub
+        """
+        # if msg.src != self and self.writer is not None:
+        #     await self.forward_message(msg)
+        pass
+
+    async def process_remote_message(self, msg: Message):
+        """
+        Process a message received from the remote endpoint
+        """
+        # self.send(msg)
+        pass
+
+
+class TopComponent(SubprocessComponent):
+    """
+    Component that manages a child process
+
+    This is the controller side of a BottomComponent
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.proc: asyncio.subprocess.Process | None = None
+        self.returncode: int | None = None
+        self.workdir: Path | None = None
+        self.server: asyncio.Server | None = None
+
+    def get_commandline(self) -> Sequence[str]:
+        raise NotImplementedError(f"{self.__class__.__name__}.get_commandline not implemented")
 
     async def _killer(self):
         attempt = 0
@@ -90,21 +134,14 @@ class TopComponent(AIOComponent):
             self.proc = await asyncio.create_subprocess_exec(
                     *self.get_commandline())
 
-            while True:
-                match (msg := await self.next_message()):
-                    case Shutdown():
-                        if self.proc is not None:
-                            await self._terminate_process()
-                        break
-                    case _:
-                        if msg.src != self and self.writer is not None:
-                            # print("Top send", msg, msg.src, self)
-                            line = json.dumps(msg.as_jsonable()) + "\n"
-                            self.writer.write(line.encode())
-                            await self.writer.drain()
+            try:
+                await self.main_loop()
+            finally:
+                if self.proc is not None:
+                    await self._terminate_process()
 
 
-class BottomComponent(AIOComponent):
+class BottomComponent(SubprocessComponent):
     """
     Component that interfaces with a controller program.
 
@@ -116,45 +153,8 @@ class BottomComponent(AIOComponent):
         self.read_messages_task: asyncio.Task | None = None
         self.returncode: int | None = None
         self.workdir: Path | None = None
-        self.reader: asyncio.StreamReader | None = None
-        self.writer: asyncio.StreamWriter | None = None
-
-    async def _read_messages(self):
-        try:
-            while (line := await self.reader.readline()):
-                # print("Bottom receivd line", line)
-                jsonable = json.loads(line)
-                cls = Jsonable.jsonable_class(jsonable)
-                if cls is None:
-                    continue
-
-                jsonable["src"] = self
-
-                try:
-                    msg = cls(**jsonable)
-                except Exception as e:
-                    self.logger.error("cannot instantiate message: %s", e)
-                    continue
-
-                # print("Bottom received", msg)
-                self.send(msg)
-        finally:
-            self.receive(Shutdown())
 
     async def run(self):
-        # print("Bottom open")
         self.reader, self.writer = await asyncio.open_unix_connection(path=self.path)
         self.read_messages_task = asyncio.create_task(self._read_messages())
-
-        while True:
-            match (msg := await self.next_message()):
-                case Shutdown():
-                    break
-                case NewComponent() | ComponentActiveStateChanged():
-                    pass
-                case _:
-                    if msg.src != self:
-                        # print("Bottom sent", msg)
-                        line = json.dumps(msg.as_jsonable()) + "\n"
-                        self.writer.write(line.encode())
-                        await self.writer.drain()
+        await self.main_loop()

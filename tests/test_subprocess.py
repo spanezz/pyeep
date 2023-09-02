@@ -62,6 +62,9 @@ class TestSubprocess(unittest.IsolatedAsyncioTestCase):
             def get_commandline(self):
                 return [scriptfile, self.workdir / "socket"]
 
+            async def process_local_message(self, msg: Message):
+                await self.forward_message(msg)
+
         comp = Comp(hub=MockHub())
         comp_task = asyncio.create_task(comp.run())
 
@@ -107,6 +110,9 @@ class TestSubprocess(unittest.IsolatedAsyncioTestCase):
         class Comp(TopComponent):
             def get_commandline(self):
                 return [scriptfile, self.workdir / "socket"]
+
+            async def process_remote_message(self, msg: Message):
+                self.send(msg)
 
         hub = MockHub()
         comp = Comp(hub=hub)
