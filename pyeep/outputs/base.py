@@ -144,17 +144,19 @@ class OutputController(Controller[Output]):
     def build(self) -> ControllerWidget:
         cw = super().build()
 
+        toolbar = cw.toolbar
+
         group = Gtk.SpinButton(adjustment=self.group, climb_rate=1.0, digits=0)
         group.set_tooltip_text("Group number")
-        cw.grid.attach(group, 0, 1, 1, 1)
+        toolbar.append(group)
 
         pause = Gtk.ToggleButton(label="Paused")
         pause.set_action_name("app." + self.pause.get_name())
-        cw.grid.attach(pause, 1, 1, 1, 1)
+        toolbar.append(pause)
 
         manual = Gtk.ToggleButton(label="Manual")
         manual.set_action_name("app." + self.manual.get_name())
-        cw.grid.attach(manual, 2, 1, 1, 1)
+        toolbar.append(manual)
 
         return cw
 

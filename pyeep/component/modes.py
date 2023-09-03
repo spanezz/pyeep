@@ -75,6 +75,6 @@ class ModeController(Controller[C]):
             modes.add_attribute(renderer, "text", 1)
             modes.set_active_id("default")
             modes.connect("changed", self.on_mode_changed)
-            cw.grid.attach(modes, 0, 2, 1, 1)
+            cw.toolbar.append(modes)
 
         return cw

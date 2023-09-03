@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import functools
 from typing import Generic, Type, TypeVar
 
 from ..gtk import Gtk
-from .gtk import GtkComponent
 from .base import Component
+from .gtk import GtkComponent
 
 C = TypeVar("C", bound=Component)
 
@@ -17,21 +18,24 @@ class ControllerWidget(Gtk.Frame):
         label = self.get_label_widget()
         self.set_label_widget(None)
 
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.set_child(box)
+        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.set_child(self.box)
 
         # Put a CenterBox at the top of the frame instead
         self.header = Gtk.CenterBox()
-        box.append(self.header)
-
-        # The main body of the frame is a Grid
-        self.grid = Gtk.Grid()
-        box.append(self.grid)
+        self.box.append(self.header)
 
         # Label at the center of the header
         self.header.set_center_widget(label)
 
         self.set_margin_bottom(10)
+
+    @functools.cached_property
+    def toolbar(self):
+        toolbar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        toolbar.set_hexpand(True)
+        self.box.append(toolbar)
+        return toolbar
 
 
 class Controller(Generic[C], GtkComponent):

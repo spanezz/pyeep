@@ -119,7 +119,7 @@ class HeartRateInputController(ConnectedController[HeartRateMonitor], InputContr
 
     def build(self) -> ControllerWidget:
         cw = super().build()
-        cw.grid.attach(self.current_rate, 0, 3, 1, 1)
+        cw.box.append(self.current_rate)
         return cw
 
     def receive(self, msg: Message):

@@ -74,5 +74,5 @@ class ColorOutputController(OutputController):
 
     def build(self) -> ControllerWidget:
         cw = super().build()
-        cw.grid.attach(self.color, 3, 1, 1, 1)
+        cw.toolbar.append(self.color)
         return cw

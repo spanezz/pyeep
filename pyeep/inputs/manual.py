@@ -40,7 +40,7 @@ class ManualInputController(InputController[Manual]):
         cw = super().build()
         pulse = Gtk.Button(label="Pulse")
         pulse.connect("clicked", self.on_pulse)
-        cw.grid.attach(pulse, 0, 3, 1, 1)
+        cw.box.append(pulse)
         return cw
 
     def on_pulse(self, button):

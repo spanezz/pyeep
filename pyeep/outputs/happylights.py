@@ -98,10 +98,13 @@ class HappyLightsOutputController(ColorOutputController):
 
     def build(self) -> ControllerWidget:
         cw = super().build()
-        cw.grid.attach(Gtk.Label(label="Brightness"), 0, 2, 1, 1)
+        brightness = Gtk.Box()
+        brightness.set_hexpand(True)
+        cw.box.append(brightness)
+        brightness.append(Gtk.Label(label="Brightness"))
 
         spinbutton = Gtk.SpinButton()
         spinbutton.set_adjustment(self.brightness)
         spinbutton.set_digits(1)
-        cw.grid.attach(spinbutton, 1, 2, 1, 1)
+        brightness.append(spinbutton)
         return cw

@@ -340,6 +340,9 @@ class PowerOutputController(OutputController):
     def build(self) -> ControllerWidget:
         cw = super().build()
 
+        grid = Gtk.Grid()
+        cw.box.append(grid)
+
         power = Gtk.Scale(
                 orientation=Gtk.Orientation.HORIZONTAL,
                 adjustment=self.power)
@@ -353,16 +356,16 @@ class PowerOutputController(OutputController):
                 position=Gtk.PositionType.BOTTOM,
                 markup=None
             )
-        cw.grid.attach(power, 0, 2, 4, 1)
+        grid.attach(power, 0, 0, 4, 1)
 
         power_min = Gtk.SpinButton()
         power_min.set_adjustment(self.power_min)
-        cw.grid.attach(power_min, 0, 3, 1, 1)
+        grid.attach(power_min, 0, 1, 1, 1)
 
-        cw.grid.attach(Gtk.Label(label="to"), 1, 3, 2, 1)
+        grid.attach(Gtk.Label(label="to"), 1, 1, 2, 1)
 
         power_max = Gtk.SpinButton()
         power_max.set_adjustment(self.power_max)
-        cw.grid.attach(power_max, 3, 3, 1, 1)
+        grid.attach(power_max, 3, 1, 1, 1)
 
         return cw
