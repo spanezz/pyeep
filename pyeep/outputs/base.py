@@ -39,11 +39,11 @@ class Output(Component):
         else:
             cb(self.rate)
 
-    def get_output_controller(self) -> Type["OutputController"]:
+    def get_output_controller(self, bottom: bool = False) -> Type["OutputController"]:
         return OutputController
 
 
-class OutputController(Controller[Output]):
+class BaseOutputController(Controller[Output]):
     """
     Base class for output controllers.
 
@@ -54,6 +54,17 @@ class OutputController(Controller[Output]):
         kwargs.setdefault("name", "output_model_" + output.name)
         super().__init__(component=output, **kwargs)
         self.output = output
+
+
+class OutputController(BaseOutputController):
+    """
+    Base class for output controllers.
+
+    A controller implements the backend GLib-based logic to handle an Output,
+    and instantiating the frontend view widget
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
         # Group ID
         self.group = Gtk.Adjustment(

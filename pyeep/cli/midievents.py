@@ -10,7 +10,7 @@ from ..app.gtk import GtkApp
 from ..app.jack import JackApp
 from ..gtk import Gtk
 from ..inputs.midi import MidiInput
-from ..component.subprocess import BottomComponent
+from ..outputs.power import PowerOutputBottom, PowerOutputBottomController
 
 log = logging.getLogger(__name__)
 
@@ -19,9 +19,14 @@ class App(GtkApp, JackApp, AIOApp):
     def __init__(self, args: argparse.Namespace, **kwargs):
         super().__init__(args, **kwargs)
         self.add_component(MidiInput)
-        self.add_component(midisynth.Synth)
+        synth = self.add_component(midisynth.Synth)
         if args.controller:
-            self.add_component(BottomComponent, path=args.controller)
+            self.controller = self.add_component(PowerOutputBottomController, output=synth)
+            self.bottom = self.add_component(PowerOutputBottom, path=args.controller, controller=self.controller)
+        else:
+            self.controller = self.add_component(
+                self.player.get_output_controller(),
+                output=synth)
 
     def build_main_window(self):
         super().build_main_window()
@@ -31,6 +36,7 @@ class App(GtkApp, JackApp, AIOApp):
         self.window.set_child(self.grid)
 
         # TODO: add a MIDI panic button
+        self.grid.attach(self.controller.widget, 0, 0, 1, 1)
 
 
 def main():

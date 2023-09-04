@@ -10,19 +10,21 @@ from ..gtk import GLib, Gtk
 from ..messages.config import Configure
 from ..messages.message import Message
 from ..messages.power import SetPower, SetRate, SetGroupPower, IncreaseGroupPower
-from .base import Output, OutputController
+from .base import Output, OutputController, BaseOutputController
 
 
 class PowerOutput(Output):
     """
     Output with a changeable power (represented as a float from 0 to 1)
     """
-
     def set_power(self, power: float):
         raise NotImplementedError(f"{self.__class__.__name__}.set_power not implemented")
 
-    def get_output_controller(self) -> Type["PowerOutputController"]:
-        return PowerOutputController
+    def get_output_controller(self, bottom: bool = False) -> Type["PowerOutputController"]:
+        if bottom:
+            return PowerOutputBottomController
+        else:
+            return PowerOutputController
 
 
 class PowerOutputTop(TopComponent, PowerOutput):
@@ -43,10 +45,11 @@ class PowerOutputBottom(BottomComponent):
     """
     PowerOutput forwarding power commands from a TopComponent to a PowerOutput
     """
-    def __init__(self, output: PowerOutput, **kwargs):
+    def __init__(self, controller: PowerOutputBottomController, **kwargs):
+        kwargs.setdefault("name", "output_bottom_" + controller.output.name)
         super().__init__(**kwargs)
-        self.output = output
-        self.output.add_set_rate_callback(self._notify_set_rate)
+        self.controller = controller
+        self.controller.component.add_set_rate_callback(self._notify_set_rate)
 
     @export
     def _notify_set_rate(self, rate: int):
@@ -55,7 +58,7 @@ class PowerOutputBottom(BottomComponent):
     async def process_remote_message(self, msg: Message):
         match msg:
             case SetPower():
-                self.output.set_power(msg.power)
+                self.controller.set_power(msg.power)
 
 
 class PowerOutputController(OutputController):
@@ -250,5 +253,47 @@ class PowerOutputController(OutputController):
         power_max = Gtk.SpinButton()
         power_max.set_adjustment(self.power_max)
         grid.attach(power_max, 3, 1, 1, 1)
+
+        return cw
+
+
+class PowerOutputBottomController(BaseOutputController):
+    """
+    PowerOutputController forwarding power commands from a TopComponent to a
+    PowerOutput
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.power = Gtk.Adjustment(
+                value=0,
+                lower=0,
+                upper=100,
+                step_increment=5,
+                page_increment=10,
+                page_size=0)
+
+    @export
+    def set_power(self, power: float):
+        self.power.set_value(power * 100.0)
+        self.output.set_power(power)
+
+    def build(self) -> ControllerWidget:
+        cw = super().build()
+
+        power = Gtk.Scale(
+                orientation=Gtk.Orientation.HORIZONTAL,
+                adjustment=self.power)
+        power.set_digits(2)
+        power.set_draw_value(False)
+        power.set_hexpand(True)
+        power.set_sensitive(False)
+        for mark in (25, 50, 75):
+            power.add_mark(
+                value=mark,
+                position=Gtk.PositionType.BOTTOM,
+                markup=None
+            )
+        cw.box.append(power)
 
         return cw
