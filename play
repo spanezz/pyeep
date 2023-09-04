@@ -1,0 +1,5 @@
+#!/bin/sh
+
+APP=${1:-"play"}
+
+pw-jack python3 -m pyeep.cli.$APP
