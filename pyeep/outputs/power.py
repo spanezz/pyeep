@@ -3,18 +3,14 @@ from __future__ import annotations
 from typing import Any, Type
 
 from ..animation import PowerAnimation, PowerAnimator
-from ..color import Color
-from ..component.aio import AIOComponent
 from ..component.base import Component, check_hub, export
 from ..component.controller import ControllerWidget
 from ..component.subprocess import BottomComponent, TopComponent
 from ..gtk import GLib, Gtk
-from ..messages.component import Shutdown
 from ..messages.config import Configure
 from ..messages.message import Message
 from ..messages.power import SetPower, SetRate, SetGroupPower, IncreaseGroupPower
 from .base import Output, OutputController
-from .color import ColorOutput, ColorOutputController
 
 
 class PowerOutput(Output):
@@ -60,41 +56,6 @@ class PowerOutputBottom(BottomComponent):
         match msg:
             case SetPower():
                 self.output.set_power(msg.power)
-
-
-class NullOutput(PowerOutput, ColorOutput, AIOComponent):
-    """
-    Output that does nothing besides tracking the last set power value
-    """
-    def __init__(self, **kwargs):
-        kwargs.setdefault("rate", 20)
-        super().__init__(**kwargs)
-        self.power: float = 0.0
-        self.color: Color = Color()
-
-    @property
-    def description(self) -> str:
-        return "Null output"
-
-    def get_output_controller(self) -> Type[OutputController]:
-        class Controller(PowerOutputController, ColorOutputController):
-            pass
-        return Controller
-
-    @export
-    def set_power(self, power: float):
-        self.power = power
-
-    @export
-    def set_color(self, color: Color):
-        self.color = color
-
-    async def run(self):
-        while True:
-            msg = await self.next_message()
-            match msg:
-                case Shutdown():
-                    break
 
 
 class PowerOutputController(OutputController):
