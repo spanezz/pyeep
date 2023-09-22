@@ -8,7 +8,7 @@ from ..component.controller import ControllerWidget
 from ..component.gtk import GtkComponent
 from ..gtk import Gtk
 from .base import Input, InputController
-from .keyboards import Shortcut
+from ..messages.input import Shortcut
 
 
 class Manual(SimpleActiveComponent, Input, GtkComponent):
