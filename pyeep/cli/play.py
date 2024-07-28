@@ -12,6 +12,7 @@ import pyeep.inputs.heartrate
 import pyeep.inputs.keyboards
 import pyeep.inputs.manual
 import pyeep.messages
+import pyeep.messages.component
 import pyeep.outputs.midisynth
 from .. import scenes
 
@@ -41,7 +42,7 @@ class ScanAction(Component):
         self.hub.app.gtk_app.add_action(self.action)
 
     def on_activate(self, action, parameter):
-        self.send(pyeep.messages.DeviceScanRequest(duration=3.0))
+        self.send(pyeep.messages.component.DeviceScanRequest(duration=3.0))
 
 
 class MidiSynthesizer(TopComponent):
