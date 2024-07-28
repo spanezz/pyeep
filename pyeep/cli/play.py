@@ -36,9 +36,7 @@ class ScanAction(Component):
     def __init__(self, **kwargs):
         kwargs.setdefault("name", "device_scan")
         super().__init__(**kwargs)
-        self.action = Gio.SimpleAction.new(
-                name=self.name.replace("_", "-"),
-                parameter_type=None)
+        self.action = Gio.SimpleAction.new(name=self.name.replace("_", "-"), parameter_type=None)
         self.action.connect("activate", self.on_activate)
         self.hub.app.gtk_app.add_action(self.action)
 
@@ -68,24 +66,28 @@ class App(GtkApp, AIOApp):
         self.outputs = self.add_component(OutputsModel)
         self.inputs: list[Input] = []
 
-        self.action_save_config = Gio.SimpleAction.new(
-                name="save-config",
-                parameter_type=None)
+        self.action_save_config = Gio.SimpleAction.new(name="save-config", parameter_type=None)
         self.action_save_config.connect("activate", self.on_save_config)
         self.gtk_app.add_action(self.action_save_config)
 
         self.add_component(pyeep.inputs.manual.Manual)
         self.add_component(MidiInputReader)
         self.add_component(MidiSynthesizer)
-        self.add_component(pyeep.bluetooth.Bluetooth, devices=[
-            pyeep.bluetooth.Device("CD:E3:36:F6:BB:74", pyeep.inputs.heartrate.HeartRateMonitor, ("0000180d-",)),
-            pyeep.bluetooth.Device("21:04:99:10:35:05", HappyLights),
-        ])
-        self.add_component(pyeep.inputs.evdev.EvdevDeviceManager, device_map={
-            "usb-04d9_1203-event-kbd": pyeep.inputs.keyboards.CNCControlPanel,
-            "bluetooth-40:28:c6:3f:39:91:1b-kbd": pyeep.inputs.keyboards.PageTurner,
-            "bluetooth-22c:28:c6:3f:39:91:1b": pyeep.inputs.keyboards.RingRemote,
-        })
+        self.add_component(
+            pyeep.bluetooth.Bluetooth,
+            devices=[
+                pyeep.bluetooth.Device("CD:E3:36:F6:BB:74", pyeep.inputs.heartrate.HeartRateMonitor, ("0000180d-",)),
+                pyeep.bluetooth.Device("21:04:99:10:35:05", HappyLights),
+            ],
+        )
+        self.add_component(
+            pyeep.inputs.evdev.EvdevDeviceManager,
+            device_map={
+                "usb-04d9_1203-event-kbd": pyeep.inputs.keyboards.CNCControlPanel,
+                "bluetooth-40:28:c6:3f:39:91:1b-kbd": pyeep.inputs.keyboards.PageTurner,
+                "bluetooth-22c:28:c6:3f:39:91:1b": pyeep.inputs.keyboards.RingRemote,
+            },
+        )
         self.add_component(NullOutput, name="null_output")
 
     def on_save_config(self, action, parameter):
@@ -94,8 +96,7 @@ class App(GtkApp, AIOApp):
     def setup_logging(self):
         super().setup_logging()
         if self.args.debug:
-            for name in ("bleak.backends.bluezdbus.manager",
-                         "bleak.backends.bluezdbus.client"):
+            for name in ("bleak.backends.bluezdbus.manager", "bleak.backends.bluezdbus.client"):
                 logging.getLogger(name).setLevel(logging.INFO)
 
     def _add_input_ui(self, input: Input):
