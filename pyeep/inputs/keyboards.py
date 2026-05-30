@@ -10,38 +10,31 @@ class CNCControlPanel(EvdevInput):
     """
     Handle key presses from a CNC control panel
     """
+
     # this has been tested with
     # https://www.amazon.com/Engraving-Controller-Handwheel-Electronic-Handbrake/dp/B09CMKRYTP
     KEY_MAP = {
         evdev.ecodes.KEY_GRAVE: "EMERGENCY",
         # InputEvent(EV_KEY, KEY_LEFTALT, 1)
         evdev.ecodes.KEY_R: "CYCLE START",
-
         evdev.ecodes.KEY_F5: "SPINDLE ON/OFF",
-
         # InputEvent(EV_KEY, KEY_RIGHTCTRL, 1)
         evdev.ecodes.KEY_W: "REDO",
-
         # InputEvent(EV_KEY, KEY_LEFTALT, 1)
         evdev.ecodes.KEY_N: "SINGLE STEP",
-
         # InputEvent(EV_KEY, KEY_LEFTCTRL, 1)
         evdev.ecodes.KEY_O: "ORIGIN POINT",
-
         evdev.ecodes.KEY_ESC: "STOP",
         evdev.ecodes.KEY_KPPLUS: "SPEED UP",
         evdev.ecodes.KEY_KPMINUS: "SLOW DOWN",
-
         evdev.ecodes.KEY_F11: "F+",
         evdev.ecodes.KEY_F10: "F-",
         evdev.ecodes.KEY_RIGHTBRACE: "J+",
         evdev.ecodes.KEY_LEFTBRACE: "J-",
-
         evdev.ecodes.KEY_UP: "+Y",
         evdev.ecodes.KEY_DOWN: "-Y",
         evdev.ecodes.KEY_LEFT: "-X",
         evdev.ecodes.KEY_RIGHT: "+X",
-
         evdev.ecodes.KEY_KP7: "+A",
         evdev.ecodes.KEY_Q: "-A",
         evdev.ecodes.KEY_PAGEDOWN: "-Z",
@@ -78,6 +71,7 @@ class PageTurner(EvdevInput):
     """
     Handle button presses from a Bluetooth page turner
     """
+
     # This has been tested with https://www.amazon.it/dp/B0BPJJTV39
     KEY_MAP = {
         evdev.ecodes.KEY_UP: "PREVIOUS",
@@ -113,6 +107,7 @@ class RingRemote(EvdevInput):
     """
     Handle events from a Bluetooth tiktok scroll ring
     """
+
     # This has been tested with https://www.amazon.it/dp/B0BZC85G7F
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -163,7 +158,9 @@ class RingRemote(EvdevInput):
 
                             # duration = ev.timestamp() - self.down_time
 
-                            if (dx is None or abs(dx) < 30) and (dy is None or abs(dy) < 30):
+                            if (dx is None or abs(dx) < 30) and (
+                                dy is None or abs(dy) < 30
+                            ):
                                 # print("TAP", duration)
                                 return "TAP"
                             elif dx is not None and dx < -1000:
@@ -179,7 +176,9 @@ class RingRemote(EvdevInput):
                                 # print("SWIPE DOWN", duration)
                                 return "SWIPE DOWN"
                             else:
-                                self.logger.warning("Unknown gesture dx=%r dy=%r", dx, dy)
+                                self.logger.warning(
+                                    "Unknown gesture dx=%r dy=%r", dx, dy
+                                )
                     case evdev.ecodes.BTN_TOOL_PEN:
                         pass
                     case evdev.ecodes.KEY_VOLUMEUP:

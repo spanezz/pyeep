@@ -4,13 +4,13 @@ import functools
 import os
 import threading
 from collections import defaultdict
+from collections.abc import Callable
 from queue import Empty, SimpleQueue
-from typing import Callable
 
 from .app import Hub
 from .component.base import Component, check_hub
-from .messages.message import Message
 from .messages.component import Shutdown
+from .messages.message import Message
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import pygame  # Noqa
@@ -35,7 +35,9 @@ class PygameHub(Hub):
         self.EVENT_HUB = pygame.event.custom_type()
         self.hub_event_queue: SimpleQueue[Callable] = SimpleQueue()
         self.pygame_initialized = False
-        self.event_map: defaultdict[int, set[PygameComponent]] = defaultdict(set)
+        self.event_map: defaultdict[int, set[PygameComponent]] = defaultdict(
+            set
+        )
 
     def start(self) -> None:
         super().start()
@@ -105,7 +107,7 @@ class PygameHub(Hub):
                 case self.EVENT_HUB:
                     self._process_hub_queue()
                 case _:
-                    if (components := self.event_map.get(event.type)):
+                    if components := self.event_map.get(event.type):
                         for c in components:
                             c.pygame_event(event)
         self.app.remove_hub(self)

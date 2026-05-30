@@ -3,12 +3,13 @@ from __future__ import annotations
 import argparse
 import asyncio
 import functools
-import threading
 import queue
-from typing import TYPE_CHECKING, Callable
+import threading
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
-from . import App, Hub
 from ..component.base import check_hub
+from . import App, Hub
 
 if TYPE_CHECKING:
     from ..component.aio import AIOComponent
@@ -41,7 +42,9 @@ class AIOHub(Hub):
         elif self._running_in_hub():
             f(*args, **kwargs)
         else:
-            self.loop.call_soon_threadsafe(functools.partial(f, *args, **kwargs))
+            self.loop.call_soon_threadsafe(
+                functools.partial(f, *args, **kwargs)
+            )
 
     def run(self):
         asyncio.run(self.aio_main())
@@ -57,7 +60,9 @@ class AIOHub(Hub):
             pass
 
         while self.tasks:
-            done, pending = await asyncio.wait(list(self.tasks), return_when=asyncio.FIRST_COMPLETED)
+            done, pending = await asyncio.wait(
+                list(self.tasks), return_when=asyncio.FIRST_COMPLETED
+            )
             for task in done:
                 self.logger.debug("component %r terminated", task.get_name())
 
@@ -76,8 +81,9 @@ class AIOHub(Hub):
         task.add_done_callback(self.tasks.discard)
 
         def on_done(task):
-            if (exc := task.exception()):
+            if exc := task.exception():
                 import traceback
+
                 traceback.print_exception(exc)
             self.remove_component(component)
 

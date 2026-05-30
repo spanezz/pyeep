@@ -4,10 +4,10 @@ from pyeep.color import Color
 from pyeep.component.base import check_hub
 from pyeep.gtk import GLib, Gtk
 from pyeep.inputs.heartrate import HeartBeat
-from ..messages.message import Message
 from pyeep.outputs.color import SetGroupColor
 
 from .. import animation
+from ..messages.message import Message
 from .base import SceneGrid, SingleGroupScene, register
 
 
@@ -20,7 +20,12 @@ class Heartbeat(SingleGroupScene):
         self.timeout: int | None = None
         self.last_rate: int | None = None
         self.atrial_duration_ratio = Gtk.Adjustment(
-                lower=0.0, upper=1.0, step_increment=0.1, page_increment=0.2, value=0.2)
+            lower=0.0,
+            upper=1.0,
+            step_increment=0.1,
+            page_increment=0.2,
+            value=0.2,
+        )
 
     @check_hub
     def set_active(self, value: bool):
@@ -36,7 +41,13 @@ class Heartbeat(SingleGroupScene):
         expander.set_child(grid)
         row = grid.max_row
 
-        grid.attach(Gtk.Label(label="Ratio of atrial animation"), 0, row, self.ui_grid_columns - 1, 1)
+        grid.attach(
+            Gtk.Label(label="Ratio of atrial animation"),
+            0,
+            row,
+            self.ui_grid_columns - 1,
+            1,
+        )
 
         spinbutton = Gtk.SpinButton()
         spinbutton.set_adjustment(self.atrial_duration_ratio)
@@ -52,24 +63,24 @@ class Heartbeat(SingleGroupScene):
         if self.timeout is not None:
             return
 
-        self.timeout = GLib.timeout_add(
-                60 / self.last_rate * 1000,
-                self._tick)
+        self.timeout = GLib.timeout_add(60 / self.last_rate * 1000, self._tick)
 
     def _tick(self):
         if self.last_rate is None:
             return False
 
-        self.send(SetGroupColor(
-            group=self.get_group(),
-            color=animation.ColorHeartPulse(
-                color=Color(0.5, 0, 0),
-                duration=0.9 * 60 / self.last_rate,
-                atrial_duration_ratio=self.atrial_duration_ratio.get_value())))
+        self.send(
+            SetGroupColor(
+                group=self.get_group(),
+                color=animation.ColorHeartPulse(
+                    color=Color(0.5, 0, 0),
+                    duration=0.9 * 60 / self.last_rate,
+                    atrial_duration_ratio=self.atrial_duration_ratio.get_value(),
+                ),
+            )
+        )
 
-        self.timeout = GLib.timeout_add(
-                60 / self.last_rate * 1000,
-                self._tick)
+        self.timeout = GLib.timeout_add(60 / self.last_rate * 1000, self._tick)
         return False
 
     @check_hub

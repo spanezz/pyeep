@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import TypeVar, Type
+from typing import TypeVar
 
 from ..gtk import Gtk
+from ..messages.message import Message
 from .base import Component
 from .controller import Controller, ControllerWidget
-from ..messages.message import Message
 
 C = TypeVar("C", bound="ConnectedComponent")
 
@@ -15,6 +15,7 @@ class ConnectedStateChanged(Message):
     """
     Notify a change of connected state for an input
     """
+
     def __init__(self, *, value: ConnectedState, **kwargs):
         super().__init__(**kwargs)
         self.value = value
@@ -27,6 +28,7 @@ class ConnectedState(StrEnum):
     """
     Connection state of a component
     """
+
     CONNECTED = "connected"
     CONNECTING = "connecting"
     DISCONNECTED = "disconnected"
@@ -36,6 +38,7 @@ class ConnectedComponent(Component):
     """
     Input that can be connected/disconnected
     """
+
     def get_connected_state(self) -> ConnectedState:
         """
         Get the current connected state for the input
@@ -71,7 +74,8 @@ class ConnectedController(Controller[C]):
     """
     User interface side for an input (controller and view)
     """
-    def get_widget_class(self) -> Type[ControllerWidget]:
+
+    def get_widget_class(self) -> type[ControllerWidget]:
         Widget = super().get_widget_class()
         return type("ComponentWidget", (ConnectedControllerWidget, Widget), {})
 

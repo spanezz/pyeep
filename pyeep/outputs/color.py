@@ -13,6 +13,7 @@ class SetGroupColor(Message):
     """
     Set the power of the outputs in the given group
     """
+
     def __init__(self, *, group: int, color: Color | ColorAnimation, **kwargs):
         super().__init__(**kwargs)
         self.group = group
@@ -26,19 +27,25 @@ class ColorOutput(Output):
     """
     Output that can take color values
     """
+
     def set_color(self, color: Color):
-        raise NotImplementedError(f"{self.__class__.__name__}.set_color not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.set_color not implemented"
+        )
 
 
 class ColorOutputController(OutputController):
     """
     Output controller for ColorOutput outputs
     """
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.color = Gtk.ColorButton()
         self.color.connect("color-activated", self.on_color)
-        self.color_animator = ColorAnimator(self.name, self.output.rate, self.set_animated_color)
+        self.color_animator = ColorAnimator(
+            self.name, self.output.rate, self.set_animated_color
+        )
         self.colors: dict[Component, Color] = {}
         self.animation_color: Color = Color(0, 0, 0)
 

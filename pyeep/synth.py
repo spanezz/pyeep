@@ -1,9 +1,9 @@
 import math
 
+import numpy
+
 # import numba
 # from numba.experimental import jitclass
-
-import numpy
 
 
 class Wave:

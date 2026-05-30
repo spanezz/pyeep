@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import re
-from typing import NamedTuple, Sequence, Type
+from collections.abc import Sequence
+from typing import NamedTuple
 
 import bleak
 import bleak.assigned_numbers
 
 from .component.aio import AIOComponent
-from .component.connected import ConnectedComponent, ConnectedState, ConnectedStateChanged
+from .component.connected import (
+    ConnectedComponent,
+    ConnectedState,
+    ConnectedStateChanged,
+)
+from .messages.component import DeviceScanRequest, Shutdown
 from .messages.message import Message
-from .messages.component import Shutdown, DeviceScanRequest
 
 re_mangle = re.compile(r"[^\w]+")
 
@@ -19,8 +24,9 @@ class Device(NamedTuple):
     """
     Describe a known Bluetooth device
     """
+
     address: str
-    component_cls: Type["BluetoothComponent"]
+    component_cls: type[BluetoothComponent]
     # If not empty, the device detected must have service UUIDs that start wtih
     # all these strings
     service_uuid: tuple[str, ...] = ()
@@ -30,15 +36,17 @@ class BluetoothDisconnect(Message):
     """
     Message used only internally to trigger handling a device disconnect
     """
-    pass
 
 
 class BluetoothComponent(ConnectedComponent, AIOComponent):
     """
     Base class for components handling Bluetooth-connected devices
     """
+
     def __init__(self, device: bleak.backends.device.BLEDevice, **kwargs):
-        kwargs.setdefault("name", re_mangle.sub("_", f"bt_{device.name}_{device.address}"))
+        kwargs.setdefault(
+            "name", re_mangle.sub("_", f"bt_{device.name}_{device.address}")
+        )
         super().__init__(**kwargs)
         self.device = device
         self.client = bleak.BleakClient(
@@ -118,7 +126,9 @@ class BluetoothComponent(ConnectedComponent, AIOComponent):
                         break
                     case BluetoothDisconnect():
                         self.logger.warning("device disconnected")
-                        self._update_connected_state(ConnectedState.DISCONNECTED)
+                        self._update_connected_state(
+                            ConnectedState.DISCONNECTED
+                        )
                         await self.connect()
                     case _:
                         await self.run_message(msg)
@@ -131,6 +141,7 @@ class Bluetooth(AIOComponent):
     Scans for known BlueTooth devices, and instantiate their corresponding
     components when found
     """
+
     def __init__(self, devices: Sequence[Device], **kwargs):
         super().__init__(**kwargs)
         # Map device MAC addresses to Component classes to use for them
@@ -152,9 +163,10 @@ class Bluetooth(AIOComponent):
         self.scan_task: asyncio.Task | None = None
 
     def _scanner_event(
-            self,
-            device: bleak.backends.device.BLEDevice,
-            advertising_data: bleak.backends.scanner.AdvertisementData):
+        self,
+        device: bleak.backends.device.BLEDevice,
+        advertising_data: bleak.backends.scanner.AdvertisementData,
+    ):
         # print("DEVICE", device.address, device.name)
         # print("EVENT", repr(device), repr(advertising_data))
         if (devinfo := self.devices.get(device.address)) is None:
@@ -173,16 +185,24 @@ class Bluetooth(AIOComponent):
                         break
                 else:
                     self.logger.warning(
-                            "device %s %s service uuids %r do not match %r",
-                            device.address, device.name,
-                            advertising_data.service_uuids,
-                            devinfo.service_uuid)
+                        "device %s %s service uuids %r do not match %r",
+                        device.address,
+                        device.name,
+                        advertising_data.service_uuids,
+                        devinfo.service_uuid,
+                    )
                     return
 
-        self.logger.info("found device %s %s %s", device.address, device.name, advertising_data.rssi)
+        self.logger.info(
+            "found device %s %s %s",
+            device.address,
+            device.name,
+            advertising_data.rssi,
+        )
 
         self.components[device.address] = self.hub.app.add_component(
-                devinfo.component_cls, device=device)
+            devinfo.component_cls, device=device
+        )
 
     async def _scan(self, duration: float = 2.0):
         self.logger.info("started scanning")

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Type
+from typing import Any
 
 from ..animation import PowerAnimation, PowerAnimator
 from ..component.base import Component, check_hub, export
@@ -9,18 +9,28 @@ from ..component.subprocess import BottomComponent, TopComponent
 from ..gtk import GLib, Gtk
 from ..messages.config import Configure
 from ..messages.message import Message
-from ..messages.power import SetPower, SetRate, SetGroupPower, IncreaseGroupPower
-from .base import Output, OutputController, BaseOutputController
+from ..messages.power import (
+    IncreaseGroupPower,
+    SetGroupPower,
+    SetPower,
+    SetRate,
+)
+from .base import BaseOutputController, Output, OutputController
 
 
 class PowerOutput(Output):
     """
     Output with a changeable power (represented as a float from 0 to 1)
     """
-    def set_power(self, power: float):
-        raise NotImplementedError(f"{self.__class__.__name__}.set_power not implemented")
 
-    def get_output_controller(self, bottom: bool = False) -> Type["PowerOutputController"]:
+    def set_power(self, power: float):
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.set_power not implemented"
+        )
+
+    def get_output_controller(
+        self, bottom: bool = False
+    ) -> type[PowerOutputController]:
         if bottom:
             return PowerOutputBottomController
         else:
@@ -31,6 +41,7 @@ class PowerOutputTop(TopComponent, PowerOutput):
     """
     PowerOutput sending power commands to a subprocess
     """
+
     @export
     def set_power(self, power: float):
         self.forward_message(SetPower(power=power))
@@ -45,6 +56,7 @@ class PowerOutputBottom(BottomComponent):
     """
     PowerOutput forwarding power commands from a TopComponent to a PowerOutput
     """
+
     def __init__(self, controller: PowerOutputBottomController, **kwargs):
         kwargs.setdefault("name", "output_bottom_" + controller.output.name)
         super().__init__(**kwargs)
@@ -66,30 +78,33 @@ class PowerOutputController(OutputController):
         super().__init__(**kwargs)
 
         self.power = Gtk.Adjustment(
-                value=0,
-                lower=0,
-                upper=100,
-                step_increment=5,
-                page_increment=10,
-                page_size=0)
+            value=0,
+            lower=0,
+            upper=100,
+            step_increment=5,
+            page_increment=10,
+            page_size=0,
+        )
         self.power.connect("value_changed", self.on_power)
 
         self.power_min = Gtk.Adjustment(
-                value=0,
-                lower=0,
-                upper=100,
-                step_increment=5,
-                page_increment=10,
-                page_size=0)
+            value=0,
+            lower=0,
+            upper=100,
+            step_increment=5,
+            page_increment=10,
+            page_size=0,
+        )
         self.power_min.connect("value_changed", self.on_power_min)
 
         self.power_max = Gtk.Adjustment(
-                value=100,
-                lower=0,
-                upper=100,
-                step_increment=5,
-                page_increment=10,
-                page_size=0)
+            value=100,
+            lower=0,
+            upper=100,
+            step_increment=5,
+            page_increment=10,
+            page_size=0,
+        )
         self.power_max.connect("value_changed", self.on_power_max)
 
         self.power_animator: PowerAnimator | None = None
@@ -192,16 +207,21 @@ class PowerOutputController(OutputController):
     @check_hub
     def load_config(self, config: dict[str, Any]):
         super().load_config(config)
-        if (power := config.get("power")):
+        if power := config.get("power"):
             self.power.set_value(power)
 
     def _start_power_animation(self, animation: PowerAnimation):
         if self.output.rate == 0:
-            self.logger.warning("skipping animation %r as output rate is still unknown", animation)
+            self.logger.warning(
+                "skipping animation %r as output rate is still unknown",
+                animation,
+            )
             return
 
         if self.power_animator is None:
-            self.power_animator = PowerAnimator(self.name, self.output.rate, self.set_animated_power)
+            self.power_animator = PowerAnimator(
+                self.name, self.output.rate, self.set_animated_power
+            )
         self.power_animator.start(animation)
 
     @check_hub
@@ -230,17 +250,15 @@ class PowerOutputController(OutputController):
         cw.box.append(grid)
 
         power = Gtk.Scale(
-                orientation=Gtk.Orientation.HORIZONTAL,
-                adjustment=self.power)
+            orientation=Gtk.Orientation.HORIZONTAL, adjustment=self.power
+        )
         power.set_digits(2)
         power.set_draw_value(False)
         power.set_hexpand(True)
         power.connect("change-value", self.on_manual_power)
         for mark in (25, 50, 75):
             power.add_mark(
-                value=mark,
-                position=Gtk.PositionType.BOTTOM,
-                markup=None
+                value=mark, position=Gtk.PositionType.BOTTOM, markup=None
             )
         grid.attach(power, 0, 0, 4, 1)
 
@@ -262,16 +280,18 @@ class PowerOutputBottomController(BaseOutputController):
     PowerOutputController forwarding power commands from a TopComponent to a
     PowerOutput
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
         self.power = Gtk.Adjustment(
-                value=0,
-                lower=0,
-                upper=100,
-                step_increment=5,
-                page_increment=10,
-                page_size=0)
+            value=0,
+            lower=0,
+            upper=100,
+            step_increment=5,
+            page_increment=10,
+            page_size=0,
+        )
 
     @export
     def set_power(self, power: float):
@@ -282,17 +302,15 @@ class PowerOutputBottomController(BaseOutputController):
         cw = super().build()
 
         power = Gtk.Scale(
-                orientation=Gtk.Orientation.HORIZONTAL,
-                adjustment=self.power)
+            orientation=Gtk.Orientation.HORIZONTAL, adjustment=self.power
+        )
         power.set_digits(2)
         power.set_draw_value(False)
         power.set_hexpand(True)
         power.set_sensitive(False)
         for mark in (25, 50, 75):
             power.add_mark(
-                value=mark,
-                position=Gtk.PositionType.BOTTOM,
-                markup=None
+                value=mark, position=Gtk.PositionType.BOTTOM, markup=None
             )
         cw.box.append(power)
 

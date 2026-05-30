@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-from typing import Type
 
 import jack
 import numba
@@ -13,7 +12,6 @@ from pyeep.component.base import export
 from pyeep.component.jack import JackComponent
 
 from .power import PowerOutput, PowerOutputController
-
 
 # class PlayAudio(Message):
 #     def __init__(self, last_frame_time: int, frames: int, audio: numpy.ndarray, **kwargs):
@@ -29,21 +27,26 @@ from .power import PowerOutput, PowerOutputController
 #                 f" audio={len(self.audio)})")
 
 
-@jitclass([
-    ("rate", numba.int32),
-    ("phase", numba.float64),
-])
+@jitclass(
+    [
+        ("rate", numba.int32),
+        ("phase", numba.float64),
+    ]
+)
 class SimpleSynth:
     """
     Phase accumulation synthesis
     """
+
     # See https://www.gkbrk.com/wiki/PhaseAccumulator/
 
     def __init__(self, rate: int):
         self.rate: int = rate
         self.phase: float = 0.0
 
-    def synth(self, buf: memoryview, frames: int, freq: float, power: float) -> None:
+    def synth(
+        self, buf: memoryview, frames: int, freq: float, power: float
+    ) -> None:
         for i in range(frames):
             if power == 0.0:
                 buf[i] = 0
@@ -60,15 +63,17 @@ class Pulses(PowerOutput, JackComponent, AIOComponent):
 
     def set_jack_client(self, jack_client: jack.Client):
         super().set_jack_client(jack_client)
-        self.outport = self.jack_client.outports.register('pulses')
+        self.outport = self.jack_client.outports.register("pulses")
         self.set_rate(jack_client.samplerate)
         self.synth = SimpleSynth(self.rate)
 
     def jack_process(self, frames: int) -> None:
-        buf = memoryview(self.outport.get_buffer()).cast('f')
+        buf = memoryview(self.outport.get_buffer()).cast("f")
         self.synth.synth(buf, frames, 440.0, self.power)
 
-    def get_output_controller(self) -> Type["pyeep.outputs.base.OutputController"]:
+    def get_output_controller(
+        self,
+    ) -> type[pyeep.outputs.base.OutputController]:
         return PowerOutputController
 
     @export

@@ -7,6 +7,7 @@ class Color:
     """
     Represent a RGB color, whose channels have values from 0 to 1
     """
+
     __slots__ = ("red", "green", "blue")
 
     def __init__(self, red: float = 0, green: float = 0, blue: float = 0):

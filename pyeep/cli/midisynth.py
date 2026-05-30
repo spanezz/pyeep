@@ -4,13 +4,13 @@ import argparse
 import logging
 import sys
 
-from ..outputs import midisynth
 from ..app.aio import AIOApp
 from ..app.gtk import GtkApp
 from ..app.jack import JackApp
+from ..component.subprocess import BottomComponent
 from ..gtk import Gtk
 from ..inputs.midi import MidiInput
-from ..component.subprocess import BottomComponent
+from ..outputs import midisynth
 
 log = logging.getLogger(__name__)
 
@@ -34,11 +34,20 @@ class App(GtkApp, JackApp, AIOApp):
 
 
 def main():
-    parser = App.argparser(name="midisynth", description="Simple MIDI synthesizer")
-    parser.add_argument("--controller", action="store", metavar="socket", help="Controller socket")
+    parser = App.argparser(
+        name="midisynth", description="Simple MIDI synthesizer"
+    )
+    parser.add_argument(
+        "--controller",
+        action="store",
+        metavar="socket",
+        help="Controller socket",
+    )
     args = parser.parse_args()
 
-    with App(args, title="MIDI Synth", application_id="org.enricozini.midisynth") as app:
+    with App(
+        args, title="MIDI Synth", application_id="org.enricozini.midisynth"
+    ) as app:
         app.main()
 
 

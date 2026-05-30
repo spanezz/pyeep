@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Any, Callable, Generator, Generic, TypeVar
+from collections.abc import Callable, Generator
+from typing import Any, Generic, TypeVar
 
-from .gtk import GLib
-from .color import Color
 from pyeep.messages.jsonable import Jsonable
+
+from .color import Color
+from .gtk import GLib
 
 log = logging.getLogger(__name__)
 
@@ -18,25 +20,26 @@ class Animation(Generic[T], Jsonable):
     """
     Base class for animation routines
     """
-    def values(self, rate: int) -> Generator[T, None, None]:
+
+    def values(self, rate: int) -> Generator[T]:
         """
         Generate the animation sequence using the given frame rate (frames per second)
         """
-        raise NotImplementedError(f"{self.__class__.__name__}.values not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.values not implemented"
+        )
 
 
 class PowerAnimation(Animation[float]):
     """
     Animate a power value from 0 to 1
     """
-    pass
 
 
 class ColorAnimation(Animation[Color]):
     """
     Animate a Color value
     """
-    pass
 
 
 class Animator(Generic[T]):
@@ -44,11 +47,12 @@ class Animator(Generic[T]):
     Run an animation using GLib timers, notifying each new value using a
     callback function
     """
+
     def __init__(self, name: str, rate: int, on_value: Callable[[T], None]):
         self.name = name
         self.rate = rate
         self.timeout: int | None = None
-        self.animations: set[Generator[T, None, None]] = set()
+        self.animations: set[Generator[T]] = set()
         self.on_value = on_value
 
     def __str__(self) -> str:
@@ -58,8 +62,8 @@ class Animator(Generic[T]):
         self.animations.add(animation.values(self.rate))
         if self.timeout is None:
             self.timeout = GLib.timeout_add(
-                    round(1 / self.rate * 1000),
-                    self.on_frame)
+                round(1 / self.rate * 1000), self.on_frame
+            )
 
     def stop(self):
         if self.timeout is not None:
@@ -68,7 +72,9 @@ class Animator(Generic[T]):
         self.animations = set()
 
     def merge(self, values: list[T]) -> T:
-        raise NotImplementedError(f"{self.__class__.__name__}.merge not implmeented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.merge not implmeented"
+        )
 
     def on_frame(self) -> bool:
         if not self.animations:
@@ -96,6 +102,7 @@ class PowerAnimator(Animator[float]):
     """
     Animation for power sequences
     """
+
     def merge(self, values: list[float]) -> float:
         if len(values) == 1:
             return values[0]
@@ -106,6 +113,7 @@ class ColorAnimator(Animator[Color]):
     """
     Animation for color sequences
     """
+
     def merge(self, values: list[Color]) -> Color:
         if len(values) == 1:
             return values[0]
@@ -148,7 +156,11 @@ class ColorPulse(ColorAnimation):
         frame_count = math.floor(self.duration * rate)
         for frame in range(frame_count):
             envelope = (frame_count - frame) / frame_count
-            yield Color(self.color.red * envelope, self.color.green * envelope, self.color.blue * envelope)
+            yield Color(
+                self.color.red * envelope,
+                self.color.green * envelope,
+                self.color.blue * envelope,
+            )
         yield Color(0, 0, 0)
 
     def as_jsonable(self) -> dict[str, Any]:
@@ -159,7 +171,14 @@ class ColorPulse(ColorAnimation):
 
 
 class ColorHeartPulse(ColorAnimation):
-    def __init__(self, *, color=Color, duration: float = 0.2, atrial_duration_ratio: float = 0, **kwargs):
+    def __init__(
+        self,
+        *,
+        color=Color,
+        duration: float = 0.2,
+        atrial_duration_ratio: float = 0,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.color = color
         self.duration = duration
@@ -176,11 +195,19 @@ class ColorHeartPulse(ColorAnimation):
 
         for frame in range(atrial_frames):
             envelope = 0.5 * (atrial_frames - frame) / atrial_frames
-            yield Color(self.color.red * envelope, self.color.green * envelope, self.color.blue * envelope)
+            yield Color(
+                self.color.red * envelope,
+                self.color.green * envelope,
+                self.color.blue * envelope,
+            )
 
         for frame in range(ventricular_frames):
             envelope = (ventricular_frames - frame) / ventricular_frames
-            yield Color(self.color.red * envelope, self.color.green * envelope, self.color.blue * envelope)
+            yield Color(
+                self.color.red * envelope,
+                self.color.green * envelope,
+                self.color.blue * envelope,
+            )
 
         yield Color(0, 0, 0)
 

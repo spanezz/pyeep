@@ -16,12 +16,15 @@ class Message(Jsonable):
     """
     Base class for messages sent between components
     """
+
     def __init__(
-            self, *,
-            ts: float | None = None,
-            src: Component | None = None,
-            dst: str | None = None,
-            name: str | None = None):
+        self,
+        *,
+        ts: float | None = None,
+        src: Component | None = None,
+        dst: str | None = None,
+        name: str | None = None,
+    ):
         self.ts = ts if ts is not None else time.time()
         self.src = src
         self.dst = dst

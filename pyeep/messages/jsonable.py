@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import importlib
 import logging
-from typing import Any, Type
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ class Jsonable:
         }
 
     @staticmethod
-    def jsonable_class(jsonable: dict[str, Any]) -> Type[Jsonable] | None:
+    def jsonable_class(jsonable: dict[str, Any]) -> type[Jsonable] | None:
         try:
             module_name = jsonable.pop("__module__")
             class_name = jsonable.pop("__class__")
@@ -27,5 +27,7 @@ class Jsonable:
             mod = importlib.import_module(module_name)
             return getattr(mod, class_name)
         except Exception as e:
-            log.error("cannot find module class %s.%s: %s", module_name, class_name, e)
+            log.error(
+                "cannot find module class %s.%s: %s", module_name, class_name, e
+            )
             return None

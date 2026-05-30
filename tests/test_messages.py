@@ -3,9 +3,12 @@ from __future__ import annotations
 import json
 import unittest
 
-from pyeep.messages.component import (ComponentActiveStateChanged,
-                                      DeviceScanRequest, NewComponent,
-                                      Shutdown)
+from pyeep.messages.component import (
+    ComponentActiveStateChanged,
+    DeviceScanRequest,
+    NewComponent,
+    Shutdown,
+)
 from pyeep.messages.config import ConfigSaveRequest, Configure
 from pyeep.messages.input import EmergencyStop, Pause, Resume, Shortcut
 from pyeep.messages.jsonable import Jsonable

@@ -23,7 +23,7 @@ A_SHIFTS = {
 }
 
 
-NOTES = ('A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#')
+NOTES = ("A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#")
 
 # Tuning frequency of the reference A4 note
 A4 = 440.0
@@ -41,11 +41,14 @@ def note(note: str, octave: int = 4, semitone: int = 0) -> float:
     return A4 * math.exp2(step_shift / 12.0)
 
 
-def chord_major(base_note: str, octave: int = 4, semitone: int = 0) -> tuple[float, float, float]:
+def chord_major(
+    base_note: str, octave: int = 4, semitone: int = 0
+) -> tuple[float, float, float]:
     """
     Compute the 3 notes of a major chord
     """
     return (
-            note(base_note, octave, semitone),
-            note(base_note, octave, semitone + 3),
-            note(base_note, octave, semitone + 5))
+        note(base_note, octave, semitone),
+        note(base_note, octave, semitone + 3),
+        note(base_note, octave, semitone + 5),
+    )

@@ -7,14 +7,15 @@ import yaml
 
 from ..app.hub import HubConfig
 from ..component.aio import AIOComponent
-from ..messages.config import Configure
 from ..messages.component import NewComponent, Shutdown
+from ..messages.config import Configure
 
 
 class ConfigManager(AIOComponent):
     """
     Input that can be connected/disconnected
     """
+
     def __init__(self, config_file: Path = Path(".pyeep.config"), **kwargs):
         super().__init__(**kwargs)
         self.config_file = config_file
@@ -23,7 +24,7 @@ class ConfigManager(AIOComponent):
         try:
             with self.config_file.open("rt") as fd:
                 config = yaml.load(fd, Loader=yaml.SafeLoader)
-            if (components := config.get("components")):
+            if components := config.get("components"):
                 self.components = components
             else:
                 self.components = {}
@@ -36,7 +37,7 @@ class ConfigManager(AIOComponent):
                 case Shutdown():
                     break
                 case NewComponent():
-                    if (config := self.components.get(msg.src.name)):
+                    if config := self.components.get(msg.src.name):
                         self.send(Configure(dst=msg.src.name, config=config))
                 case HubConfig():
                     self.components |= msg.components

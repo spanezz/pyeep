@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Type, TypeVar
+from typing import TypeVar
 
 from ..component.active import ActiveComponent, ActiveController
 from ..component.base import Component, check_hub
@@ -18,7 +18,8 @@ class Input(ModeComponent, ActiveComponent, Component):
     """
     Generic base for components managing inputs
     """
-    def get_controller(self) -> Type["Controller"]:
+
+    def get_controller(self) -> type[Controller]:
         return InputController
 
 
@@ -26,6 +27,7 @@ class InputController(ActiveController[C], ModeController[C]):
     """
     User interface side for an input (controller and view)
     """
+
     def __init__(self, *, component: Component, **kwargs):
         kwargs.setdefault("name", "input_model_" + component.name)
         super().__init__(component=component, **kwargs)
@@ -35,6 +37,7 @@ class InputsModel(GtkComponent):
     """
     Container for output view widgets
     """
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.input_models: list[InputController] = []
@@ -53,7 +56,7 @@ class InputsModel(GtkComponent):
             case NewComponent():
                 if isinstance(msg.src, Input):
                     input_model = self.hub.app.add_component(
-                            msg.src.get_controller(),
-                            component=msg.src)
+                        msg.src.get_controller(), component=msg.src
+                    )
                     self.input_models.append(input_model)
                     self.widget.get_child().append(input_model.widget)

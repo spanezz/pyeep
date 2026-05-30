@@ -1,20 +1,19 @@
 from __future__ import annotations
 
-from typing import Type
-
 from ..component.active import SimpleActiveComponent
 from ..component.base import check_hub
 from ..component.controller import ControllerWidget
 from ..component.gtk import GtkComponent
 from ..gtk import Gtk
-from .base import Input, InputController
 from ..messages.input import Shortcut
+from .base import Input, InputController
 
 
 class Manual(SimpleActiveComponent, Input, GtkComponent):
     """
     Dummy manual input used for testing
     """
+
     def __init__(self, **kwargs):
         kwargs.setdefault("active", True)
         super().__init__(**kwargs)
@@ -26,7 +25,7 @@ class Manual(SimpleActiveComponent, Input, GtkComponent):
     def description(self) -> str:
         return "Manual"
 
-    def get_controller(self) -> Type["InputController"]:
+    def get_controller(self) -> type[InputController]:
         return ManualInputController
 
     @check_hub

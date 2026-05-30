@@ -13,13 +13,13 @@ class Volume:
         return self.__str__()
 
     def make_array(self, x: numpy.ndarray, player: Player) -> numpy.ndarray:
-        raise NotImplementedError(f"{self.__class__.__name__}.make_array not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.make_array not implemented"
+        )
 
 
 class Sine(Volume):
-    def __init__(
-            self,
-            vmin: float = 0.9, vmax: float = 1.0, freq: float = 1.0):
+    def __init__(self, vmin: float = 0.9, vmax: float = 1.0, freq: float = 1.0):
         self.vmin = vmin
         self.vmax = vmax
         self.freq = freq
@@ -38,13 +38,14 @@ class Sine(Volume):
             sync_factor = 0.0
 
         volume_factor = 2.0 * numpy.pi * self.freq / player.sample_rate
-        return numpy.sin(x * volume_factor + sync_factor) * (self.vmax - self.vmin) + self.vmin
+        return (
+            numpy.sin(x * volume_factor + sync_factor) * (self.vmax - self.vmin)
+            + self.vmin
+        )
 
 
 class RampUp(Volume):
-    def __init__(
-            self,
-            vmin: float = 0.0, vmax: float = 1.0):
+    def __init__(self, vmin: float = 0.0, vmax: float = 1.0):
         self.vmin = float(vmin)
         self.vmax = float(vmax)
 
@@ -56,13 +57,13 @@ class RampUp(Volume):
         Compute the volume scaling factor function (from 0 to 1) corresponding
         to the given array (generally generated with `arange(samples_count)`)
         """
-        return numpy.linspace(self.vmin, self.vmax, len(x), dtype=player.numpy_type)
+        return numpy.linspace(
+            self.vmin, self.vmax, len(x), dtype=player.numpy_type
+        )
 
 
 class RampDown(Volume):
-    def __init__(
-            self,
-            vmin: float = 0.0, vmax: float = 1.0):
+    def __init__(self, vmin: float = 0.0, vmax: float = 1.0):
         self.vmin = float(vmin)
         self.vmax = float(vmax)
 
@@ -74,4 +75,6 @@ class RampDown(Volume):
         Compute the volume scaling factor function (from 0 to 1) corresponding
         to the given array (generally generated with `arange(samples_count)`)
         """
-        return numpy.linspace(self.vmax, self.vmin, len(x), dtype=player.numpy_type)
+        return numpy.linspace(
+            self.vmax, self.vmin, len(x), dtype=player.numpy_type
+        )

@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Type
 
 import aionotify
 import evdev
 
+from ..component.active import SimpleActiveComponent
 from ..component.aio import AIOComponent
 from ..messages.component import Shutdown
-from ..component.active import SimpleActiveComponent
 from .base import Input
 
 
@@ -17,6 +16,7 @@ class EvdevInput(SimpleActiveComponent, Input, AIOComponent):
     """
     Input device processing events from an evdev device
     """
+
     def __init__(self, *, path: Path, device: evdev.InputDevice, **kwargs):
         kwargs.setdefault("name", "evdev_" + path.name)
         super().__init__(**kwargs)
@@ -57,7 +57,8 @@ class EvdevDeviceManager(AIOComponent):
     See https://www.enricozini.org/blog/2023/debian/handling-keyboard-like-devices/
     for tips about setting up exotic input devices
     """
-    def __init__(self, device_map: dict[str, Type[Input]], **kwargs):
+
+    def __init__(self, device_map: dict[str, type[Input]], **kwargs):
         """
         Device_map maps names of device files in /dev/input/by-id to Input
         subclasses to use to manage them
@@ -65,7 +66,7 @@ class EvdevDeviceManager(AIOComponent):
         super().__init__(**kwargs)
         self.device_map = device_map
         self.components: dict[Path, Input] = {}
-        self.root = Path('/dev/input/by-id')
+        self.root = Path("/dev/input/by-id")
         self.watcher = aionotify.Watcher()
 
     async def device_added(self, path: Path):
@@ -78,11 +79,15 @@ class EvdevDeviceManager(AIOComponent):
         try:
             device = evdev.InputDevice(path)
         except PermissionError:
-            self.logger.debug("%s: insufficient permissions to access evdev device", path)
+            self.logger.debug(
+                "%s: insufficient permissions to access evdev device", path
+            )
             return
 
         self.logger.info("%s: evdev device added", path)
-        component = self.hub.app.add_component(component_cls, path=path, device=device)
+        component = self.hub.app.add_component(
+            component_cls, path=path, device=device
+        )
         self.components[path] = component
 
     async def device_removed(self, path: Path):
@@ -92,9 +97,12 @@ class EvdevDeviceManager(AIOComponent):
 
     async def watcher_task(self):
         self.watcher.watch(
-            alias='devices',
+            alias="devices",
             path=self.root.as_posix(),
-            flags=aionotify.Flags.CREATE | aionotify.Flags.DELETE | aionotify.Flags.MOVED_TO)
+            flags=aionotify.Flags.CREATE
+            | aionotify.Flags.DELETE
+            | aionotify.Flags.MOVED_TO,
+        )
         await self.watcher.setup(asyncio.get_event_loop())
 
         # Enumerate existing devices
@@ -109,7 +117,9 @@ class EvdevDeviceManager(AIOComponent):
                 if event.name.startswith("."):
                     continue
 
-                if event.flags & (aionotify.Flags.CREATE | aionotify.Flags.MOVED_TO):
+                if event.flags & (
+                    aionotify.Flags.CREATE | aionotify.Flags.MOVED_TO
+                ):
                     await self.device_added(self.root / event.name)
                 elif event.flags & aionotify.Flags.DELETE:
                     await self.device_removed(self.root / event.name)

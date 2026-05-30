@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import io
-from typing import TYPE_CHECKING, Any, Generator, Iterator, Optional
+from collections.abc import Generator, Iterator
+from typing import TYPE_CHECKING, Any
 
 import numpy
 
-from .volume import Volume
 from .shape import Shape, Sine
-
+from .volume import Volume
 
 if TYPE_CHECKING:
     from .player import Player
@@ -17,8 +17,9 @@ class Pattern:
     """
     Abstract interface for a wave generator
     """
-    def __init__(self, description: Optional[str] = None):
-        self.player: "Player"
+
+    def __init__(self, description: str | None = None):
+        self.player: Player
         self.channel_name: str
         self.buffer = io.BytesIO()
         if description is None:
@@ -26,8 +27,8 @@ class Pattern:
         else:
             self.description = description
         self.is_silence = False
-        self._iter_waves: Optional[Iterator[numpy.ndarray]] = None
-        self.current_wave: Optional[numpy.ndarray] = None
+        self._iter_waves: Iterator[numpy.ndarray] | None = None
+        self.current_wave: numpy.ndarray | None = None
         self.read_offset: int = 0
         self.ended: bool = False
 
@@ -35,8 +36,10 @@ class Pattern:
         self.player = player
         self.channel_name = channel_name
 
-    def generate(self) -> Generator[numpy.ndarray, None, None]:
-        raise NotImplementedError(f"{self.__class__.__name__}.generate not implemented")
+    def generate(self) -> Generator[numpy.ndarray]:
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.generate not implemented"
+        )
 
     def _next_wave(self) -> bool:
         """
@@ -77,7 +80,9 @@ class Pattern:
 
         # Shortcut: first wave has enough data
         if len(self.current_wave) >= self.read_offset + nsamples:
-            res = self.current_wave[self.read_offset:self.read_offset + nsamples]
+            res = self.current_wave[
+                self.read_offset : self.read_offset + nsamples
+            ]
             self.read_offset += nsamples
             return res
 
@@ -92,7 +97,9 @@ class Pattern:
                 self._next_wave()
             else:
                 # Take from current wave
-                chunk = self.current_wave[self.read_offset:self.read_offset + size]
+                chunk = self.current_wave[
+                    self.read_offset : self.read_offset + size
+                ]
                 self.read_offset += len(chunk)
                 res = numpy.append(res, chunk)
 
@@ -108,13 +115,18 @@ class Pattern:
         """
         self.player.last_wave_value = None
         self.player.last_volume_value = None
-        return numpy.zeros(round(duration * self.player.sample_rate), dtype=self.player.numpy_type)
+        return numpy.zeros(
+            round(duration * self.player.sample_rate),
+            dtype=self.player.numpy_type,
+        )
 
     def wave(
-            self, *,
-            shape: float | Shape = 440.0,
-            volume: float | Volume = 1.0,
-            duration: float = 1.0) -> numpy.ndarray:
+        self,
+        *,
+        shape: float | Shape = 440.0,
+        volume: float | Volume = 1.0,
+        duration: float = 1.0,
+    ) -> numpy.ndarray:
         """
         Generate a waveform as a numpy array
         """
@@ -145,12 +157,13 @@ class Silence(Pattern):
     """
     Silence
     """
+
     def __init__(self, *, duration: float = 1.0):
         super().__init__(f"{duration:.2f}s of silence")
         self.is_silence = True
         self.duration = duration
 
-    def generate(self) -> Generator[numpy.ndarray, None, None]:
+    def generate(self) -> Generator[numpy.ndarray]:
         yield self.silence(duration=self.duration)
 
 
@@ -158,11 +171,14 @@ class Wave(Pattern):
     """
     Simple waveform
     """
+
     def __init__(
-            self, *,
-            volume: float | Volume = 1.0,
-            duration: float = 1.0,
-            freq: float = 440.0):
+        self,
+        *,
+        volume: float | Volume = 1.0,
+        duration: float = 1.0,
+        freq: float = 440.0,
+    ):
         """
         Wave `duration` seconds long
         """
@@ -171,26 +187,30 @@ class Wave(Pattern):
         self.duration = duration
         self.freq = freq
 
-    def generate(self) -> Generator[numpy.ndarray, None, None]:
-        yield self.wave(volume=self.volume, duration=self.duration, shape=self.freq)
+    def generate(self) -> Generator[numpy.ndarray]:
+        yield self.wave(
+            volume=self.volume, duration=self.duration, shape=self.freq
+        )
 
 
 class Waves(Pattern):
     """
     Sum of waves
     """
+
     def __init__(self, *wargs: dict[str, Any]):
         super().__init__()
         self.wargs = wargs
-        last_warg: Optional[dict[str, Any]] = None
+        last_warg: dict[str, Any] | None = None
         for warg in self.wargs:
             if last_warg is None:
                 last_warg = warg
             elif last_warg.get("duration", 1.0) != warg.get("duration", 1.0):
                 raise ValueError(
-                        f"waves diven of different duration ({last_warg} and {warg}")
+                    f"waves diven of different duration ({last_warg} and {warg}"
+                )
 
-    def generate(self) -> Generator[numpy.ndarray, None, None]:
+    def generate(self) -> Generator[numpy.ndarray]:
         waves: list[numpy.ndarray] = []
         for warg in self.wargs:
             waves.append(self.wave(**warg))
@@ -201,10 +221,13 @@ class PatternSequence(Pattern):
     """
     Pattern that concatenates a generated sequence of Patterns
     """
-    def patterns(self) -> Generator[Pattern, None, None]:
-        raise NotImplementedError(f"{self.__class__.__name__}.pattern_sequence not implemented")
 
-    def generate(self) -> Generator[numpy.ndarray, None, None]:
+    def patterns(self) -> Generator[Pattern]:
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.pattern_sequence not implemented"
+        )
+
+    def generate(self) -> Generator[numpy.ndarray]:
         for pattern in self.patterns():
             pattern.set_player(self.player, self.channel_name)
             pattern.announce()

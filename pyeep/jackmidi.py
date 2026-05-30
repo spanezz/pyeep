@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 
 import threading
-from typing import Generator, Optional, Self
+from collections.abc import Generator
+from typing import Self
 
 import jack
 import mido
@@ -30,14 +31,17 @@ class MidiEvent(Event):
     """
     Frame-timed event carrying a MIDI message
     """
+
     def __init__(
-            self, *,
-            msg: Optional[mido.Message] = None,
-            data: Optional[bytes] = None,
-            **kw):
+        self,
+        *,
+        msg: mido.Message | None = None,
+        data: bytes | None = None,
+        **kw,
+    ):
         super().__init__(**kw)
-        self._msg: Optional[mido.Message] = msg
-        self._data: Optional[bytes] = data
+        self._msg: mido.Message | None = msg
+        self._data: bytes | None = data
 
     @classmethod
     def from_msg(cls, msg: mido.Message, encode: bool = False, **kw) -> Self:
@@ -78,18 +82,23 @@ class MidiPlayer(JackComponent):
     """
     JACK client that plays a queue of MIDI events
     """
+
     def __init__(self, client: jack.Client):
         super().__init__(client)
         self.events = DeltaList[MidiEvent]()
         self.events_mutex = threading.Lock()
-        self.midi_outport = self.client.midi_outports.register('midi output')
+        self.midi_outport = self.client.midi_outports.register("midi output")
 
     def play(self, type: str, *, delay_sec: float = 0.0, **args):
         """
         Enqueue a MIDI event to be played
         """
         msg = mido.Message(type, **args)
-        evt = MidiEvent.from_msg(msg, encode=True, frame_delay=int(round(delay_sec * self.samplerate)))
+        evt = MidiEvent.from_msg(
+            msg,
+            encode=True,
+            frame_delay=int(round(delay_sec * self.samplerate)),
+        )
         with self.events_mutex:
             self.events.add_event(evt)
 
@@ -107,11 +116,12 @@ class MidiReceiver(JackComponent):
     """
     JACK client that receives MIDI events
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.inport = self.jack_client.midi_inports.register('midi input')
+        self.inport = self.jack_client.midi_inports.register("midi input")
 
-    def read_events(self) -> Generator[MidiEvent, None, None]:
+    def read_events(self) -> Generator[MidiEvent]:
         frame_time = self.jack_client.last_frame_time
         for offset, indata in self.inport.incoming_midi_events():
             msg = mido.parse([ord(b) for b in indata])

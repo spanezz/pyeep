@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import time
-from typing import NamedTuple, Type
+from typing import NamedTuple
 
 import bleak
 
 from .. import bluetooth
-from ..component.controller import ControllerWidget
 from ..component.active import SimpleActiveComponent
 from ..component.connected import ConnectedController
+from ..component.controller import ControllerWidget
 from ..gtk import Gtk
 from ..messages.message import Message
 from .base import Input, InputController
@@ -20,6 +20,7 @@ class Sample(NamedTuple):
     """
     Data from a sample reported by the heartbeat monitor
     """
+
     # UNIX timestamp in nanoseconds
     time: int
     rate: float
@@ -30,6 +31,7 @@ class HeartBeat(Message):
     """
     Heartbeat information notification event
     """
+
     def __init__(self, *, sample: Sample, **kwargs):
         super().__init__(**kwargs)
         self.sample = sample
@@ -38,13 +40,16 @@ class HeartBeat(Message):
         return super().__str__() + f"(sample={self.sample})"
 
 
-class HeartRateMonitor(SimpleActiveComponent, Input, bluetooth.BluetoothComponent):
+class HeartRateMonitor(
+    SimpleActiveComponent, Input, bluetooth.BluetoothComponent
+):
     """
     Monitor a Bluetooth LE heart rate monitor
     """
+
     # This has been tested with a Moofit HW401
 
-    def get_controller(self) -> Type["InputController"]:
+    def get_controller(self) -> type[InputController]:
         return HeartRateInputController
 
     async def on_connect(self):
@@ -52,7 +57,11 @@ class HeartRateMonitor(SimpleActiveComponent, Input, bluetooth.BluetoothComponen
         # FIXME: is this needed in case of reconnects?
         await self.client.start_notify(HEART_RATE_UUID, self.on_heart_rate)
 
-    def on_heart_rate(self, characteristic: bleak.backend.characteristic.BleakGATTCharacteristic, data: bytearray):
+    def on_heart_rate(
+        self,
+        characteristic: bleak.backend.characteristic.BleakGATTCharacteristic,
+        data: bytearray,
+    ):
         """
         Decode heart rate information
         """
@@ -112,7 +121,9 @@ class HeartRateMonitor(SimpleActiveComponent, Input, bluetooth.BluetoothComponen
         self.send(HeartBeat(sample=sample))
 
 
-class HeartRateInputController(ConnectedController[HeartRateMonitor], InputController[HeartRateMonitor]):
+class HeartRateInputController(
+    ConnectedController[HeartRateMonitor], InputController[HeartRateMonitor]
+):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.current_rate = Gtk.Label(label="-- BPM")

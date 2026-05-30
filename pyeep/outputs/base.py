@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-from typing import Callable, Type
+from collections.abc import Callable
 
-from ..messages.input import EmergencyStop, Pause, Resume
 from ..component.base import Component, check_hub
 from ..component.controller import Controller, ControllerWidget
 from ..component.gtk import GtkComponent
 from ..gtk import Gio, GLib, Gtk
-from ..messages.message import Message
 from ..messages.component import NewComponent
+from ..messages.input import EmergencyStop, Pause, Resume
+from ..messages.message import Message
 
 
 class Output(Component):
     """
     Generic base for output components
     """
+
     def __init__(self, *, rate: int = 0, **kwargs):
         super().__init__(**kwargs)
 
@@ -39,7 +40,9 @@ class Output(Component):
         else:
             cb(self.rate)
 
-    def get_output_controller(self, bottom: bool = False) -> Type["OutputController"]:
+    def get_output_controller(
+        self, bottom: bool = False
+    ) -> type[OutputController]:
         return OutputController
 
 
@@ -50,6 +53,7 @@ class BaseOutputController(Controller[Output]):
     A controller implements the backend GLib-based logic to handle an Output,
     and instantiating the frontend view widget
     """
+
     def __init__(self, *, output: Output, **kwargs):
         kwargs.setdefault("name", "output_model_" + output.name)
         super().__init__(component=output, **kwargs)
@@ -63,29 +67,33 @@ class OutputController(BaseOutputController):
     A controller implements the backend GLib-based logic to handle an Output,
     and instantiating the frontend view widget
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
         # Group ID
         self.group = Gtk.Adjustment(
-                value=0,
-                lower=0,
-                upper=99,
-                step_increment=1,
-                page_increment=1,
-                page_size=0)
+            value=0,
+            lower=0,
+            upper=99,
+            step_increment=1,
+            page_increment=1,
+            page_size=0,
+        )
 
         self.pause = Gio.SimpleAction.new_stateful(
-                name=self.name.replace("_", "-") + "-pause",
-                parameter_type=None,
-                state=GLib.Variant.new_boolean(False))
+            name=self.name.replace("_", "-") + "-pause",
+            parameter_type=None,
+            state=GLib.Variant.new_boolean(False),
+        )
         self.pause.connect("change-state", self.on_pause)
         self.hub.gtk_app.add_action(self.pause)
 
         self.manual = Gio.SimpleAction.new_stateful(
-                name=self.name.replace("_", "-") + "-manual",
-                parameter_type=None,
-                state=GLib.Variant.new_boolean(False))
+            name=self.name.replace("_", "-") + "-manual",
+            parameter_type=None,
+            state=GLib.Variant.new_boolean(False),
+        )
         self.manual.connect("change-state", self.on_manual)
         self.hub.gtk_app.add_action(self.manual)
 
@@ -176,6 +184,7 @@ class OutputsModel(GtkComponent):
     """
     Container for output view widgets
     """
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.output_models: list[OutputController] = []
@@ -194,7 +203,7 @@ class OutputsModel(GtkComponent):
             case NewComponent():
                 if isinstance(msg.src, Output):
                     output_model = self.hub.app.add_component(
-                            msg.src.get_output_controller(),
-                            output=msg.src)
+                        msg.src.get_output_controller(), output=msg.src
+                    )
                     self.output_models.append(output_model)
                     self.widget.get_child().append(output_model.widget)

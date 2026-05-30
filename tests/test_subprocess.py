@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pyeep.component.subprocess import TopComponent, BottomComponent
+from pyeep.component.subprocess import BottomComponent, TopComponent
 from pyeep.messages.component import DeviceScanRequest, Shutdown
 from pyeep.messages.message import Message
 
@@ -78,31 +78,37 @@ class TestSubprocess(unittest.IsolatedAsyncioTestCase):
         output = outfile.read_text()
         self.assertNotEqual(output, "")
         parsed = json.loads(output)
-        self.assertEqual(parsed, {
-            '__class__': 'DeviceScanRequest',
-            '__module__': 'pyeep.messages.component',
-            'dst': None,
-            'duration': 3.14,
-            'name': 'devicescanrequest',
-            'src': None,
-            'ts': 12.34})
+        self.assertEqual(
+            parsed,
+            {
+                "__class__": "DeviceScanRequest",
+                "__module__": "pyeep.messages.component",
+                "dst": None,
+                "duration": 3.14,
+                "name": "devicescanrequest",
+                "src": None,
+                "ts": 12.34,
+            },
+        )
 
     async def test_top_receive(self):
         payload = {
-            '__class__': 'DeviceScanRequest',
-            '__module__': 'pyeep.messages.component',
-            'dst': None,
-            'duration': 3.14,
-            'name': 'devicescanrequest',
-            'src': None,
-            'ts': 12.34,
+            "__class__": "DeviceScanRequest",
+            "__module__": "pyeep.messages.component",
+            "dst": None,
+            "duration": 3.14,
+            "name": "devicescanrequest",
+            "src": None,
+            "ts": 12.34,
         }
         encoded = shlex.quote(json.dumps(payload))
 
         outfile = self.workdir / "output"
 
         scriptfile = self.workdir / "script"
-        scriptfile.write_text(f"#!/bin/sh\necho {encoded} | nc -U $1 > {outfile}")
+        scriptfile.write_text(
+            f"#!/bin/sh\necho {encoded} | nc -U $1 > {outfile}"
+        )
         scriptfile.chmod(0o755)
 
         class Comp(TopComponent):
@@ -133,13 +139,13 @@ class TestSubprocess(unittest.IsolatedAsyncioTestCase):
 
     async def test_bottom_receive(self):
         payload = {
-            '__class__': 'DeviceScanRequest',
-            '__module__': 'pyeep.messages.component',
-            'dst': None,
-            'duration': 3.14,
-            'name': 'devicescanrequest',
-            'src': None,
-            'ts': 12.34,
+            "__class__": "DeviceScanRequest",
+            "__module__": "pyeep.messages.component",
+            "dst": None,
+            "duration": 3.14,
+            "name": "devicescanrequest",
+            "src": None,
+            "ts": 12.34,
         }
 
         socket_path = self.workdir / "socket"
@@ -153,21 +159,25 @@ class TestSubprocess(unittest.IsolatedAsyncioTestCase):
             async def run(self):
                 # print("Top start")
                 self.server = await asyncio.start_unix_server(
-                        self.on_server_connect,
-                        path=socket_path)
+                    self.on_server_connect, path=socket_path
+                )
 
                 while not self.done:
                     await asyncio.sleep(0.3)
 
             async def _read_messages(self):
-                while (line := await self.reader.readline()):
+                while line := await self.reader.readline():
                     # print("TOP received", line)
                     self.received.append(line)
 
-            async def on_server_connect(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+            async def on_server_connect(
+                self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+            ):
                 self.reader = reader
                 self.writer = writer
-                self.read_messages_task = asyncio.create_task(self._read_messages())
+                self.read_messages_task = asyncio.create_task(
+                    self._read_messages()
+                )
                 self.writer.write(json.dumps(payload).encode() + b"\n")
                 await self.writer.drain()
                 self.sent = True

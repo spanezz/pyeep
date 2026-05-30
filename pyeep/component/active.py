@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Type, TypeVar
+from typing import TypeVar
 
 from ..gtk import Gio, GLib, Gtk
 from ..messages.component import ComponentActiveStateChanged
@@ -15,12 +15,15 @@ class ActiveComponent(Component):
     """
     Mixin for components that can be activated and deactivated
     """
+
     @property
     def is_active(self) -> bool:
         """
         Check if the component is active
         """
-        raise NotImplementedError(f"{self.__class__.__name__}.is_active not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.is_active not implemented"
+        )
 
     @export
     def set_active(self, active: bool) -> None:
@@ -29,13 +32,16 @@ class ActiveComponent(Component):
 
         The function is expected to be idempotent
         """
-        raise NotImplementedError(f"{self.__class__.__name__}.set_active not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.set_active not implemented"
+        )
 
 
 class SimpleActiveComponent(ActiveComponent):
     """
     Basic implementation of activity tracking
     """
+
     def __init__(self, *, active: bool = False, **kwargs):
         super().__init__(**kwargs)
         self.active = active
@@ -66,20 +72,26 @@ class ActiveController(Controller[C]):
         super().__init__(**kwargs)
 
         self.active = Gio.SimpleAction.new_stateful(
-                name=self.name.replace("_", "-") + "-active",
-                parameter_type=None,
-                state=GLib.Variant.new_boolean(self.component.is_active))
+            name=self.name.replace("_", "-") + "-active",
+            parameter_type=None,
+            state=GLib.Variant.new_boolean(self.component.is_active),
+        )
         self.active.connect("activate", self.on_activate)
         self.hub.gtk_app.add_action(self.active)
 
-    def get_widget_class(self) -> Type[ControllerWidget]:
+    def get_widget_class(self) -> type[ControllerWidget]:
         Widget = super().get_widget_class()
-        return type("InputControllerWidget", (ActiveControllerWidget, Widget), {})
+        return type(
+            "InputControllerWidget", (ActiveControllerWidget, Widget), {}
+        )
 
     def receive(self, msg: Message):
         match msg:
             case ComponentActiveStateChanged():
-                if msg.src == self.component and self.active.get_state().get_boolean() != msg.value:
+                if (
+                    msg.src == self.component
+                    and self.active.get_state().get_boolean() != msg.value
+                ):
                     self.active.set_state(GLib.Variant.new_boolean(msg.value))
 
     def on_activate(self, action, parameter):

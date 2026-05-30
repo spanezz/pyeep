@@ -20,12 +20,18 @@ class App(GtkApp, JackApp, AIOApp):
         pulses = self.add_component(Pulses)
 
         if args.controller:
-            self.controller = self.add_component(PowerOutputBottomController, output=pulses)
-            self.bottom = self.add_component(PowerOutputBottom, path=args.controller, controller=self.controller)
+            self.controller = self.add_component(
+                PowerOutputBottomController, output=pulses
+            )
+            self.bottom = self.add_component(
+                PowerOutputBottom,
+                path=args.controller,
+                controller=self.controller,
+            )
         else:
             self.controller = self.add_component(
-                self.player.get_output_controller(),
-                output=pulses)
+                self.player.get_output_controller(), output=pulses
+            )
 
     def build_main_window(self):
         super().build_main_window()
@@ -38,11 +44,20 @@ class App(GtkApp, JackApp, AIOApp):
 
 
 def main():
-    parser = App.argparser(name="audiopulses", description="Audio pulses generator")
-    parser.add_argument("--controller", action="store", metavar="socket", help="Controller socket")
+    parser = App.argparser(
+        name="audiopulses", description="Audio pulses generator"
+    )
+    parser.add_argument(
+        "--controller",
+        action="store",
+        metavar="socket",
+        help="Controller socket",
+    )
     args = parser.parse_args()
 
-    with App(args, title="Audio Pulses", application_id="org.enricozini.audiopulses") as app:
+    with App(
+        args, title="Audio Pulses", application_id="org.enricozini.audiopulses"
+    ) as app:
         app.main()
 
 

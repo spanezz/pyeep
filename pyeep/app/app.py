@@ -7,15 +7,17 @@ import logging
 import sys
 import threading
 import time
+from collections.abc import Callable
 from queue import SimpleQueue
-from typing import IO, TYPE_CHECKING, Callable, Type, TypeVar
+from typing import IO, TYPE_CHECKING, TypeVar
 
 from ..component.base import Component
-from ..messages.message import Message
 from ..messages.component import NewComponent, Shutdown
+from ..messages.message import Message
 
 try:
     import coloredlogs
+
     HAVE_COLOREDLOGS = True
 except ModuleNotFoundError:
     HAVE_COLOREDLOGS = False
@@ -32,6 +34,7 @@ class App(contextlib.ExitStack):
     """
     Base application class
     """
+
     def __init__(self, args: argparse.Namespace, **kw):
         super().__init__()
         self.args = args
@@ -42,13 +45,15 @@ class App(contextlib.ExitStack):
     @classmethod
     def argparser(cls, description: str) -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser(description=description)
-        parser.add_argument("-v", "--verbose", action="store_true",
-                            help="verbose output")
-        parser.add_argument("--debug", action="store_true",
-                            help="verbose output")
+        parser.add_argument(
+            "-v", "--verbose", action="store_true", help="verbose output"
+        )
+        parser.add_argument(
+            "--debug", action="store_true", help="verbose output"
+        )
         return parser
 
-    def add_hub(self, hub_cls: Type[Hub], **kwargs):
+    def add_hub(self, hub_cls: type[Hub], **kwargs):
         """
         Add a new hub to the application
         """
@@ -61,8 +66,9 @@ class App(contextlib.ExitStack):
         """
         Remove a hub from the application
         """
-        self.command_queue.put(functools.partial(
-            self._app_thread_remove_hub, hub))
+        self.command_queue.put(
+            functools.partial(self._app_thread_remove_hub, hub)
+        )
 
     def _app_thread_remove_hub(self, hub: Hub):
         """
@@ -75,14 +81,15 @@ class App(contextlib.ExitStack):
             self.hubs.pop(hub.HUB)
         hub.join()
 
-    def add_component(self, component_cls: Type[C], **kwargs) -> C:
+    def add_component(self, component_cls: type[C], **kwargs) -> C:
         """
         Add a new component to the application
         """
         if (hub := self.hubs.get(component_cls.HUB)) is None:
             raise RuntimeError(
                 f"Cannot schedule {component_cls.__module__}.{component_cls.__qualname__}:"
-                f" missing hub {component_cls.HUB!r}")
+                f" missing hub {component_cls.HUB!r}"
+            )
         hub.fill_component_kwargs(kwargs)
         component = component_cls(**kwargs)
         hub.add_component(component)
@@ -107,8 +114,7 @@ class App(contextlib.ExitStack):
         """
         Send a message to the applcation components
         """
-        self.command_queue.put(functools.partial(
-            self._app_thread_send, msg))
+        self.command_queue.put(functools.partial(self._app_thread_send, msg))
 
     def _app_thread_send(self, msg: Message):
         """
@@ -116,7 +122,12 @@ class App(contextlib.ExitStack):
 
         This function is called from the App's thread
         """
-        log.debug("Message: %s → %s: %s", msg.src.name if msg.src else "None", msg.dst, msg)
+        log.debug(
+            "Message: %s → %s: %s",
+            msg.src.name if msg.src else "None",
+            msg.dst,
+            msg,
+        )
         for hub in self.hubs.values():
             hub.receive(msg)
 
@@ -135,7 +146,9 @@ class App(contextlib.ExitStack):
         if HAVE_COLOREDLOGS:
             coloredlogs.install(level=log_level, fmt=FORMAT)
         else:
-            logging.basicConfig(level=log_level, stream=sys.stderr, format=FORMAT)
+            logging.basicConfig(
+                level=log_level, stream=sys.stderr, format=FORMAT
+            )
 
     def main_init(self):
         """
@@ -159,7 +172,9 @@ class App(contextlib.ExitStack):
             try:
                 c = self._next_command()
             except KeyboardInterrupt:
-                log.info("Keyboard interrupt received: shutting down application")
+                log.info(
+                    "Keyboard interrupt received: shutting down application"
+                )
                 self.send(Shutdown())
             else:
                 c()
@@ -168,7 +183,6 @@ class App(contextlib.ExitStack):
         """
         Shut down the application
         """
-        pass
 
     def main(self):
         self.main_init()
@@ -183,6 +197,12 @@ class App(contextlib.ExitStack):
         Print the app structure of hubs and components, for debugging
         """
         for hname, hub in self.hubs.items():
-            print(f"{hname} ({hub.__class__.__module__}.{hub.__class__.__name__})", file=file)
+            print(
+                f"{hname} ({hub.__class__.__module__}.{hub.__class__.__name__})",
+                file=file,
+            )
             for cname, comp in hub.components.items():
-                print(f" - {cname} ({comp.__class__.__module__}.{comp.__class__.__name__})", file=file)
+                print(
+                    f" - {cname} ({comp.__class__.__module__}.{comp.__class__.__name__})",
+                    file=file,
+                )

@@ -22,17 +22,21 @@ class Shape:
     """
     Shape of a waveform
     """
+
     def __repr__(self):
         return self.__str__()
 
     def make_array(self, x: numpy.ndarray, player: Player) -> numpy.ndarray:
-        raise NotImplementedError(f"{self.__class__.__name__}.make_array not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.make_array not implemented"
+        )
 
 
 class Sine(Shape):
     """
     Sine wave with a given frequency
     """
+
     def __init__(self, freq: float):
         self.freq = float(freq)
 
@@ -50,13 +54,12 @@ class Chirp(Shape):
     """
     Wrapper around scipy.signal.chirp
     """
+
     # https://en.wikipedia.org/wiki/Chirp
     # FIXME: use https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.chirp.html ?
     def __init__(
-            self,
-            f0: float = 440.0,
-            f1: float = 880.0,
-            method: str = "linear"):
+        self, f0: float = 440.0, f1: float = 880.0, method: str = "linear"
+    ):
         self.f0 = float(f0)
         self.f1 = float(f1)
         self.method = method
@@ -80,8 +83,10 @@ class Chirp(Shape):
 
         t = x / player.sample_rate
         return scipy.signal.chirp(
-                t,
-                f0=self.f0, f1=self.f1,
-                t1=len(x) / player.sample_rate,
-                method=self.method,
-                phi=sync_factor)
+            t,
+            f0=self.f0,
+            f1=self.f1,
+            t1=len(x) / player.sample_rate,
+            method=self.method,
+            phi=sync_factor,
+        )

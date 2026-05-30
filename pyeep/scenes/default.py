@@ -3,8 +3,8 @@ from __future__ import annotations
 from pyeep.color import Color
 from pyeep.component.base import check_hub
 from pyeep.gtk import GLib
-from pyeep.messages.message import Message
 from pyeep.messages.input import Pause, Resume, Shortcut
+from pyeep.messages.message import Message
 from pyeep.outputs.color import SetGroupColor
 
 from .. import animation
@@ -25,12 +25,20 @@ class KeyboardShortcutMixin:
             case "F-":
                 self.increment_power(-0.05)
             case "PULSE":
-                self.send(IncreaseGroupPower(
-                    group=self.get_group(),
-                    amount=animation.PowerPulse(power=0.3, duration=0.5)))
-                self.send(SetGroupColor(
-                    group=self.get_group(),
-                    color=animation.ColorPulse(color=Color(1, 0, 0), duration=0.5)))
+                self.send(
+                    IncreaseGroupPower(
+                        group=self.get_group(),
+                        amount=animation.PowerPulse(power=0.3, duration=0.5),
+                    )
+                )
+                self.send(
+                    SetGroupColor(
+                        group=self.get_group(),
+                        color=animation.ColorPulse(
+                            color=Color(1, 0, 0), duration=0.5
+                        ),
+                    )
+                )
             case "SWIPE UP":
                 self.increment_power(-0.05)
             case "SWIPE DOWN":
@@ -44,12 +52,20 @@ class KeyboardShortcutMixin:
             case "VOLUME DOWN":
                 self.set_power(0)
             case "TAP":
-                self.send(IncreaseGroupPower(
-                    group=self.get_group(),
-                    amount=animation.PowerPulse(power=0.3, duration=0.5)))
-                self.send(SetGroupColor(
-                    group=self.get_group(),
-                    color=animation.ColorPulse(color=Color(1, 0, 0), duration=0.5)))
+                self.send(
+                    IncreaseGroupPower(
+                        group=self.get_group(),
+                        amount=animation.PowerPulse(power=0.3, duration=0.5),
+                    )
+                )
+                self.send(
+                    SetGroupColor(
+                        group=self.get_group(),
+                        color=animation.ColorPulse(
+                            color=Color(1, 0, 0), duration=0.5
+                        ),
+                    )
+                )
 
 
 @register

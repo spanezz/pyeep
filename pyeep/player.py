@@ -16,7 +16,9 @@ class Player(AIOComponent):
     Abstract base infrastructure for an pattern player
     """
 
-    def __init__(self, *, sample_rate: int = 44100, numpy_type=numpy.float32, **kwargs):
+    def __init__(
+        self, *, sample_rate: int = 44100, numpy_type=numpy.float32, **kwargs
+    ):
         super().__init__(**kwargs)
         # sampling rate, Hz, must be integer
         self.sample_rate = sample_rate
@@ -60,7 +62,9 @@ class Player(AIOComponent):
     def announce_pattern(self, pattern: Pattern) -> None:
         print("〜", pattern.channel_name, pattern.description)
 
-    def set_override(self, channel_name: str, pattern: Pattern, replace: bool = False):
+    def set_override(
+        self, channel_name: str, pattern: Pattern, replace: bool = False
+    ):
         """
         Set a pattern to temporarily suspend the one for the current channel
         and play instead.
@@ -98,7 +102,9 @@ class Player(AIOComponent):
             return wave
 
         # General case for an arbitrary number of channels
-        waves = numpy.empty(frame_count * len(self.channels), dtype=self.numpy_type)
+        waves = numpy.empty(
+            frame_count * len(self.channels), dtype=self.numpy_type
+        )
         for idx, channel in enumerate(self.channels):
             if self.overrides[idx] is not None:
                 wave = self.overrides[idx].read(frame_count)
@@ -109,11 +115,10 @@ class Player(AIOComponent):
             if wave.size < frame_count:
                 # Pad with silence
                 wave.resize(frame_count)
-            waves[idx::len(self.channels)] = wave
+            waves[idx :: len(self.channels)] = wave
         return waves
 
     async def run(self):
         """
         Player main loop
         """
-        pass

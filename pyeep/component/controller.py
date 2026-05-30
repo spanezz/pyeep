@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import functools
-from typing import Generic, Type, TypeVar
+from typing import Generic, TypeVar
 
 from ..gtk import Gtk
 from .base import Component
@@ -43,7 +43,7 @@ class Controller(Generic[C], GtkComponent):
         super().__init__(**kwargs)
         self.component = component
 
-    def get_widget_class(self) -> Type[ControllerWidget]:
+    def get_widget_class(self) -> type[ControllerWidget]:
         return ControllerWidget
 
     def build(self) -> ControllerWidget:

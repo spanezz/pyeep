@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Type
-
 from ..color import Color
 from ..component.aio import AIOComponent
 from ..component.base import export
@@ -15,6 +13,7 @@ class NullOutput(PowerOutput, ColorOutput, AIOComponent):
     """
     Output that does nothing besides tracking the last set power value
     """
+
     def __init__(self, **kwargs):
         kwargs.setdefault("rate", 20)
         super().__init__(**kwargs)
@@ -25,9 +24,12 @@ class NullOutput(PowerOutput, ColorOutput, AIOComponent):
     def description(self) -> str:
         return "Null output"
 
-    def get_output_controller(self, bottom: bool = False) -> Type[OutputController]:
+    def get_output_controller(
+        self, bottom: bool = False
+    ) -> type[OutputController]:
         class Controller(PowerOutputController, ColorOutputController):
             pass
+
         return Controller
 
     @export

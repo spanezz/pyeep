@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import TypeVar, Generic
+from typing import Generic, TypeVar
 
 
 class Event:
     """
     Generic event, timed by frame counts
     """
+
     def __init__(self, *, frame_delay: int = 0):
         self.frame_delay: int = frame_delay
 
@@ -20,6 +21,7 @@ class DeltaList(Generic[EventType]):
     Delta list indexing a queue of events by the delay (in frames) at which
     they are scheduled to happen
     """
+
     def __init__(self) -> None:
         self.events: deque[EventType] = deque()
 

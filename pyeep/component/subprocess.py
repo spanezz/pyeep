@@ -3,8 +3,9 @@ from __future__ import annotations
 import asyncio
 import json
 import tempfile
+from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from ..messages.component import Shutdown
 from ..messages.jsonable import Jsonable
@@ -24,6 +25,7 @@ class SubprocessComponent(AIOComponent):
     """
     Common functionality for the top and bottom end of a subprocess component
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.reader: asyncio.StreamReader | None = None
@@ -37,7 +39,7 @@ class SubprocessComponent(AIOComponent):
         Task used to read messages from the remote endpoint
         """
         try:
-            while (line := await self.reader.readline()):
+            while line := await self.reader.readline():
                 jsonable = json.loads(line)
                 cls = Jsonable.jsonable_class(jsonable)
                 if cls is None:
@@ -64,7 +66,9 @@ class SubprocessComponent(AIOComponent):
                 await self.writer.drain()
             self.outbox.task_done()
 
-    def _on_connect(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+    def _on_connect(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ):
         """
         Start tasks when the remote endpoint is connected
         """
@@ -99,14 +103,12 @@ class SubprocessComponent(AIOComponent):
         """
         # if msg.src != self and self.writer is not None:
         #     self.forward_message(msg)
-        pass
 
     async def process_remote_message(self, msg: Message):
         """
         Process a message received from the remote endpoint
         """
         # self.send(msg)
-        pass
 
 
 class TopComponent(SubprocessComponent):
@@ -115,6 +117,7 @@ class TopComponent(SubprocessComponent):
 
     This is the controller side of a BottomComponent
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.proc: asyncio.subprocess.Process | None = None
@@ -123,7 +126,9 @@ class TopComponent(SubprocessComponent):
         self.server: asyncio.Server | None = None
 
     def get_commandline(self) -> Sequence[str]:
-        raise NotImplementedError(f"{self.__class__.__name__}.get_commandline not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.get_commandline not implemented"
+        )
 
     async def _killer(self):
         attempt = 0
@@ -143,18 +148,21 @@ class TopComponent(SubprocessComponent):
         finally:
             self.proc = None
 
-    async def on_server_connect(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+    async def on_server_connect(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ):
         self._on_connect(reader, writer)
 
     async def run(self):
         with tempfile.TemporaryDirectory() as workdir_str:
             self.workdir = Path(workdir_str)
             self.server = await asyncio.start_unix_server(
-                    self.on_server_connect,
-                    path=self.workdir / "socket")
+                self.on_server_connect, path=self.workdir / "socket"
+            )
 
             self.proc = await asyncio.create_subprocess_exec(
-                    *self.get_commandline())
+                *self.get_commandline()
+            )
 
             try:
                 await self.main_loop()
@@ -169,6 +177,7 @@ class BottomComponent(SubprocessComponent):
 
     This is the remote controlled by a TopComponent
     """
+
     def __init__(self, path: Path, **kwargs):
         super().__init__(**kwargs)
         self.path = path

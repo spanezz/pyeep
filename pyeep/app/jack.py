@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import argparse
-from . import App
 
 from ..component.jack import Jack
+from . import App
 
 
 class JackApp(App):
@@ -14,6 +14,7 @@ class JackApp(App):
     @classmethod
     def argparser(cls, name: str, description: str) -> argparse.ArgumentParser:
         parser = super().argparser(description)
-        parser.add_argument("--name", action="store", default=name,
-                            help="JACK name to use")
+        parser.add_argument(
+            "--name", action="store", default=name, help="JACK name to use"
+        )
         return parser

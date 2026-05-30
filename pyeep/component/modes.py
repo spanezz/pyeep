@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import inspect
-from typing import Iterator, NamedTuple, TypeVar
+from collections.abc import Iterator
+from typing import NamedTuple, TypeVar
 
-from .base import Component, export
 from ..gtk import Gtk
+from .base import Component, export
 from .controller import Controller, ControllerWidget
 
 C = TypeVar("C", bound="ModeComponent")
@@ -14,6 +15,7 @@ class ModeInfo(NamedTuple):
     """
     Information about one input mode
     """
+
     name: str
     summary: str
 
@@ -22,6 +24,7 @@ class ModeComponent(Component):
     """
     Mixin for components to implement multiple operational modes
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.set_mode("default")
@@ -47,6 +50,7 @@ class ModeController(Controller[C]):
     """
     User interface side for an input (controller and view)
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 

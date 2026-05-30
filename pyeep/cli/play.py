@@ -5,7 +5,6 @@ import importlib
 import logging
 import pkgutil
 import sys
-from typing import Type
 
 import pyeep.bluetooth
 import pyeep.inputs.heartrate
@@ -14,8 +13,8 @@ import pyeep.inputs.manual
 import pyeep.messages
 import pyeep.messages.component
 import pyeep.outputs.midisynth
-from .. import scenes
 
+from .. import scenes
 from ..app.aio import AIOApp
 from ..app.gtk import GtkApp
 from ..component.base import Component
@@ -37,7 +36,9 @@ class ScanAction(Component):
     def __init__(self, **kwargs):
         kwargs.setdefault("name", "device_scan")
         super().__init__(**kwargs)
-        self.action = Gio.SimpleAction.new(name=self.name.replace("_", "-"), parameter_type=None)
+        self.action = Gio.SimpleAction.new(
+            name=self.name.replace("_", "-"), parameter_type=None
+        )
         self.action.connect("activate", self.on_activate)
         self.hub.app.gtk_app.add_action(self.action)
 
@@ -47,17 +48,35 @@ class ScanAction(Component):
 
 class MidiSynthesizer(TopComponent):
     def get_commandline(self):
-        return ["python3", "-m", "pyeep.cli.midisynth", "--controller", self.workdir / "socket"]
+        return [
+            "python3",
+            "-m",
+            "pyeep.cli.midisynth",
+            "--controller",
+            self.workdir / "socket",
+        ]
 
 
 class MidiInputReader(TopComponent):
     def get_commandline(self):
-        return ["python3", "-m", "pyeep.cli.midievents", "--controller", self.workdir / "socket"]
+        return [
+            "python3",
+            "-m",
+            "pyeep.cli.midievents",
+            "--controller",
+            self.workdir / "socket",
+        ]
 
 
 class PulsesPlayer(PowerOutputTop):
     def get_commandline(self):
-        return ["python3", "-m", "pyeep.cli.audiopulses", "--controller", self.workdir / "socket"]
+        return [
+            "python3",
+            "-m",
+            "pyeep.cli.audiopulses",
+            "--controller",
+            self.workdir / "socket",
+        ]
 
 
 class App(GtkApp, AIOApp):
@@ -67,7 +86,9 @@ class App(GtkApp, AIOApp):
         self.outputs = self.add_component(OutputsModel)
         self.inputs: list[Input] = []
 
-        self.action_save_config = Gio.SimpleAction.new(name="save-config", parameter_type=None)
+        self.action_save_config = Gio.SimpleAction.new(
+            name="save-config", parameter_type=None
+        )
         self.action_save_config.connect("activate", self.on_save_config)
         self.gtk_app.add_action(self.action_save_config)
 
@@ -77,7 +98,11 @@ class App(GtkApp, AIOApp):
         self.add_component(
             pyeep.bluetooth.Bluetooth,
             devices=[
-                pyeep.bluetooth.Device("CD:E3:36:F6:BB:74", pyeep.inputs.heartrate.HeartRateMonitor, ("0000180d-",)),
+                pyeep.bluetooth.Device(
+                    "CD:E3:36:F6:BB:74",
+                    pyeep.inputs.heartrate.HeartRateMonitor,
+                    ("0000180d-",),
+                ),
                 pyeep.bluetooth.Device("21:04:99:10:35:05", HappyLights),
             ],
         )
@@ -97,11 +122,16 @@ class App(GtkApp, AIOApp):
     def setup_logging(self):
         super().setup_logging()
         if self.args.debug:
-            for name in ("bleak.backends.bluezdbus.manager", "bleak.backends.bluezdbus.client"):
+            for name in (
+                "bleak.backends.bluezdbus.manager",
+                "bleak.backends.bluezdbus.client",
+            ):
                 logging.getLogger(name).setLevel(logging.INFO)
 
     def _add_input_ui(self, input: Input):
-        input_controller = self.add_component(input.get_controller(), component=input)
+        input_controller = self.add_component(
+            input.get_controller(), component=input
+        )
         self.inputs_box.append(input_controller.widget)
 
     def _add_input(self, input: Input):
@@ -110,7 +140,9 @@ class App(GtkApp, AIOApp):
         if hasattr(self, "inputs_box"):
             self._add_input_ui(input)
 
-    def add_component(self, component_cls: Type[Component], **kwargs) -> Component:
+    def add_component(
+        self, component_cls: type[Component], **kwargs
+    ) -> Component:
         component = super().add_component(component_cls, **kwargs)
         match component:
             case Input():
@@ -141,7 +173,9 @@ class App(GtkApp, AIOApp):
         self.grid.attach(self.outputs.widget, 2, 0, 1, 1)
 
         # Instantiate scenes
-        for importer, modname, ispkg in pkgutil.iter_modules(scenes.__path__, "pyeep.scenes."):
+        for importer, modname, ispkg in pkgutil.iter_modules(
+            scenes.__path__, "pyeep.scenes."
+        ):
             importlib.import_module(modname)
         for scene_cls in scenes.base.SCENES:
             scene = self.add_component(scene_cls)
@@ -160,7 +194,9 @@ class App(GtkApp, AIOApp):
 
 
 def main():
-    parser = App.argparser(description="Play with nonconventional inputs and outputs")
+    parser = App.argparser(
+        description="Play with nonconventional inputs and outputs"
+    )
     args = parser.parse_args()
 
     with App(args, title="Player", application_id="org.enricozini.play") as app:

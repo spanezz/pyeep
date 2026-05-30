@@ -18,6 +18,7 @@ class SetRate(Message):
     This is mainly used to for communication between a PowerOutputBottom and a
     PowerOutputTop
     """
+
     def __init__(self, *, rate: float, **kwargs):
         super().__init__(**kwargs)
         self.rate = rate
@@ -38,6 +39,7 @@ class SetPower(Message):
     This is mainly used to send power commands from a PowerOutputTop to a
     PowerOutputBottom
     """
+
     def __init__(self, *, power: float, **kwargs):
         super().__init__(**kwargs)
         self.power = power
@@ -55,6 +57,7 @@ class SetGroupPower(Message):
     """
     Set the power of the outputs in the given group
     """
+
     def __init__(self, *, group: int, power: float | PowerAnimation, **kwargs):
         super().__init__(**kwargs)
         self.group = group
@@ -66,7 +69,11 @@ class SetGroupPower(Message):
     def as_jsonable(self) -> dict[str, Any]:
         res = super().as_jsonable()
         res["group"] = self.group
-        res["power"] = fun() if (fun := getattr(self.power, "as_jsonable", None)) else self.power
+        res["power"] = (
+            fun()
+            if (fun := getattr(self.power, "as_jsonable", None))
+            else self.power
+        )
         return res
 
 
@@ -74,6 +81,7 @@ class IncreaseGroupPower(Message):
     """
     Increase the power of an output group by a given amount
     """
+
     def __init__(self, *, group: int, amount: float | PowerAnimation, **kwargs):
         super().__init__(**kwargs)
         self.group = group

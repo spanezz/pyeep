@@ -32,23 +32,66 @@ class GenerativeScore:
     def beat(self):
         self.beat_number += 1
 
-    def drum(self, note: int, position: float, duration: float, velocity: int = 127):
+    def drum(
+        self, note: int, position: float, duration: float, velocity: int = 127
+    ):
         beat = 60 / self.bpm
         delay = beat * position
-        self.player.play("note_on", velocity=velocity, note=note, channel=DRUM_CHANNEL, delay_sec=delay)
-        self.player.play("note_off", note=note, channel=DRUM_CHANNEL, delay_sec=delay + beat * duration)
+        self.player.play(
+            "note_on",
+            velocity=velocity,
+            note=note,
+            channel=DRUM_CHANNEL,
+            delay_sec=delay,
+        )
+        self.player.play(
+            "note_off",
+            note=note,
+            channel=DRUM_CHANNEL,
+            delay_sec=delay + beat * duration,
+        )
 
-    def note(self, note: int, position: float, duration: float, velocity: int = 127):
+    def note(
+        self, note: int, position: float, duration: float, velocity: int = 127
+    ):
         beat = 60 / self.bpm
         delay = beat * position
-        self.player.play("note_on", velocity=velocity, note=note, channel=self.channel, delay_sec=delay)
-        self.player.play("note_off", note=note, channel=self.channel, delay_sec=delay + beat * duration)
+        self.player.play(
+            "note_on",
+            velocity=velocity,
+            note=note,
+            channel=self.channel,
+            delay_sec=delay,
+        )
+        self.player.play(
+            "note_off",
+            note=note,
+            channel=self.channel,
+            delay_sec=delay + beat * duration,
+        )
 
     def bank_program_select(self, bank: int, program: int, position: int = 0):
         # https://www.sweetwater.com/sweetcare/articles/6-what-msb-lsb-refer-for-changing-banks-andprograms/
         # FIXME: I cannot seem to be able to make this work with fluidsynth
         beat = 60 / self.bpm
         delay = beat * position
-        self.player.play("control_change", channel=self.channel, control=0, value=bank >> 8, delay_sec=delay)
-        self.player.play("control_change", channel=self.channel, control=32, value=bank & 0xff, delay_sec=delay)
-        self.player.play("program_change", channel=self.channel, program=program, delay_sec=delay)
+        self.player.play(
+            "control_change",
+            channel=self.channel,
+            control=0,
+            value=bank >> 8,
+            delay_sec=delay,
+        )
+        self.player.play(
+            "control_change",
+            channel=self.channel,
+            control=32,
+            value=bank & 0xFF,
+            delay_sec=delay,
+        )
+        self.player.play(
+            "program_change",
+            channel=self.channel,
+            program=program,
+            delay_sec=delay,
+        )

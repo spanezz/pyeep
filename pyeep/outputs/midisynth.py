@@ -3,11 +3,11 @@ from __future__ import annotations
 import jack
 import numpy
 
+from .. import midisynth
 from ..component.aio import AIOComponent
 from ..component.jack import JackComponent
 from ..inputs.midi import MidiMessages
 from ..messages.component import Shutdown
-from .. import midisynth
 from .base import Output
 
 
@@ -24,9 +24,7 @@ class Synth(Output, JackComponent, AIOComponent):
 
         This function is called from the Jack realtime thread
         """
-        self.synth.add_messages(
-                msg.last_frame_time,
-                msg.messages)
+        self.synth.add_messages(msg.last_frame_time, msg.messages)
 
     def set_jack_client(self, jack_client: jack.Client):
         super().set_jack_client(jack_client)
@@ -36,26 +34,30 @@ class Synth(Output, JackComponent, AIOComponent):
         reader = self.hub.app.get_component("midiinput")
         reader.add_midi_sink(self.jack_add_messages)
 
-        self.outport = self.jack_client.outports.register('synth')
+        self.outport = self.jack_client.outports.register("synth")
         self.set_rate(jack_client.samplerate)
 
         self.synth = midisynth.MidiSynth(in_samplerate=self.rate)
 
         # Set up the synth instrument bank
         self.instruments = midisynth.Instruments(
-                midisynth.AudioConfig(
-                    in_samplerate=self.rate,
-                    out_samplerate=self.rate,
-                    dtype=numpy.float32))
-        envelope = midisynth.EnvelopeShape(attack_time=0.03, decay_time=0.01, release_time=0.1)
+            midisynth.AudioConfig(
+                in_samplerate=self.rate,
+                out_samplerate=self.rate,
+                dtype=numpy.float32,
+            )
+        )
+        envelope = midisynth.EnvelopeShape(
+            attack_time=0.03, decay_time=0.01, release_time=0.1
+        )
         self.instruments.set(0, midisynth.Sine, envelope=envelope)
         self.instruments.set(1, midisynth.Saw, envelope=envelope)
         self.synth.add_output(self.instruments)
 
     def jack_process(self, frames: int) -> None:
         self.instruments.generate(
-                    self.jack_client.last_frame_time,
-                    self.outport.get_array())
+            self.jack_client.last_frame_time, self.outport.get_array()
+        )
 
     async def run(self) -> None:
         while True:

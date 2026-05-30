@@ -10,6 +10,7 @@ class AIOComponent(Component):
     """
     Component running on an asyncio event loop
     """
+
     HUB = "aio"
 
     def __init__(self, **kwargs) -> None:
@@ -21,12 +22,16 @@ class AIOComponent(Component):
         self.message_queue.put_nowait(msg)
 
     @check_hub
-    async def next_message(self, *, timeout: float | None = None) -> Message | None:
+    async def next_message(
+        self, *, timeout: float | None = None
+    ) -> Message | None:
         """
         Wait for reception of a message, with an optional timeout
         """
         try:
-            msg = await asyncio.wait_for(self.message_queue.get(), timeout=timeout)
+            msg = await asyncio.wait_for(
+                self.message_queue.get(), timeout=timeout
+            )
             self.message_queue.task_done()
             return msg
         except TimeoutError:
@@ -36,4 +41,3 @@ class AIOComponent(Component):
         """
         Main body of this component
         """
-        pass

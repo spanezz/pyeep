@@ -5,14 +5,15 @@ import threading
 import jack
 
 from ..messages.component import NewComponent, Shutdown
-from .base import Component
 from .aio import AIOComponent
+from .base import Component
 
 
 class JackComponent(Component):
     """
     Component that gets called by the JACK realtime process function
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.jack_client: jack.Client
@@ -28,7 +29,9 @@ class JackComponent(Component):
         """
         JACK process function, running in JACK's realtime thread
         """
-        raise NotImplementedError(f"{self.__class__.__name__}.jack_process not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.jack_process not implemented"
+        )
 
 
 class Jack(AIOComponent):
@@ -38,7 +41,7 @@ class Jack(AIOComponent):
         self.jack_client = jack.Client(self.jack_name)
         self.jack_client.set_process_callback(self.jack_process)
         self.samplerate = self.jack_client.samplerate
-        self.jack_components: list["JackComponent"] = []
+        self.jack_components: list[JackComponent] = []
         self.jack_components_lock = threading.Lock()
 
     def jack_process(self, frames: int):

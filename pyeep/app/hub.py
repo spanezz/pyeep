@@ -1,35 +1,42 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from ..component.base import check_hub
 from ..messages.config import ConfigSaveRequest
 from ..messages.message import Message
 
 if TYPE_CHECKING:
-    from .app import App
     from ..component.base import Component
+    from .app import App
 
 
 class HubConfig(Message):
-    def __init__(self, *, hub: str, components: dict[str, dict[str, Any]], **kwargs):
+    def __init__(
+        self, *, hub: str, components: dict[str, dict[str, Any]], **kwargs
+    ):
         super().__init__(**kwargs)
         self.hub = hub
         self.components = components
 
     def __str__(self):
-        return super().__str__() + f"(hub={self.hub}, components={self.components!r})"
+        return (
+            super().__str__()
+            + f"(hub={self.hub}, components={self.components!r})"
+        )
 
 
 class Hub:
     """
     Manage a group of components that share a common technical infrastructure
     """
+
     # Name of this hub
     HUB: str
 
-    def __init__(self, *, app: "App"):
+    def __init__(self, *, app: App):
         self.app = app
         self.hub = self
         self.components: dict[str, Component] = {}
@@ -44,7 +51,6 @@ class Hub:
 
         This can do things like start threads, or schedule asyncio tasks
         """
-        pass
 
     def join(self):
         """
@@ -52,7 +58,6 @@ class Hub:
 
         This can wait for pending asyncio tasks, or join threads
         """
-        pass
 
     def _running_in_hub(self) -> bool:
         """

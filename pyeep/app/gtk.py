@@ -3,14 +3,13 @@ from __future__ import annotations
 import argparse
 import logging
 import threading
-from typing import Callable
+from collections.abc import Callable
 
-from . import App, Hub
 from ..component.base import check_hub
-from ..messages.message import Message
-from ..messages.component import Shutdown
-
 from ..gtk import Adw, GLib, Gtk
+from ..messages.component import Shutdown
+from ..messages.message import Message
+from . import App, Hub
 
 
 class LogView(Gtk.ScrolledWindow):
@@ -91,12 +90,14 @@ class GtkHub(Hub):
 
 class GtkApp(App):
     def __init__(
-            self,
-            args: argparse.Namespace, *,
-            application_id: str,
-            title: str,
-            gui_logging: bool = False,
-            **kwargs):
+        self,
+        args: argparse.Namespace,
+        *,
+        application_id: str,
+        title: str,
+        gui_logging: bool = False,
+        **kwargs,
+    ):
         super().__init__(args, **kwargs)
         self.gtk_app = Adw.Application(application_id=application_id)
         self.gtk_app.connect("activate", self.on_activate)

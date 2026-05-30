@@ -12,13 +12,13 @@ class EmergencyStop(Message):
     """
     Request to stop any activity as soon as possible
     """
-    pass
 
 
 class Shortcut(Message):
     """
     Event notifying the trigger of a named keyboard shortcut
     """
+
     def __init__(self, *, command: str, **kwargs):
         super().__init__(**kwargs)
         self.command = command
@@ -36,6 +36,7 @@ class Pause(Message):
     """
     Pause outputs in a group
     """
+
     def __init__(self, *, group: int, **kwargs):
         super().__init__(**kwargs)
         self.group = group
@@ -53,6 +54,7 @@ class Resume(Message):
     """
     Unpause outputs in a group
     """
+
     def __init__(self, *, group: int, **kwargs):
         super().__init__(**kwargs)
         self.group = group

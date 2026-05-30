@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 from typing import TYPE_CHECKING
+
 from .base import Component
 
 if TYPE_CHECKING:
@@ -11,9 +12,9 @@ if TYPE_CHECKING:
 class GtkComponent(Component):
     HUB = "gtk"
 
-    def __init__(self, *, hub: "GtkHub", **kwargs):
+    def __init__(self, *, hub: GtkHub, **kwargs):
         super().__init__(hub=hub, **kwargs)
-        self.hub: "GtkHub"
+        self.hub: GtkHub
 
     @functools.cached_property
     def widget(self) -> Gtk.Widget:
@@ -26,4 +27,6 @@ class GtkComponent(Component):
         """
         Build the widget to control this component
         """
-        raise NotImplementedError(f"{self.__class__.__name__}.build not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.build not implemented"
+        )

@@ -4,12 +4,13 @@ import logging
 import math
 import threading
 from collections import deque
-from typing import NamedTuple, Sequence, Type
+from collections.abc import Sequence
+from typing import NamedTuple
 
 import mido
 import numpy
 
-from .synth import EnvelopeShape, Envelope, SineWave, SawWave
+from .synth import Envelope, EnvelopeShape, SawWave, SineWave
 
 log = logging.getLogger(__name__)
 
@@ -21,7 +22,9 @@ class AudioConfig(NamedTuple):
 
 
 class Note:
-    def __init__(self, *, instrument: "Instrument", note: int, envelope: EnvelopeShape):
+    def __init__(
+        self, *, instrument: Instrument, note: int, envelope: EnvelopeShape
+    ):
         self.audio_config = instrument.audio_config
         self.note = note
         self.envelope_shape = envelope
@@ -49,17 +52,21 @@ class Note:
         match msg.type:
             case "note_on":
                 if self.envelope is not None:
-                    if (chunk := self.envelope.generate(msg.time, 1)) is not None:
+                    if (
+                        chunk := self.envelope.generate(msg.time, 1)
+                    ) is not None:
                         start_level = chunk[0]
                     else:
                         start_level = 0
                 else:
                     start_level = 0
                 self.envelope = Envelope(
-                        self.envelope_shape,
-                        msg.time, velocity=msg.velocity / 127,
-                        rate=self.audio_config.out_samplerate,
-                        start_level=start_level)
+                    self.envelope_shape,
+                    msg.time,
+                    velocity=msg.velocity / 127,
+                    rate=self.audio_config.out_samplerate,
+                    start_level=start_level,
+                )
             case "note_off":
                 if self.envelope is not None:
                     self.envelope.release(msg.time)
@@ -76,7 +83,9 @@ class Note:
         If some events need to be skipped, keep track of the last one
         """
         events: list[mido.Message] = []
-        while self.next_events and self.next_events[0].time < frame_time + frames:
+        while (
+            self.next_events and self.next_events[0].time < frame_time + frames
+        ):
             msg = self.next_events.popleft()
             if msg.time < frame_time:
                 log.warning("MIDI input buffer underrun")
@@ -85,7 +94,9 @@ class Note:
                 events.append(msg)
         return events
 
-    def add_wave(self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray):
+    def add_wave(
+        self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray
+    ):
         raise NotImplementedError()
 
     def get_envelope(self, frame_time: int, frames: int) -> numpy.ndarray:
@@ -140,7 +151,9 @@ class Sine(Note):
         super().__init__(**kwargs)
         self.sine_synth = SineWave(self.audio_config.out_samplerate)
 
-    def add_wave(self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray) -> None:
+    def add_wave(
+        self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray
+    ) -> None:
         self.sine_synth.synth(array, self.get_freq(), envelope)
 
 
@@ -149,17 +162,20 @@ class Saw(Note):
         super().__init__(**kwargs)
         self.saw_synth = SawWave(self.audio_config.out_samplerate)
 
-    def add_wave(self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray) -> None:
+    def add_wave(
+        self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray
+    ) -> None:
         self.saw_synth.synth(array, self.get_freq(), envelope)
 
 
 class Instrument:
     def __init__(
-            self,
-            audio_config: AudioConfig,
-            channel: int,
-            note_cls: Type[Note],
-            envelope: EnvelopeShape):
+        self,
+        audio_config: AudioConfig,
+        channel: int,
+        note_cls: type[Note],
+        envelope: EnvelopeShape,
+    ):
         self.audio_config = audio_config
         self.channel = channel
         self.note_cls = note_cls
@@ -168,7 +184,9 @@ class Instrument:
 
     def add_note(self, msg: mido.Message) -> bool:
         if (note := self.notes.get(msg.note)) is None:
-            note = self.note_cls(instrument=self, note=msg.note, envelope=self.envelope)
+            note = self.note_cls(
+                instrument=self, note=msg.note, envelope=self.envelope
+            )
             self.notes[msg.note] = note
 
         note.add_event(msg)
@@ -196,6 +214,7 @@ class Instruments:
     """
     One instrument bank, mapping channel numbers to Instrument instances
     """
+
     def __init__(self, audio_config: AudioConfig):
         self.audio_config = audio_config
         self.out_last_frame_time: int = 0
@@ -203,14 +222,21 @@ class Instruments:
 
         self.samplerate_conversion: float | None = None
         if self.audio_config.out_samplerate != self.audio_config.in_samplerate:
-            self.samplerate_conversion = self.audio_config.out_samplerate / self.audio_config.in_samplerate
+            self.samplerate_conversion = (
+                self.audio_config.out_samplerate
+                / self.audio_config.in_samplerate
+            )
 
-    def set(self, channel: int, note_cls: Type[Note], envelope: EnvelopeShape):
-        self.instruments[channel] = Instrument(self.audio_config, channel, note_cls, envelope=envelope)
+    def set(self, channel: int, note_cls: type[Note], envelope: EnvelopeShape):
+        self.instruments[channel] = Instrument(
+            self.audio_config, channel, note_cls, envelope=envelope
+        )
 
     def start_input_frame(self, in_last_frame_time: int):
         if self.samplerate_conversion is not None:
-            self.out_last_frame_time = int(round(in_last_frame_time * self.samplerate_conversion))
+            self.out_last_frame_time = int(
+                round(in_last_frame_time * self.samplerate_conversion)
+            )
         else:
             self.out_last_frame_time = in_last_frame_time
 
@@ -222,14 +248,18 @@ class Instruments:
 
                 # Convert time from self.in_samplerate to self.out_samplerate
                 if self.samplerate_conversion is not None:
-                    msg = msg.copy(time=int(round(msg.time * self.samplerate_conversion)))
+                    msg = msg.copy(
+                        time=int(round(msg.time * self.samplerate_conversion))
+                    )
 
                 return instrument.add_note(msg)
 
             case "pitchwheel":
                 # Convert time from self.in_samplerate to self.out_samplerate
                 if self.samplerate_conversion is not None:
-                    msg = msg.copy(time=int(round(msg.time * self.samplerate_conversion)))
+                    msg = msg.copy(
+                        time=int(round(msg.time * self.samplerate_conversion))
+                    )
 
                 for instrument in self.instruments.values():
                     instrument.add_pitchwheel(msg)
@@ -238,7 +268,9 @@ class Instruments:
             case _:
                 return False
 
-    def generate(self, out_frame_time: int, array: numpy.ndarray) -> numpy.ndarray:
+    def generate(
+        self, out_frame_time: int, array: numpy.ndarray
+    ) -> numpy.ndarray:
         """
         Generate a waveform for the given time, expressed as the output frame
         rate
@@ -253,6 +285,7 @@ class MidiSynth:
     Dispatch MIDI events to a software bank of instruments and notes, and
     generate the mixed waveforms
     """
+
     def __init__(self, *, in_samplerate: int):
         self.in_samplerate = in_samplerate
         self.instrument_banks: list[Instruments] = []
@@ -264,13 +297,16 @@ class MidiSynth:
         """
         if instruments.audio_config.in_samplerate != self.in_samplerate:
             raise RuntimeError(
-                    "Audio config in_samplerate mismatch:"
-                    f" ours is {self.audio_config.in_samplerate},"
-                    f" new instruments is {instruments.audio_config.in_samplerate}")
+                "Audio config in_samplerate mismatch:"
+                f" ours is {self.audio_config.in_samplerate},"
+                f" new instruments is {instruments.audio_config.in_samplerate}"
+            )
         with self.instrument_banks_lock:
             self.instrument_banks.append(instruments)
 
-    def add_messages(self, last_frame_time: int, messages: Sequence[mido.Message]):
+    def add_messages(
+        self, last_frame_time: int, messages: Sequence[mido.Message]
+    ):
         """
         Enqueue midi events in the right instruments/notes
         """

@@ -11,6 +11,7 @@ class WaveWriter(Player):
     """
     Player that writes audio data to a .wav audio file
     """
+
     def __init__(self, *, filename: str, **kwargs):
         super().__init__(**kwargs)
         self.wav = wave.open(filename, "wb")

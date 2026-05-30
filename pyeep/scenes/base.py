@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from typing import Type
-
 from pyeep.component.base import check_hub
 from pyeep.component.gtk import GtkComponent
 from pyeep.gtk import Gio, GLib, Gtk
 
 from ..outputs.power import SetGroupPower
 
-SCENES: list[Type["Scene"]] = []
+SCENES: list[type[Scene]] = []
 
 
-def register(c: Type["Scene"]) -> Type["Scene"]:
+def register(c: type[Scene]) -> type[Scene]:
     SCENES.append(c)
     return c
 
@@ -24,7 +22,14 @@ class SceneGrid(Gtk.Grid):
         self.max_column = max_column
         self.max_row = max_row
 
-    def attach(self, child: Gtk.Widget, column: int, row: int, width: int = REST, height: int = REST):
+    def attach(
+        self,
+        child: Gtk.Widget,
+        column: int,
+        row: int,
+        width: int = REST,
+        height: int = REST,
+    ):
         if width == self.REST:
             width = self.max_column - column
         if height == self.REST:
@@ -43,9 +48,10 @@ class Scene(GtkComponent):
         super().__init__(**kwargs)
 
         self.active = Gio.SimpleAction.new_stateful(
-                name=self.name.replace("_", "-") + "-active",
-                parameter_type=None,
-                state=GLib.Variant.new_boolean(False))
+            name=self.name.replace("_", "-") + "-active",
+            parameter_type=None,
+            state=GLib.Variant.new_boolean(False),
+        )
         self.active.connect("change-state", self.on_active_changed)
         self.hub.app.gtk_app.add_action(self.active)
 
@@ -91,21 +97,23 @@ class PowerControl:
 
         # Output group
         self.group = Gtk.Adjustment(
-                value=group,
-                lower=1,
-                upper=99,
-                step_increment=1,
-                page_increment=1,
-                page_size=0)
+            value=group,
+            lower=1,
+            upper=99,
+            step_increment=1,
+            page_increment=1,
+            page_size=0,
+        )
 
         # Power for the group
         self.power = Gtk.Adjustment(
-                value=0,
-                lower=0,
-                upper=100,
-                step_increment=5,
-                page_increment=10,
-                page_size=0)
+            value=0,
+            lower=0,
+            upper=100,
+            step_increment=5,
+            page_increment=10,
+            page_size=0,
+        )
         self.power.connect("value_changed", self.on_power)
 
     def on_power(self, adj):
@@ -113,30 +121,29 @@ class PowerControl:
         Manually set this scene's power
         """
         val = round(adj.get_value())
-        self.scene.send(SetGroupPower(group=self.get_group(), power=val / 100.0))
+        self.scene.send(
+            SetGroupPower(group=self.get_group(), power=val / 100.0)
+        )
 
     def get_group(self) -> int:
         return self.group.get_value()
 
     def increment_power(self, value: float):
-        self.power.set_value(
-                self.power.get_value() + value * 100.0)
+        self.power.set_value(self.power.get_value() + value * 100.0)
 
     def set_power(self, value: float):
         self.power.set_value(value * 100.0)
 
     def attach_to_grid(self, grid: SceneGrid):
         power = Gtk.Scale(
-                orientation=Gtk.Orientation.HORIZONTAL,
-                adjustment=self.power)
+            orientation=Gtk.Orientation.HORIZONTAL, adjustment=self.power
+        )
         power.set_digits(2)
         power.set_draw_value(False)
         power.set_hexpand(True)
         for mark in (25, 50, 75):
             power.add_mark(
-                value=mark,
-                position=Gtk.PositionType.BOTTOM,
-                markup=None
+                value=mark, position=Gtk.PositionType.BOTTOM, markup=None
             )
 
         row = grid.max_row
@@ -156,12 +163,13 @@ class SingleGroupScene(Scene):
 
         # Output group
         self.group = Gtk.Adjustment(
-                value=1,
-                lower=1,
-                upper=99,
-                step_increment=1,
-                page_increment=1,
-                page_size=0)
+            value=1,
+            lower=1,
+            upper=99,
+            step_increment=1,
+            page_increment=1,
+            page_size=0,
+        )
 
     def get_group(self) -> int:
         return self.group.get_value()
@@ -172,7 +180,9 @@ class SingleGroupScene(Scene):
         expander.set_child(grid)
         row = grid.max_row
 
-        grid.attach(Gtk.Label(label="Output group"), 0, row, self.ui_grid_columns - 1, 1)
+        grid.attach(
+            Gtk.Label(label="Output group"), 0, row, self.ui_grid_columns - 1, 1
+        )
 
         group = Gtk.SpinButton(adjustment=self.group, climb_rate=1.0, digits=0)
         grid.attach(group, self.ui_grid_columns - 1, row, 1, 1)
