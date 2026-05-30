@@ -1,8 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pyeep"
+dynamic = ["version"]
+requires-python = ">= 3.13"
+
+[pytest]
+addopts = ["--import-mode=importlib"]
+
 [tool.black]
 line-length = 80
 
 [tool.mypy]
 # https://mypy.readthedocs.io/en/latest/config_file.html
 mypy_path = "stubs"
+packages = ["pyeep"]
+modules = ["tests"]
 
 # strict = true

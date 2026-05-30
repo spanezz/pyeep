@@ -20,7 +20,7 @@ flake8:
 	flake8 pyeep tests
 
 mypy:
-	mypy -p pyeep -m tests
+	mypy
 
 unittest:
 	$(PYTHON_ENVIRONMENT) pytest
