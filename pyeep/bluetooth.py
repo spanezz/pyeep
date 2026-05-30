@@ -14,8 +14,8 @@ from .component.connected import (
     ConnectedState,
     ConnectedStateChanged,
 )
-from .messages.component import DeviceScanRequest, Shutdown
-from .messages.message import Message
+from pyeep.models.messages.component import DeviceScanRequest, Shutdown
+from pyeep.models.messages.message import Message
 
 re_mangle = re.compile(r"[^\w]+")
 

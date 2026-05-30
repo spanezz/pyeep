@@ -1,10 +1,8 @@
-from __future__ import annotations
-
 from typing import TypeVar
 
-from ..gtk import Gio, GLib, Gtk
-from ..messages.component import ComponentActiveStateChanged
-from ..messages.message import Message
+from pyeep.gtk import Gio, GLib, Gtk
+from pyeep.models.messages.component import ComponentActiveStateChanged
+from pyeep.models.messages.message import Message
 from .base import Component, export
 from .controller import Controller, ControllerWidget
 

@@ -1,11 +1,9 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 import numpy
 
 from pyeep.component.aio import AIOComponent
-from pyeep.messages import Shutdown
+from pyeep.models.messages.component import Shutdown
 
 if TYPE_CHECKING:
     from .pattern import Pattern

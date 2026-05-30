@@ -1,10 +1,8 @@
-from __future__ import annotations
-
 import threading
 
 import jack
 
-from ..messages.component import NewComponent, Shutdown
+from pyeep.models.messages.component import NewComponent, Shutdown
 from .aio import AIOComponent
 from .base import Component
 

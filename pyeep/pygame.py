@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import functools
 import os
 import threading
@@ -9,8 +7,8 @@ from queue import Empty, SimpleQueue
 
 from .app import Hub
 from .component.base import Component, check_hub
-from .messages.component import Shutdown
-from .messages.message import Message
+from pyeep.models.messages.component import Shutdown
+from pyeep.models.messages.message import Message
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import pygame  # Noqa

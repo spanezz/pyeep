@@ -161,7 +161,7 @@ class Envelope:
                 ),
             )
         )
-        self.tail: numpy.zeros(1)
+        self.tail = numpy.zeros(1)
 
     def release(self, frame_time: int) -> None:
         """

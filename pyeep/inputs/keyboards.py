@@ -1,8 +1,6 @@
-from __future__ import annotations
-
 import evdev
 
-from ..messages.input import EmergencyStop, Shortcut
+from pyeep.models.messages.input import EmergencyStop, Shortcut
 from .evdev import EvdevInput
 
 

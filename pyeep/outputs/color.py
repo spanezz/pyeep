@@ -1,26 +1,22 @@
-from __future__ import annotations
+from typing import Annotated
 
-from ..animation import ColorAnimation, ColorAnimator
-from ..color import Color
+from pyeep.models.animation import ColorAnimation
+from pyeep.animator import ColorAnimator
+from pyeep.models.color import Color
 from ..component.base import Component, check_hub
 from ..component.controller import ControllerWidget
-from ..gtk import Gtk
-from ..messages.message import Message
+from pyeep.gtk import Gtk
+from pyeep.models.primitive import PrimitiveField
+from pyeep.models.messages.message import Message, GroupMessage
 from .base import Output, OutputController
 
 
-class SetGroupColor(Message):
+class SetGroupColor(GroupMessage):
     """
     Set the power of the outputs in the given group
     """
 
-    def __init__(self, *, group: int, color: Color | ColorAnimation, **kwargs):
-        super().__init__(**kwargs)
-        self.group = group
-        self.color = color
-
-    def __str__(self) -> str:
-        return super().__str__() + f"(group={self.group}, color={self.color}"
+    color: Color | Annotated[ColorAnimation, PrimitiveField]
 
 
 class ColorOutput(Output):
@@ -47,7 +43,7 @@ class ColorOutputController(OutputController):
             self.name, self.output.rate, self.set_animated_color
         )
         self.colors: dict[Component, Color] = {}
-        self.animation_color: Color = Color(0, 0, 0)
+        self.animation_color: Color = Color(red=0, green=0, blue=0)
 
     @check_hub
     def receive(self, msg: Message):

@@ -1,18 +1,14 @@
-from __future__ import annotations
-
 import asyncio
 import json
 import tempfile
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-from ..messages.component import Shutdown
-from ..messages.jsonable import Jsonable
+from pyeep.models.primitive import load_primitive
+from pyeep.models.messages.component import Shutdown
 from .aio import AIOComponent
 
-if TYPE_CHECKING:
-    from ..messages.message import Message
+from pyeep.models.messages.message import Message
 
 
 # See https://bugs.python.org/issue43884
@@ -26,7 +22,7 @@ class SubprocessComponent(AIOComponent):
     Common functionality for the top and bottom end of a subprocess component
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.reader: asyncio.StreamReader | None = None
         self.writer: asyncio.StreamWriter | None = None
@@ -34,30 +30,19 @@ class SubprocessComponent(AIOComponent):
         self.write_messages_task: asyncio.Task | None = None
         self.outbox = asyncio.Queue()
 
-    async def _read_messages(self):
+    async def _read_messages(self) -> None:
         """
         Task used to read messages from the remote endpoint
         """
         try:
             while line := await self.reader.readline():
-                jsonable = json.loads(line)
-                cls = Jsonable.jsonable_class(jsonable)
-                if cls is None:
-                    continue
-
-                jsonable["src"] = self
-
-                try:
-                    msg = cls(**jsonable)
-                except Exception as e:
-                    self.logger.error("cannot instantiate message: %s", e)
-                    continue
-
+                msg = load_primitive(json.loads(line))
+                msg["src"] = self
                 await self.process_remote_message(msg)
         finally:
             self.receive(Shutdown())
 
-    async def _write_messages(self):
+    async def _write_messages(self) -> None:
         while True:
             msg = await self.outbox.get()
             line = json.dumps(msg.as_jsonable()) + "\n"
@@ -68,7 +53,7 @@ class SubprocessComponent(AIOComponent):
 
     def _on_connect(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ):
+    ) -> None:
         """
         Start tasks when the remote endpoint is connected
         """
@@ -77,13 +62,13 @@ class SubprocessComponent(AIOComponent):
         self.read_messages_task = asyncio.create_task(self._read_messages())
         self.write_messages_task = asyncio.create_task(self._write_messages())
 
-    def forward_message(self, msg: Message):
+    def forward_message(self, msg: Message) -> None:
         """
         Forward a message to the remote endpoint
         """
         self.outbox.put_nowait(msg)
 
-    async def main_loop(self):
+    async def main_loop(self) -> None:
         try:
             while True:
                 match (msg := await self.next_message()):
@@ -97,14 +82,14 @@ class SubprocessComponent(AIOComponent):
             if self.write_messages_task is not None:
                 self.write_messages_task.cancel()
 
-    async def process_local_message(self, msg: Message):
+    async def process_local_message(self, msg: Message) -> None:
         """
         Process a message received from the local hub
         """
         # if msg.src != self and self.writer is not None:
         #     self.forward_message(msg)
 
-    async def process_remote_message(self, msg: Message):
+    async def process_remote_message(self, msg: Message) -> None:
         """
         Process a message received from the remote endpoint
         """
@@ -118,7 +103,7 @@ class TopComponent(SubprocessComponent):
     This is the controller side of a BottomComponent
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.proc: asyncio.subprocess.Process | None = None
         self.returncode: int | None = None
@@ -130,7 +115,7 @@ class TopComponent(SubprocessComponent):
             f"{self.__class__.__name__}.get_commandline not implemented"
         )
 
-    async def _killer(self):
+    async def _killer(self) -> None:
         attempt = 0
         while self.proc.returncode is None:
             if attempt < 10:
@@ -140,7 +125,7 @@ class TopComponent(SubprocessComponent):
             attempt += 1
             await asyncio.sleep(0.1)
 
-    async def _terminate_process(self):
+    async def _terminate_process(self) -> None:
         try:
             await asyncio.gather(self._killer(), self.proc.wait())
 
@@ -150,10 +135,10 @@ class TopComponent(SubprocessComponent):
 
     async def on_server_connect(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ):
+    ) -> None:
         self._on_connect(reader, writer)
 
-    async def run(self):
+    async def run(self) -> None:
         with tempfile.TemporaryDirectory() as workdir_str:
             self.workdir = Path(workdir_str)
             self.server = await asyncio.start_unix_server(
@@ -178,14 +163,14 @@ class BottomComponent(SubprocessComponent):
     This is the remote controlled by a TopComponent
     """
 
-    def __init__(self, path: Path, **kwargs):
+    def __init__(self, path: Path, **kwargs) -> None:
         super().__init__(**kwargs)
         self.path = path
         self.read_messages_task: asyncio.Task | None = None
         self.returncode: int | None = None
         self.workdir: Path | None = None
 
-    async def run(self):
+    async def run(self) -> None:
         reader, writer = await asyncio.open_unix_connection(path=self.path)
         self._on_connect(reader, writer)
         await self.main_loop()

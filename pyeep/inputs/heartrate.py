@@ -1,16 +1,15 @@
-from __future__ import annotations
-
 import time
 from typing import NamedTuple
 
 import bleak
+import bleak.backends
 
 from .. import bluetooth
 from ..component.active import SimpleActiveComponent
 from ..component.connected import ConnectedController
 from ..component.controller import ControllerWidget
-from ..gtk import Gtk
-from ..messages.message import Message
+from pyeep.gtk import Gtk
+from pyeep.models.messages.message import Message
 from .base import Input, InputController
 
 HEART_RATE_UUID = "00002a37-0000-1000-8000-00805f9b34fb"
@@ -59,7 +58,7 @@ class HeartRateMonitor(
 
     def on_heart_rate(
         self,
-        characteristic: bleak.backend.characteristic.BleakGATTCharacteristic,
+        characteristic: bleak.backends.characteristic.BleakGATTCharacteristic,
         data: bytearray,
     ):
         """

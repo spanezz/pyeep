@@ -1,14 +1,13 @@
-from __future__ import annotations
-
 import functools
 import logging
 import time
 from typing import TYPE_CHECKING, Any
 
+from pyeep.models.messages.message import Message
+
 if TYPE_CHECKING:
-    from ..app import Hub
-    from ..messages.message import Message
-    from .controller import Controller
+    from pyeep.app.hub import Hub
+    from pyeep.component.controller import Controller
 
 
 def check_hub(f):
@@ -47,7 +46,7 @@ class Component:
 
     HUB: str
 
-    def __init__(self, *, hub: Hub, name: str | None = None):
+    def __init__(self, *, hub: "Hub", name: str | None = None):
         self.name = (
             name if name is not None else self.__class__.__name__.lower()
         )
@@ -69,7 +68,7 @@ class Component:
     def description(self) -> str:
         return self.name
 
-    def get_controller(self) -> type[Controller]:
+    def get_controller(self) -> type["Controller"]:
         raise NotImplementedError(
             f"{self.__class__.__name__}.get_controller not implemented"
         )

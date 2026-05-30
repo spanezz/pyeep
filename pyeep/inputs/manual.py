@@ -1,11 +1,9 @@
-from __future__ import annotations
-
 from ..component.active import SimpleActiveComponent
 from ..component.base import check_hub
 from ..component.controller import ControllerWidget
 from ..component.gtk import GtkComponent
-from ..gtk import Gtk
-from ..messages.input import Shortcut
+from pyeep.gtk import Gtk
+from pyeep.models.messages.input import Shortcut
 from .base import Input, InputController
 
 

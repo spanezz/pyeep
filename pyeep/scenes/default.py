@@ -1,18 +1,15 @@
-from __future__ import annotations
-
-from pyeep.color import Color
+from pyeep.models.color import Color
 from pyeep.component.base import check_hub
 from pyeep.gtk import GLib
-from pyeep.messages.input import Pause, Resume, Shortcut
-from pyeep.messages.message import Message
+from pyeep.models.messages.input import Pause, Resume, Shortcut
+from pyeep.models.messages.message import Message
 from pyeep.outputs.color import SetGroupColor
-
-from .. import animation
+from pyeep.models import animation
 from ..outputs.power import IncreaseGroupPower
-from .base import SingleGroupPowerScene, register
+from pyeep.scenes.base import SingleGroupPowerScene, register
 
 
-class KeyboardShortcutMixin:
+class KeyboardShortcutMixin(SingleGroupPowerScene):
     @check_hub
     def handle_keyboard_shortcut(self, shortcut: str):
         match shortcut:
@@ -35,7 +32,7 @@ class KeyboardShortcutMixin:
                     SetGroupColor(
                         group=self.get_group(),
                         color=animation.ColorPulse(
-                            color=Color(1, 0, 0), duration=0.5
+                            color=Color(red=1, green=0, blue=0), duration=0.5
                         ),
                     )
                 )
@@ -62,7 +59,7 @@ class KeyboardShortcutMixin:
                     SetGroupColor(
                         group=self.get_group(),
                         color=animation.ColorPulse(
-                            color=Color(1, 0, 0), duration=0.5
+                            color=Color(red=1, green=0, blue=0), duration=0.5
                         ),
                     )
                 )

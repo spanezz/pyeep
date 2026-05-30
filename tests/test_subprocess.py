@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 import json
 import os
@@ -9,8 +7,8 @@ import unittest
 from pathlib import Path
 
 from pyeep.component.subprocess import BottomComponent, TopComponent
-from pyeep.messages.component import DeviceScanRequest, Shutdown
-from pyeep.messages.message import Message
+from pyeep.models.messages.component import DeviceScanRequest, Shutdown
+from pyeep.models.messages.message import Message
 
 
 class MockHub:

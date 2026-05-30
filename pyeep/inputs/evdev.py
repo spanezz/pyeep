@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 from pathlib import Path
 
@@ -8,7 +6,7 @@ import evdev
 
 from ..component.active import SimpleActiveComponent
 from ..component.aio import AIOComponent
-from ..messages.component import Shutdown
+from pyeep.models.messages.component import Shutdown
 from .base import Input
 
 

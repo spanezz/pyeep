@@ -1,10 +1,8 @@
-from __future__ import annotations
-
 from enum import StrEnum
 from typing import TypeVar
 
-from ..gtk import Gtk
-from ..messages.message import Message
+from pyeep.gtk import Gtk
+from pyeep.models.messages.message import Message
 from .base import Component
 from .controller import Controller, ControllerWidget
 
@@ -16,7 +14,7 @@ class ConnectedStateChanged(Message):
     Notify a change of connected state for an input
     """
 
-    def __init__(self, *, value: ConnectedState, **kwargs):
+    def __init__(self, *, value: "ConnectedState", **kwargs):
         super().__init__(**kwargs)
         self.value = value
 

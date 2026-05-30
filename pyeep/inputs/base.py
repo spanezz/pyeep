@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import TypeVar
 
 from ..component.active import ActiveComponent, ActiveController
@@ -7,9 +5,9 @@ from ..component.base import Component, check_hub
 from ..component.controller import Controller
 from ..component.gtk import GtkComponent
 from ..component.modes import ModeComponent, ModeController
-from ..gtk import Gtk
-from ..messages.component import NewComponent
-from ..messages.message import Message
+from pyeep.gtk import Gtk
+from pyeep.models.messages.component import NewComponent
+from pyeep.models.messages.message import Message
 
 C = TypeVar("C", bound="Input")
 

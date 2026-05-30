@@ -1,11 +1,9 @@
-from __future__ import annotations
-
 from .. import bluetooth
-from ..color import Color
+from pyeep.models.color import Color
 from ..component.base import export
 from ..component.controller import ControllerWidget
-from ..gtk import Gtk
-from ..messages.message import Message
+from pyeep.gtk import Gtk
+from pyeep.models.messages.message import Message
 from .base import OutputController
 from .color import ColorOutput, ColorOutputController
 

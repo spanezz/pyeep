@@ -1,14 +1,12 @@
-from __future__ import annotations
-
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from ..app.hub import HubConfig
+from pyeep.app.hub import HubConfig
 from ..component.aio import AIOComponent
-from ..messages.component import NewComponent, Shutdown
-from ..messages.config import Configure
+from pyeep.models.messages.component import NewComponent, Shutdown
+from pyeep.models.messages.config import Configure
 
 
 class ConfigManager(AIOComponent):
@@ -37,7 +35,7 @@ class ConfigManager(AIOComponent):
                 case Shutdown():
                     break
                 case NewComponent():
-                    if config := self.components.get(msg.src.name):
+                    if config := self.components.get(msg.src):
                         self.send(Configure(dst=msg.src.name, config=config))
                 case HubConfig():
                     self.components |= msg.components

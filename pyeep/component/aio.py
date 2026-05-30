@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from ..messages.message import Message
+from pyeep.models.messages.message import Message
 from .base import Component, check_hub
 
 

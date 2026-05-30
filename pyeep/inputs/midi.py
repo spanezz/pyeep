@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from collections.abc import Callable
 
 import jack
@@ -7,8 +5,8 @@ import mido
 
 from ..component.aio import AIOComponent
 from ..component.jack import JackComponent
-from ..messages.component import Shutdown
-from ..messages.message import Message
+from pyeep.models.messages.component import Shutdown
+from pyeep.models.messages.message import Message
 
 
 class MidiMessages(Message):

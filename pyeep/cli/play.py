@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import argparse
 import importlib
 import logging
@@ -10,17 +8,17 @@ import pyeep.bluetooth
 import pyeep.inputs.heartrate
 import pyeep.inputs.keyboards
 import pyeep.inputs.manual
-import pyeep.messages
-import pyeep.messages.component
+import pyeep.models.messages
+import pyeep.models.messages.component
 import pyeep.outputs.midisynth
 
 from .. import scenes
-from ..app.aio import AIOApp
-from ..app.gtk import GtkApp
+from pyeep.app.aio import AIOApp
+from pyeep.app.gtk import GtkApp
 from ..component.base import Component
 from ..component.configmanager import ConfigManager
 from ..component.subprocess import TopComponent
-from ..gtk import Gio, GLib, Gtk
+from pyeep.gtk import Gio, GLib, Gtk
 from ..inputs.base import Input
 from ..outputs.base import OutputsModel
 from ..outputs.happylights import HappyLights

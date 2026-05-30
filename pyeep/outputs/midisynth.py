@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import jack
 import numpy
 
@@ -7,18 +5,18 @@ from .. import midisynth
 from ..component.aio import AIOComponent
 from ..component.jack import JackComponent
 from ..inputs.midi import MidiMessages
-from ..messages.component import Shutdown
+from pyeep.models.messages.component import Shutdown
 from .base import Output
 
 
 class Synth(Output, JackComponent, AIOComponent):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(rate=0, **kwargs)
         # TODO: jack has a RingBuffer class for this
         self.synth: midisynth.MidiSynth
         self.instruments: midisynth.Instruments
 
-    def jack_add_messages(self, msg: MidiMessages):
+    def jack_add_messages(self, msg: MidiMessages) -> None:
         """
         Enqueue notes to be played.
 
@@ -26,7 +24,7 @@ class Synth(Output, JackComponent, AIOComponent):
         """
         self.synth.add_messages(msg.last_frame_time, msg.messages)
 
-    def set_jack_client(self, jack_client: jack.Client):
+    def set_jack_client(self, jack_client: jack.Client) -> None:
         super().set_jack_client(jack_client)
 
         # Direcly hook this as a MIDI consumer that gets messages from the MIDI

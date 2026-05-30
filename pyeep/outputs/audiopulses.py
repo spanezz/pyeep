@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import math
 
 import jack
@@ -56,12 +54,12 @@ class SimpleSynth:
 
 
 class Pulses(PowerOutput, JackComponent, AIOComponent):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(rate=0, **kwargs)
         self.power: float = 0.0
         self.synth: SimpleSynth
 
-    def set_jack_client(self, jack_client: jack.Client):
+    def set_jack_client(self, jack_client: jack.Client) -> None:
         super().set_jack_client(jack_client)
         self.outport = self.jack_client.outports.register("pulses")
         self.set_rate(jack_client.samplerate)
@@ -77,5 +75,5 @@ class Pulses(PowerOutput, JackComponent, AIOComponent):
         return PowerOutputController
 
     @export
-    def set_power(self, power: float):
+    def set_power(self, power: float) -> None:
         self.power = power

@@ -1,14 +1,12 @@
-from __future__ import annotations
-
 from collections.abc import Callable
 
 from ..component.base import Component, check_hub
 from ..component.controller import Controller, ControllerWidget
 from ..component.gtk import GtkComponent
-from ..gtk import Gio, GLib, Gtk
-from ..messages.component import NewComponent
-from ..messages.input import EmergencyStop, Pause, Resume
-from ..messages.message import Message
+from pyeep.gtk import Gio, GLib, Gtk
+from pyeep.models.messages.component import NewComponent
+from pyeep.models.messages.input import EmergencyStop, Pause, Resume
+from pyeep.models.messages.message import Message
 
 
 class Output(Component):
@@ -42,7 +40,7 @@ class Output(Component):
 
     def get_output_controller(
         self, bottom: bool = False
-    ) -> type[OutputController]:
+    ) -> type["OutputController"]:
         return OutputController
 
 

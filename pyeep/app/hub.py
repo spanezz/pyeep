@@ -1,12 +1,10 @@
-from __future__ import annotations
-
 import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from ..component.base import check_hub
-from ..messages.config import ConfigSaveRequest
-from ..messages.message import Message
+from pyeep.component.base import check_hub
+from pyeep.models.messages.config import ConfigSaveRequest
+from pyeep.models.messages.message import Message
 
 if TYPE_CHECKING:
     from ..component.base import Component
@@ -36,7 +34,7 @@ class Hub:
     # Name of this hub
     HUB: str
 
-    def __init__(self, *, app: App):
+    def __init__(self, *, app: "App"):
         self.app = app
         self.hub = self
         self.components: dict[str, Component] = {}
@@ -129,7 +127,7 @@ class Hub:
         """
         kwargs["hub"] = self
 
-    def add_component(self, component: Component):
+    def add_component(self, component: "Component"):
         """
         Add a new component to this hub
         """
@@ -140,14 +138,14 @@ class Hub:
         self.components[component.name] = component
         self.logger.debug("new component %r", component.name)
 
-    def remove_component(self, component: Component):
+    def remove_component(self, component: "Component"):
         """
         Remove the component from this hub
         """
         self.run_in_hub(self._hub_thread_remove_component, component)
 
     @check_hub
-    def _hub_thread_remove_component(self, component):
+    def _hub_thread_remove_component(self, component: "Component"):
         component.cleanup()
         del self.components[component.name]
         self.logger.debug("removed component %r", component.name)

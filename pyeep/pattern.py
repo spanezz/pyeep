@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import io
 from collections.abc import Generator, Iterator
 from typing import TYPE_CHECKING, Any
@@ -19,10 +17,11 @@ class Pattern:
     """
 
     def __init__(self, description: str | None = None):
-        self.player: Player
+        self.player: "Player"
         self.channel_name: str
         self.buffer = io.BytesIO()
         if description is None:
+            assert self.__doc__
             self.description = self.__doc__.strip().splitlines()[0].strip()
         else:
             self.description = description
@@ -32,7 +31,7 @@ class Pattern:
         self.read_offset: int = 0
         self.ended: bool = False
 
-    def set_player(self, player: Player, channel_name: str):
+    def set_player(self, player: "Player", channel_name: str):
         self.player = player
         self.channel_name = channel_name
 

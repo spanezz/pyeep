@@ -1,13 +1,11 @@
-from __future__ import annotations
-
-from pyeep.color import Color
+from pyeep.models.color import Color
 from pyeep.component.base import check_hub
 from pyeep.gtk import GLib, Gtk
 from pyeep.inputs.heartrate import HeartBeat
 from pyeep.outputs.color import SetGroupColor
 
-from .. import animation
-from ..messages.message import Message
+from pyeep.models import animation
+from pyeep.models.messages.message import Message
 from .base import SceneGrid, SingleGroupScene, register
 
 
@@ -15,7 +13,7 @@ from .base import SceneGrid, SingleGroupScene, register
 class Heartbeat(SingleGroupScene):
     TITLE = "Heartbeat"
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.timeout: int | None = None
         self.last_rate: int | None = None
@@ -28,7 +26,7 @@ class Heartbeat(SingleGroupScene):
         )
 
     @check_hub
-    def set_active(self, value: bool):
+    def set_active(self, value: bool) -> None:
         super().set_active(value)
         if not value:
             if self.timeout is not None:
@@ -56,7 +54,7 @@ class Heartbeat(SingleGroupScene):
 
         return expander
 
-    def _check_timeout(self):
+    def _check_timeout(self) -> None:
         if self.last_rate is None:
             return
 
@@ -65,7 +63,7 @@ class Heartbeat(SingleGroupScene):
 
         self.timeout = GLib.timeout_add(60 / self.last_rate * 1000, self._tick)
 
-    def _tick(self):
+    def _tick(self) -> bool:
         if self.last_rate is None:
             return False
 
@@ -73,7 +71,7 @@ class Heartbeat(SingleGroupScene):
             SetGroupColor(
                 group=self.get_group(),
                 color=animation.ColorHeartPulse(
-                    color=Color(0.5, 0, 0),
+                    color=Color(red=0.5, green=0, blue=0),
                     duration=0.9 * 60 / self.last_rate,
                     atrial_duration_ratio=self.atrial_duration_ratio.get_value(),
                 ),
@@ -84,7 +82,7 @@ class Heartbeat(SingleGroupScene):
         return False
 
     @check_hub
-    def receive(self, msg: Message):
+    def receive(self, msg: Message) -> None:
         if not self.is_active:
             return
         match msg:

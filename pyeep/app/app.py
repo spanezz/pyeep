@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import argparse
 import contextlib
 import functools
@@ -11,9 +9,10 @@ from collections.abc import Callable
 from queue import SimpleQueue
 from typing import IO, TYPE_CHECKING, TypeVar
 
-from ..component.base import Component
-from ..messages.component import NewComponent, Shutdown
-from ..messages.message import Message
+from pyeep.component.base import Component
+from pyeep.app.hub import Hub
+from pyeep.models.messages.component import NewComponent, Shutdown
+from pyeep.models.messages.message import Message
 
 try:
     import coloredlogs
@@ -22,8 +21,6 @@ try:
 except ModuleNotFoundError:
     HAVE_COLOREDLOGS = False
 
-if TYPE_CHECKING:
-    from .hub import Hub
 
 log = logging.getLogger(__name__)
 
@@ -94,7 +91,7 @@ class App(contextlib.ExitStack):
         component = component_cls(**kwargs)
         hub.add_component(component)
 
-        msg = NewComponent(src=component, ts=time.time())
+        msg = NewComponent(src=str(component))
         self.send(msg)
 
         return component
@@ -124,7 +121,7 @@ class App(contextlib.ExitStack):
         """
         log.debug(
             "Message: %s → %s: %s",
-            msg.src.name if msg.src else "None",
+            msg.src,
             msg.dst,
             msg,
         )

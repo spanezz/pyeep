@@ -1,14 +1,12 @@
-from __future__ import annotations
-
 import argparse
 import logging
 import threading
 from collections.abc import Callable
 
 from ..component.base import check_hub
-from ..gtk import Adw, GLib, Gtk
-from ..messages.component import Shutdown
-from ..messages.message import Message
+from pyeep.gtk import Adw, GLib, Gtk
+from pyeep.models.messages.component import Shutdown
+from pyeep.models.messages.message import Message
 from . import App, Hub
 
 
