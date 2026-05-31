@@ -1,15 +1,14 @@
 import argparse
-import contextlib
 import functools
 import logging
 import sys
 import threading
-import time
 from collections.abc import Callable
 from queue import SimpleQueue
-from typing import IO, TYPE_CHECKING, TypeVar
+from typing import IO, TypeVar
 
 from pyeep.component.base import Component
+from pyeep.app.base import BaseApp
 from pyeep.app.hub import Hub
 from pyeep.models.messages.component import NewComponent, Shutdown
 from pyeep.models.messages.message import Message
@@ -27,7 +26,7 @@ log = logging.getLogger(__name__)
 C = TypeVar("C", bound=Component)
 
 
-class App(contextlib.ExitStack):
+class App(BaseApp):
     """
     Base application class
     """
@@ -38,17 +37,6 @@ class App(contextlib.ExitStack):
         self.hubs: dict[str, Hub] = {}
         self.hubs_lock = threading.Lock()
         self.command_queue: SimpleQueue[Callable] = SimpleQueue()
-
-    @classmethod
-    def argparser(cls, description: str) -> argparse.ArgumentParser:
-        parser = argparse.ArgumentParser(description=description)
-        parser.add_argument(
-            "-v", "--verbose", action="store_true", help="verbose output"
-        )
-        parser.add_argument(
-            "--debug", action="store_true", help="verbose output"
-        )
-        return parser
 
     def add_hub(self, hub_cls: type[Hub], **kwargs):
         """
@@ -127,25 +115,6 @@ class App(contextlib.ExitStack):
         )
         for hub in self.hubs.values():
             hub.receive(msg)
-
-    def setup_logging(self):
-        """
-        Set up the logging module for this application
-        """
-        FORMAT = "%(levelname)s %(name)s %(message)s"
-        if self.args.debug:
-            log_level = logging.DEBUG
-        elif self.args.verbose:
-            log_level = logging.INFO
-        else:
-            log_level = logging.WARN
-
-        if HAVE_COLOREDLOGS:
-            coloredlogs.install(level=log_level, fmt=FORMAT)
-        else:
-            logging.basicConfig(
-                level=log_level, stream=sys.stderr, format=FORMAT
-            )
 
     def main_init(self):
         """

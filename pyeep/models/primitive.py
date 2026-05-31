@@ -94,6 +94,6 @@ class PrimitiveField:
 def load_primitive(obj: Any) -> Primitive:
     """Deserialize a serialized Primitive object."""
     if not isinstance(obj, dict):
-        raise ValueError("serialized Primitive is not a dict")
+        raise ValueError(f"serialized Primitive {obj!r} is not a dict")
     cls = get_primitive_subclass(obj)
     return cls.model_validate(obj)

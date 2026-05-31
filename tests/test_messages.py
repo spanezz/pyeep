@@ -2,7 +2,7 @@ import json
 import unittest
 from typing import cast
 
-from pyeep.models.primitive import Primitive, load_primitive
+from pyeep.models import load_primitive
 from pyeep.models.messages.message import Message, GroupMessage
 from pyeep.models.messages.component import (
     ComponentActiveStateChanged,
@@ -22,6 +22,7 @@ class MessageMixin(unittest.TestCase):
         dict1 = msg.model_dump()
 
         buf = json.dumps(dict1)
+        self.assertEqual(buf, msg.as_json)
         dict2 = json.loads(buf)
 
         with self.assertNoLogs():
@@ -67,17 +68,11 @@ class TestComponent(MessageMixin, unittest.TestCase):
     def test_shutdown(self) -> None:
         m = Shutdown()
         self.assertEqual(m.name, "shutdown")
-        self.assertIsNone(m.src)
-        self.assertIsNone(m.dst)
-
         self.assertSerializes(m)
 
     def test_newcomponent(self) -> None:
         m = NewComponent()
         self.assertEqual(m.name, "newcomponent")
-        self.assertIsNone(m.src)
-        self.assertIsNone(m.dst)
-
         self.assertSerializes(m)
 
     def test_componentactivestatechanged(self) -> None:

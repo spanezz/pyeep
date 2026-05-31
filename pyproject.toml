@@ -13,6 +13,9 @@ addopts = ["--import-mode=importlib"]
 [tool.black]
 line-length = 80
 
+[tool.pylint.MAIN]
+max-line-length = 80
+
 [tool.mypy]
 # https://mypy.readthedocs.io/en/latest/config_file.html
 mypy_path = "stubs"
