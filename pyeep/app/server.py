@@ -9,27 +9,11 @@ from typing import Callable, Awaitable, override
 from aiohttp import web
 
 from pyeep.app.base import BaseApp
-from pyeep.component.component import BaseComponent, Component
+from pyeep.component.component import Component
 from pyeep.models import load_primitive
 from pyeep.models.messages import Message
 
 log = logging.getLogger(__name__)
-
-
-class Client(BaseComponent):
-    def __init__(self, *, name: str, ws: web.WebSocketResponse) -> None:
-        super().__init__(name=name)
-        self.ws = ws
-
-    @override
-    async def send(self, msg: Message) -> None:
-        raise NotImplementedError(
-            "pyeep.app.appserver.Client.send cannot be called"
-        )
-
-    @override
-    async def receive(self, msg: Message) -> None:
-        await self.ws.send_str(msg.as_json)
 
 
 class PyeepServer(Component):
@@ -47,6 +31,7 @@ class PyeepServer(Component):
                 web.get("/pyeep/{name}", self.messages),
             ]
         )
+        self.clients: dict[str, web.WebSocketResponse] = {}
 
     def write_token(self, path: Path) -> None:
         fd = os.open(
@@ -71,6 +56,13 @@ class PyeepServer(Component):
     async def home(self, request: web.BaseRequest) -> web.Response:
         return web.Response(text="PYEEP")
 
+    async def fanout(self, msg: Message) -> None:
+        """Send a message to all connected clients but the one it comes from."""
+        for name, ws in self.clients.items():
+            if msg.src and msg.src[0] == name:
+                continue
+            await ws.send_str(msg.as_json)
+
     async def messages(self, request: web.BaseRequest) -> web.WebSocketResponse:
         client_name = request.match_info["name"]
         if client_name in self.downstream:
@@ -80,14 +72,14 @@ class PyeepServer(Component):
 
         ws = web.WebSocketResponse()
         await ws.prepare(request)
-        self.downstream[client_name] = Client(name=client_name, ws=ws)
+        self.clients[client_name] = ws = ws
         try:
             async for wsmsg in ws:
                 match wsmsg.type:
                     case web.WSMsgType.text:
                         msg = load_primitive(json.loads(wsmsg.data))
                         if isinstance(msg, Message):
-                            await self.receive(msg)
+                            await self.fanout(msg)
                     case web.WSMsgType.binary:
                         log.warning("received unexpected binary message", wsmsg)
                     case web.WSMsgType.close:
@@ -96,7 +88,7 @@ class PyeepServer(Component):
                         log.error("received unexpected error message", wsmsg)
                         break
         finally:
-            del self.downstream[client_name]
+            del self.clients[client_name]
         return ws
 
     async def run(self) -> None:

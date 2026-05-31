@@ -1,62 +1,131 @@
-import time
-from typing import NamedTuple
+import abc
+import asyncio
+import logging
+import time as tm
+from typing import override, AsyncGenerator
 
 import bleak
 import bleak.backends
 
-from .. import bluetooth
-from ..component.active import SimpleActiveComponent
-from ..component.connected import ConnectedController
-from ..component.controller import ControllerWidget
-from pyeep.gtk import Gtk
-from pyeep.models.messages.message import Message
-from .base import Input, InputController
+# from pyeep.components import Component
+# from pyeep.models.messages.message import Message
+from .messages import Sample, HeartBeat
 
 HEART_RATE_UUID = "00002a37-0000-1000-8000-00805f9b34fb"
+# HEART_RATE_UUID = "0000180d-0000-1000-8000-00805f9b34fb"
+BATTERY_SERVICE_UUID = "0000180f-0000-1000-8000-00805f9b34fb"
 
 
-class Sample(NamedTuple):
-    """
-    Data from a sample reported by the heartbeat monitor
-    """
+class BLEConnection(abc.ABC):
+    """Connect to a Bluetooth LE gadget."""
 
-    # UNIX timestamp in nanoseconds
-    time: int
-    rate: float
-    rr: tuple[float, ...] = ()
+    def __init__(
+        self,
+        *,
+        device: bleak.backends.device.BLEDevice | str,
+        log: logging.Logger,
+    ) -> None:
+        self.device = device
+        self.log = log
+        self.client: bleak.BleakClient | None = None
+        self.event_queue: asyncio.Queue[str] = asyncio.Queue()
+        self.connected_task: asyncio.Task | None = None
+
+    async def connect(self) -> None:
+        """Manage (re)connection to the device."""
+        while True:
+            disconnect = asyncio.Event()
+
+            def _on_disconnect(client: bleak.BleakClient) -> None:
+                disconnect.set()
+
+            self.log.info("(Re)connecting device")
+            try:
+                async with bleak.BleakClient(
+                    self.device, disconnected_callback=_on_disconnect, timeout=5
+                ) as client:
+                    self.log.info("Connected")
+                    self.client = client
+                    await self.event_queue.put("connected")
+                    await disconnect.wait()
+            except TimeoutError as exc:
+                self.log.warning("Cannot connect: %s", exc)
+            finally:
+                self.log.warning("Disconnected")
+                self.client = None
+                await self.event_queue.put("disconnected")
+
+    async def main(self) -> None:
+        """Main handling of the device."""
+        connected_task: asyncio.Task | None = None
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(self.connect())
+            while True:
+                match (evt := await self.event_queue.get()):
+                    case "connected":
+                        connected_task = tg.create_task(self.connected())
+                    case "disconnected":
+                        if connected_task is not None:
+                            connected_task.cancel()
+                        connected_task = None
+                    case _:
+                        self.log.error("unknown event: %r", evt)
+                self.event_queue.task_done()
+
+    @abc.abstractmethod
+    async def connected(self) -> None:
+        """Called on connect, cancelled on disconnect."""
+
+    # async def connect(self):
+    #     """
+    #     Connect to the device, waiting for it to come back in range if not
+    #     reachable
+    #     """
+    #     while not self.client.is_connected:
+    #         self.log.info("(re)connecting device")
+    #         # self._update_connected_state(ConnectedState.CONNECTING)
+    #         try:
+    #             await self.client.connect(timeout=5)
+    #         except bleak.exc.BleakError as e:
+    #             # self._update_connected_state(ConnectedState.DISCONNECTED)
+    #             self.log.warning("Cannot connect: %s", e)
+    #         except TimeoutError as e:
+    #             # self._update_connected_state(ConnectedState.DISCONNECTED)
+    #             self.log.warning("Connect timeout: %s", e)
+    #         else:
+    #             break
+    #         await asyncio.sleep(0.3)
+    #     await self.on_connect()
+    #     self.log.info("connected")
+    #     # self.connect_task = None
 
 
-class HeartBeat(Message):
-    """
-    Heartbeat information notification event
-    """
+class HeartRateMonitor(BLEConnection):
+    """Monitor a Bluetooth LE heart rate monitor."""
 
-    def __init__(self, *, sample: Sample, **kwargs):
-        super().__init__(**kwargs)
-        self.sample = sample
+    def __init__(
+        self,
+        *,
+        device: bleak.backends.device.BLEDevice | str,
+        log: logging.Logger,
+    ) -> None:
+        super().__init__(device=device, log=log)
+        self.sample_queue: asyncio.Queue[Sample] = asyncio.Queue()
 
-    def __str__(self):
-        return super().__str__() + f"(sample={self.sample})"
-
-
-class HeartRateMonitor(
-    SimpleActiveComponent, Input, bluetooth.BluetoothComponent
-):
-    """
-    Monitor a Bluetooth LE heart rate monitor
-    """
-
-    # This has been tested with a Moofit HW401
-
-    def get_controller(self) -> type[InputController]:
-        return HeartRateInputController
-
-    async def on_connect(self):
-        await super().on_connect()
-        # FIXME: is this needed in case of reconnects?
+    @override
+    async def connected(self) -> None:
+        assert self.client is not None
         await self.client.start_notify(HEART_RATE_UUID, self.on_heart_rate)
+        # TODO: also start_notify BATTERY_SERVICE_UUID
+        await asyncio.Event().wait()
 
-    def on_heart_rate(
+    async def samples(self) -> AsyncGenerator[Sample]:
+        while True:
+            sample = await self.sample_queue.get()
+            yield sample
+            self.sample_queue.task_done()
+
+    async def on_heart_rate(
         self,
         characteristic: bleak.backends.characteristic.BleakGATTCharacteristic,
         data: bytearray,
@@ -106,38 +175,16 @@ class HeartRateMonitor(
                 rr.append(rr_val / 1024)
                 i += 2
 
-        sample = Sample(time=time.time_ns(), rate=float(hr), rr=tuple(rr))
-        self.on_sample(sample)
-
-    def on_sample(self, sample: Sample):
-        """
-        Handle a new heart rate sample
-        """
-        if self.active:
-            self.mode(sample=sample)
-
-    def mode_default(self, sample: Sample):
-        self.send(HeartBeat(sample=sample))
+        sample = Sample(time=tm.time_ns(), rate=float(hr), rr=tuple(rr))
+        await self.sample_queue.put(sample)
 
 
-class HeartRateInputController(
-    ConnectedController[HeartRateMonitor], InputController[HeartRateMonitor]
-):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.current_rate = Gtk.Label(label="-- BPM")
-
-    def build(self) -> ControllerWidget:
-        cw = super().build()
-        cw.box.append(self.current_rate)
-        return cw
-
-    def receive(self, msg: Message):
-        if msg.src != self.component:
-            return
-
-        match msg:
-            case HeartBeat():
-                self.current_rate.set_label(f"{msg.sample.rate} BPM")
-            case _:
-                super().receive(msg)
+#    def on_sample(self, sample: Sample):
+#        """
+#        Handle a new heart rate sample
+#        """
+#        if self.active:
+#            self.mode(sample=sample)
+#
+#    def mode_default(self, sample: Sample):
+#        self.send(HeartBeat(sample=sample))

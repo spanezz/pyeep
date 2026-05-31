@@ -99,6 +99,8 @@ class Component(BaseComponent):
         This can be used to check if the message comes from a subcomponent of
         this component.
         """
+        if msg.src is None:
+            return None
         rk = self.routing_key
         if msg.src[: len(rk)] != rk or len(msg.src) <= len(rk):
             return None
@@ -111,6 +113,10 @@ class Component(BaseComponent):
 
     async def route(self, msg: Message) -> None:
         """Route this message to upstream and downstream components."""
+        if msg.src is None:
+            raise ValueError(
+                "Cannot route a message that did not pass through send()"
+            )
         rk = self.routing_key
 
         if msg.src[: len(rk)] == rk:

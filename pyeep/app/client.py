@@ -64,7 +64,7 @@ class PyeepClient(Component):
                             case aiohttp.WSMsgType.TEXT:
                                 msg = load_primitive(json.loads(wsmsg.data))
                                 if isinstance(msg, Message):
-                                    await self.receive(msg)
+                                    await self.route(msg)
                             case aiohttp.WSMsgType.BINARY:
                                 log.warning(
                                     "received unexpected binary message", wsmsg
