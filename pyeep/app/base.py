@@ -1,6 +1,8 @@
+import asyncio
 import abc
 import argparse
-import contextlib
+import functools
+import signal
 import logging
 import time as tm
 from typing import override
@@ -47,13 +49,35 @@ class ColoredLogHandler(logging.Handler):
         )
 
 
-class BaseApp(contextlib.ExitStack):
+class AppEvent:
+    """Base class for events used to control app flow."""
+
+
+class AppShutdownEvent(AppEvent):
+    """App shutdown requested."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+
+    @override
+    def __str__(self) -> str:
+        return self.reason
+
+
+class BaseApp:
     """Base framework for executable commands."""
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, *, name: str) -> None:
+        """
+        Initialize an app.
+
+        :param name: application name (used in logging)
+        """
+        self.name = name
+        self.log = logging.getLogger(f"app.{self.name}")
         parser = self.argparser()
         self.args = parser.parse_args()
+        self.main_event_queue: asyncio.Queue[AppEvent] = asyncio.Queue()
 
     def argparser(
         self, description: str | None = None
@@ -85,32 +109,74 @@ class BaseApp(contextlib.ExitStack):
             level=log_level, handlers=[ColoredLogHandler()], format=FORMAT
         )
 
-    def main_init(self) -> None:
+    def handle_termination_signal(
+        self, signum: signal.Signals
+    ) -> asyncio.Task[None]:
+        """Signal handler for termination signals."""
+
+        async def handler() -> None:
+            reason = f"Signal {signum} ({signum.name}) received"
+            self.log.info("%s", reason)
+            await self.main_event_queue.put(AppShutdownEvent(reason))
+
+        return asyncio.create_task(handler())
+
+    async def main_init(self) -> None:
         """Initialize the application before entering the main loop."""
         self.setup_logging()
+        for signum in signal.SIGINT, signal.SIGTERM:
+            asyncio.get_running_loop().add_signal_handler(
+                signum,
+                functools.partial(self.handle_termination_signal, signum),
+            )
 
     @abc.abstractmethod
-    def main_loop(self) -> None:
+    async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
         """
-        Main loop.
+        Start tasks for the application.
 
-        The application will shut down after this function returns.
+        Start the tasks via the task group; the application will exit when the
+        task group exists.
         """
 
-    def main_shutdown(self) -> None:
+    async def main_shutdown_requested(self) -> None:
+        """Callen when an app shutdown has been requested."""
+
+    async def main_shutdown(self) -> None:
         """Shut down the application."""
 
-    def main(self) -> None:
+    async def main(self) -> None:
         """Main entry point for the application."""
-        with self:
-            self.main_init()
-            try:
-                self.main_loop()
-            finally:
-                self.main_shutdown()
+
+        class Shutdown(Exception):
+            """Shutdown has been requested."""
+
+        await self.main_init()
+        try:
+            async with asyncio.TaskGroup() as tg:
+                await self.start_main_tasks(tg)
+                while True:
+                    evt = await self.main_event_queue.get()
+                    self.log.debug("App event: %s", evt)
+                    match evt:
+                        case AppShutdownEvent():
+                            await self.main_shutdown_requested()
+                            # Raise an exception instead of breaking out of the
+                            # while, so that tasks in tg are cancelled
+                            self.main_event_queue.task_done()
+                            raise Shutdown(str(evt))
+                        case _:
+                            self.log.warning(
+                                "Received unsupported app event: %s", evt
+                            )
+                    self.main_event_queue.task_done()
+        except* Shutdown as exc:
+            self.log.info("App shutdown: %s", exc.exceptions[0])
+        finally:
+            await self.main_shutdown()
 
     @classmethod
     def run(cls) -> None:
         """Instantiate and run the app."""
         app = cls()
-        app.main()
+        asyncio.run(app.main())

@@ -14,7 +14,7 @@ class DumpMessages(Component):
 
     @override
     async def receive(self, msg: Message) -> None:
-        self.console.print(str(msg), highlight=False)
+        self.console.print("Received:", str(msg), highlight=False)
 
 
 class Inspector(ClientApp):

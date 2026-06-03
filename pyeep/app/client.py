@@ -7,7 +7,7 @@ from typing import override
 
 import aiohttp
 
-from pyeep.app.base import BaseApp
+from pyeep.app.base import BaseApp, AppShutdownEvent
 from pyeep.component.component import Component
 from pyeep.models import load_primitive
 from pyeep.models.messages import Message
@@ -65,27 +65,23 @@ class PyeepClient(Component):
                                 msg = load_primitive(json.loads(wsmsg.data))
                                 if isinstance(msg, Message):
                                     await self.route(msg)
-                            case aiohttp.WSMsgType.BINARY:
-                                log.warning(
-                                    "received unexpected binary message", wsmsg
-                                )
                             case aiohttp.WSMsgType.CLOSE:
                                 break
-                            case aiohttp.WSMsgType.ERROR:
+                            case _:
                                 log.error(
-                                    "received unexpected error message", wsmsg
+                                    "received unexpected %s message %r",
+                                    wsmsg.type,
+                                    wsmsg,
                                 )
-                                break
                 finally:
                     self.ws = None
 
 
 class ClientApp(BaseApp):
-    """Pyeep main coordination app."""
+    """Base for pyeep client apps."""
 
-    def __init__(self, name: str = "client") -> None:
-        super().__init__()
-        self.name = name
+    def __init__(self, *, name: str) -> None:
+        super().__init__(name=name)
         self.webclient = PyeepClient(
             name=name,
             host=self.args.host,
@@ -115,17 +111,13 @@ class ClientApp(BaseApp):
         )
         return parser
 
-    @override
-    def main_loop(self) -> None:
-        """
-        Main loop.
+    async def client_task(self) -> None:
+        await self.webclient.connect()
+        await self.main_event_queue.put(AppShutdownEvent("Server disconnected"))
 
-        The application will shut down after this function returns.
-        """
-        try:
-            asyncio.run(self.webclient.connect())
-        except KeyboardInterrupt:
-            pass
+    @override
+    async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
+        tg.create_task(self.client_task())
 
 
 if __name__ == "__main__":

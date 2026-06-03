@@ -12,6 +12,7 @@ from pyeep.app.base import BaseApp
 from pyeep.component.component import Component
 from pyeep.models import load_primitive
 from pyeep.models.messages import Message
+from pyeep.models.messages.component import Shutdown
 
 log = logging.getLogger(__name__)
 
@@ -91,6 +92,32 @@ class PyeepServer(Component):
             del self.clients[client_name]
         return ws
 
+    async def shutdown_requested(self) -> None:
+        """Close client websockets when a shutdown has been requested."""
+        # Send a shutdown message to each connected client
+        shutdown_msg = Shutdown(src=())
+        try:
+            await asyncio.wait(
+                [
+                    asyncio.create_task(ws.send_str(shutdown_msg.as_json))
+                    for ws in self.clients.values()
+                ],
+                timeout=2,
+            )
+        except TimeoutError:
+            self.log.warning("timed out when sending shutdown signals")
+        # Close the websockets for all clients
+        try:
+            await asyncio.wait(
+                [
+                    asyncio.create_task(ws.close())
+                    for ws in self.clients.values()
+                ],
+                timeout=2,
+            )
+        except TimeoutError:
+            self.log.warning("timed out when closing websocket connections")
+
     async def run(self) -> None:
         runner = web.AppRunner(self.webapp)
         await runner.setup()
@@ -112,31 +139,31 @@ class App(BaseApp):
     """Pyeep main coordination app."""
 
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__(name="hub")
         self.webapp = PyeepServer()
         self.web_token_path = Path(".webtoken")
 
     @override
-    def main_init(self) -> None:
-        super().main_init()
+    async def main_init(self) -> None:
+        await super().main_init()
         self.webapp.write_token(self.web_token_path)
 
     @override
-    def main_loop(self) -> None:
-        """
-        Main loop.
-
-        The application will shut down after this function returns.
-        """
-        try:
-            asyncio.run(self.webapp.run())
-        except KeyboardInterrupt:
-            pass
+    async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
+        tg.create_task(self.webapp.run())
 
     @override
-    def main_shutdown(self) -> None:
+    async def main_shutdown_requested(self) -> None:
+        await super().main_shutdown_requested()
+        try:
+            await self.webapp.shutdown_requested()
+        except Exception as e:
+            log.error("Failed to shut down clients cleanly: %s", e, exc_info=e)
+
+    @override
+    async def main_shutdown(self) -> None:
         self.web_token_path.unlink(missing_ok=True)
-        super().main_shutdown()
+        await super().main_shutdown()
 
 
 if __name__ == "__main__":
