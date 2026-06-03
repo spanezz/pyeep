@@ -1,5 +1,7 @@
 import asyncio
 import cmd
+import os
+import signal
 import threading
 from typing import override
 
@@ -16,6 +18,10 @@ class EventsComponent(Component):
     pass
 
 
+class RemoteQuit(Exception):
+    """Exception raised when the remote has quit."""
+
+
 class EventsCli(cmd.Cmd):
     def __init__(self):
         super().__init__()
@@ -26,15 +32,26 @@ class EventsCli(cmd.Cmd):
         self.app_thread: threading.Thread | None = None
         self.loop: asyncio.EventLoop | None = None
         self.loop_available = threading.Event()
+        #: Set to True when the user explicitly asked to quit
+        self.pid = os.getpid()
+        self.quit_requested: bool = False
+        signal.signal(signal.SIGTERM, self.on_sigterm)
+
+    def on_sigterm(self, signal: signal.Signals, frame) -> None:
+        raise RemoteQuit()
 
     async def async_app_thread(self) -> None:
         self.loop = asyncio.get_running_loop()
         self.loop_available.set()
         await self.app.main()
-        try:
-            await asyncio.wait(asyncio.all_tasks(), timeout=3)
-        except TimeoutError:
-            self.log.error("Timed out waiting for leftover tasks to finish")
+        current_task = asyncio.current_task()
+        if pending_tasks := [
+            t for t in asyncio.all_tasks() if t != current_task
+        ]:
+            try:
+                await asyncio.wait(pending_tasks, timeout=3)
+            except TimeoutError:
+                self.log.error("Timed out waiting for leftover tasks to finish")
         self.loop = None
         self.app_thread = None
 
@@ -43,6 +60,11 @@ class EventsCli(cmd.Cmd):
             asyncio.run(self.async_app_thread())
         except Exception as e:
             self.log.error("Exception in async thread: %s", e, exc_info=e)
+        if not self.quit_requested:
+            self.log.info(
+                "Remote closed the connection, sending SIGTERM to the main thread"
+            )
+            os.kill(self.pid, signal.SIGTERM)
 
     def notify_app(self, event: AppEvent) -> None:
         if self.loop is None:
@@ -67,15 +89,19 @@ class EventsCli(cmd.Cmd):
         self.loop_available.wait()
         try:
             self.cmdloop()
+        except RemoteQuit:
+            pass
         finally:
             if self.app_thread is not None:
                 self.notify_app(AppShutdownEvent("User quit"))
                 self.app_thread.join()
 
     def do_quit(self, arg) -> None:
+        self.quit_requested = True
         return True
 
     def do_EOF(self, arg) -> None:
+        self.quit_requested = True
         return True
 
     def do_power(self, arg) -> None:
