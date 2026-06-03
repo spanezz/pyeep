@@ -80,8 +80,10 @@ class PyeepClient(Component):
 class ClientApp(BaseApp):
     """Base for pyeep client apps."""
 
-    def __init__(self, *, name: str) -> None:
-        super().__init__(name=name)
+    def __init__(
+        self, *, name: str, handle_sigterm_sigint: bool = True
+    ) -> None:
+        super().__init__(name=name, handle_sigterm_sigint=handle_sigterm_sigint)
         self.webclient = PyeepClient(
             name=name,
             host=self.args.host,

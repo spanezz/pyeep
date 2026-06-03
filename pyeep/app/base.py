@@ -67,7 +67,9 @@ class AppShutdownEvent(AppEvent):
 class BaseApp:
     """Base framework for executable commands."""
 
-    def __init__(self, *, name: str) -> None:
+    def __init__(
+        self, *, name: str, handle_sigterm_sigint: bool = True
+    ) -> None:
         """
         Initialize an app.
 
@@ -75,6 +77,7 @@ class BaseApp:
         """
         self.name = name
         self.log = logging.getLogger(f"app.{self.name}")
+        self.handle_sigterm_sigint = handle_sigterm_sigint
         parser = self.argparser()
         self.args = parser.parse_args()
         self.main_event_queue: asyncio.Queue[AppEvent] = asyncio.Queue()
@@ -124,11 +127,12 @@ class BaseApp:
     async def main_init(self) -> None:
         """Initialize the application before entering the main loop."""
         self.setup_logging()
-        for signum in signal.SIGINT, signal.SIGTERM:
-            asyncio.get_running_loop().add_signal_handler(
-                signum,
-                functools.partial(self.handle_termination_signal, signum),
-            )
+        if self.handle_sigterm_sigint:
+            for signum in signal.SIGINT, signal.SIGTERM:
+                asyncio.get_running_loop().add_signal_handler(
+                    signum,
+                    functools.partial(self.handle_termination_signal, signum),
+                )
 
     @abc.abstractmethod
     async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
