@@ -6,10 +6,10 @@ from typing import override
 import rich
 
 from pyeep.app.client import ClientApp
-from pyeep.models.messages import Message
 from .messages import HeartBeat
 
 from .heartrate import HeartRateMonitor
+from .scene_heartbeat import SceneHeartbeat
 
 
 class Heartrate(ClientApp):
@@ -22,6 +22,9 @@ class Heartrate(ClientApp):
         self.monitor = HeartRateMonitor(
             device=self.args.addr, log=logging.getLogger(f"{self.name}.ble")
         )
+        # TODO: move to a scene manager
+        self.scene_heartbeat = SceneHeartbeat()
+        self.add_component(self.scene_heartbeat)
 
     def argparser(
         self, description: str | None = None
@@ -41,6 +44,7 @@ class Heartrate(ClientApp):
     async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
         await super().start_main_tasks(tg)
         tg.create_task(self.monitor.main())
+        tg.create_task(self.scene_heartbeat.tick())
         tg.create_task(self.send_beats())
 
 
