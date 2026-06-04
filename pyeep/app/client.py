@@ -16,23 +16,43 @@ from pyeep.models.messages.component import NewComponent
 log = logging.getLogger(__name__)
 
 
-class PyeepClient(Component):
-    """Connect to a Pyeep HTTP server."""
+class ClientApp(BaseApp, Component):
+    """Base for pyeep client apps."""
 
     def __init__(
-        self,
-        *,
-        name: str,
-        host: str = "localhost",
-        port: int = 8001,
-        token_file: Path = Path(".webtoken"),
+        self, *, name: str, handle_sigterm_sigint: bool = True
     ) -> None:
-        super().__init__(name=name)
-        self.host = host
-        self.port = port
+        BaseApp.__init__(
+            self, name=name, handle_sigterm_sigint=handle_sigterm_sigint
+        )
+        Component.__init__(self, name=name)
+        self.host = self.args.host
+        self.port = self.args.port
         self.baseurl = f"http://{self.host}:{self.port}"
-        self.token = token_file.read_text()
+        self.token = self.args.token.read_text()
         self.ws: aiohttp.ClientWebSocketResponse | None = None
+
+    def argparser(
+        self, description: str | None = None
+    ) -> argparse.ArgumentParser:
+        parser = super().argparser(description)
+        parser.add_argument(
+            "--host", "-H", default="localhost", help="HTTP host to connect to"
+        )
+        parser.add_argument(
+            "--port",
+            "-P",
+            type=int,
+            default=8001,
+            help="HTTP port to connect to",
+        )
+        parser.add_argument(
+            "--token",
+            type=Path,
+            default=Path(".webtoken"),
+            help="file with the authentication token",
+        )
+        return parser
 
     @override
     async def route_up(self, msg: Message) -> None:
@@ -41,6 +61,7 @@ class PyeepClient(Component):
         await self.ws.send_str(msg.as_json)
 
     async def connect(self) -> None:
+        """Connect to the server and handle message traffic."""
         async with aiohttp.ClientSession(
             cookies={"Token": self.token}
         ) as session:
@@ -76,45 +97,8 @@ class PyeepClient(Component):
                 finally:
                     self.ws = None
 
-
-class ClientApp(BaseApp):
-    """Base for pyeep client apps."""
-
-    def __init__(
-        self, *, name: str, handle_sigterm_sigint: bool = True
-    ) -> None:
-        super().__init__(name=name, handle_sigterm_sigint=handle_sigterm_sigint)
-        self.webclient = PyeepClient(
-            name=name,
-            host=self.args.host,
-            port=self.args.port,
-            token_file=self.args.token,
-        )
-
-    def argparser(
-        self, description: str | None = None
-    ) -> argparse.ArgumentParser:
-        parser = super().argparser(description)
-        parser.add_argument(
-            "--host", "-H", default="localhost", help="HTTP host to connect to"
-        )
-        parser.add_argument(
-            "--port",
-            "-P",
-            type=int,
-            default=8001,
-            help="HTTP port to connect to",
-        )
-        parser.add_argument(
-            "--token",
-            type=Path,
-            default=Path(".webtoken"),
-            help="file with the authentication token",
-        )
-        return parser
-
     async def client_task(self) -> None:
-        await self.webclient.connect()
+        await self.connect()
         await self.main_event_queue.put(AppShutdownEvent("Server disconnected"))
 
     @override
