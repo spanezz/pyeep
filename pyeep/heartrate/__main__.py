@@ -6,7 +6,6 @@ from typing import override
 import rich
 
 from pyeep.app.client import ClientApp
-from pyeep.component.component import Component
 from pyeep.models.messages import Message
 from .messages import HeartBeat
 
@@ -15,6 +14,14 @@ from .heartrate import HeartRateMonitor
 
 class Heartrate(ClientApp):
     """Inspect the pyeep system."""
+
+    def __init__(self, *, handle_sigterm_sigint: bool = True) -> None:
+        super().__init__(
+            name="heartrate", handle_sigterm_sigint=handle_sigterm_sigint
+        )
+        self.monitor = HeartRateMonitor(
+            device=self.args.addr, log=logging.getLogger(f"{self.name}.ble")
+        )
 
     def argparser(
         self, description: str | None = None
@@ -25,27 +32,17 @@ class Heartrate(ClientApp):
         )
         return parser
 
-    async def async_main(self) -> None:
-        monitor = HeartRateMonitor(
-            device=self.args.addr, log=logging.getLogger("heartrate")
-        )
-        async with asyncio.TaskGroup() as tg:
-            tg.create_task(self.webclient.connect())
-            tg.create_task(monitor.main())
-            async for sample in monitor.samples():
-                await self.webclient.send(HeartBeat(sample=sample))
+    async def send_beats(self) -> None:
+        async for sample in self.monitor.samples():
+            print("Sample", sample)
+            await self.send(HeartBeat(sample=sample))
 
     @override
-    def main_loop(self) -> None:
-        """
-        Main loop.
-
-        The application will shut down after this function returns.
-        """
-        try:
-            asyncio.run(self.async_main())
-        except KeyboardInterrupt:
-            pass
+    async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
+        await super().start_main_tasks(tg)
+        tg.create_task(self.monitor.main())
+        tg.create_task(self.send_beats())
 
 
-Heartrate.run()
+if __name__ == "__main__":
+    Heartrate.run()
