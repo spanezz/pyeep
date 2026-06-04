@@ -43,7 +43,7 @@ class Color(pydantic.BaseModel):
         )
 
     def __mul__(self, value: float) -> Self:
-        if not isinstance(value, float):
+        if not isinstance(value, (float, int)):
             return NotImplemented
 
         return self.__class__(

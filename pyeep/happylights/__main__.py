@@ -11,6 +11,7 @@ from pyeep.app.sync import SyncClientApp
 from pyeep.models.color import Color
 from pyeep.models.messages import Message
 from pyeep.happylights.happylights import HappyLights
+from pyeep.models.messages.color import SetGroupColor
 
 
 class LightsApp(ClientApp):
@@ -35,7 +36,21 @@ class LightsApp(ClientApp):
 
     @override
     async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
+        await super().start_main_tasks(tg)
         tg.create_task(self.lights.main())
+
+    @override
+    async def receive(self, msg: Message) -> None:
+        print("RECV", msg)
+        match msg:
+            case SetGroupColor():
+                print("SGC")
+                # TODO: actual animator support
+                # TODO: match group
+                await self.lights.set_color(Color(red=0.5, green=0, blue=0))
+                await self.lights.set_brightness(1.0)
+                await asyncio.sleep(0.3)
+                await self.lights.set_brightness(0)
 
 
 class LightsCli(SyncClientApp, cmd.Cmd):
