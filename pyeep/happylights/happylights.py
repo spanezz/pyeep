@@ -27,18 +27,6 @@ class HappyLights(BLEConnection):
     protocol.
     """
 
-    def __init__(
-        self,
-        *,
-        device: bleak.backends.device.BLEDevice | str,
-        log: logging.Logger,
-    ) -> None:
-        super().__init__(device=device, log=log)
-        #: Currently set color
-        self.color = Color(red=0, green=0, blue=0)
-        #: Currently set brightness
-        self.brightness: float = 1.0
-
     @override
     async def connected(self) -> None:
         assert self.client is not None
@@ -47,18 +35,9 @@ class HappyLights(BLEConnection):
         # Nothing else to do while connected
         await asyncio.Event().wait()
 
-    async def set_color(self, value: Color) -> None:
-        self.color = value
-        await self.update()
-
-    async def set_brightness(self, value: float) -> None:
-        self.brightness = value
-        await self.update()
-
-    async def update(self) -> None:
+    async def set_color(self, color: Color) -> None:
         if self.client is None:
             return
-        color = self.color * self.brightness
         cmd = self.cmd_color(
             int(round(color.red * 255)),
             int(round(color.green * 255)),
