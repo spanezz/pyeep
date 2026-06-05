@@ -1,0 +1,18 @@
+session_name: pyeep-heartbeat
+windows:
+  - window_name: Main
+    layout: even-vertical
+    shell_command_before:
+      - cd ~/dev/pyeep/
+    panes:
+      - python3 -m pyeep.app.server -v
+      - python3 -m pyeep.app.inspector -v
+      - 
+      - shell_command: python3 -m pyeep.app.eventscli -v
+        focus: true
+      # CYCPLUS H1
+      # - python3 -m pyeep.heartrate -v --addr F9:EC:3D:7A:10:C2
+      # Moofit
+      # - python3 -m pyeep.heartrate -v --addr CD:E3:36:F6:BB:74
+      # - python3 -m pyeep.happylights -v -a 21:04:99:10:35:05
+      - python3 -m pyeep.happylights -v
