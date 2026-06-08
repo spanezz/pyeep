@@ -74,7 +74,7 @@ class LightsApp(ClientApp):
             await self.lights.set_color(Color(red=0.5, green=0, blue=0))
             await asyncio.sleep(0.3)
             await self.lights.set_color(Color(red=0, green=0, blue=0))
-        await self.cmd.term_print(f"Color set to {color}.", style=str(color))
+        await self.cmd.term.print(f"Color set to {color}.", style=str(color))
 
 
 if __name__ == "__main__":

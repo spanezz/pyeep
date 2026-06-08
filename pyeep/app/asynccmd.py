@@ -11,7 +11,7 @@ from prompt_toolkit.layout import containers
 from prompt_toolkit.layout import controls
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.styles import Style
-from prompt_toolkit import widgets
+from prompt_toolkit import widgets, application
 
 
 class AsyncCmdQuit(BaseException):
@@ -108,16 +108,28 @@ class PromptSessionAsyncCmd(AsyncCmd):
         print(message)
 
 
+class MessagesControl(controls.FormattedTextControl):
+    def __init__(self) -> None:
+        super().__init__()
+        self.term_text: list[tuple[str, str]] = []
+
+    async def print(self, line: str, style: str = "#dddddd", end="\n") -> None:
+        self.term_text += [(style, line + end)]
+        # TODO: clip to the actual term window height
+        # TODO: or clip to the screen height if we cannot get the term window
+        #       height
+        self.term_text = self.term_text[-50:]
+        self.text = self.term_text + [("[SetCursorPosition]", "")]
+        if app := application.current.get_app_or_none():
+            app.invalidate()
+
+
 class ApplicationAsyncCmd(AsyncCmd):
     """Concrete AsyncCmd based on Application."""
 
     def __init__(self) -> None:
         super().__init__()
-        self.term_text: list[tuple[str, str]] = []
-        self.term = controls.FormattedTextControl(
-            style="class:output-field",
-            text=[("#ff00ff", "Welcome.\n")],
-        )
+        self.term = MessagesControl()
         self.term_window = containers.Window(content=self.term)
         self.cmdline = widgets.TextArea(
             height=1,
@@ -163,7 +175,7 @@ class ApplicationAsyncCmd(AsyncCmd):
         )
 
     async def accept_line_async(self, line: str) -> None:
-        await self.term_print(f"> {line}")
+        await self.term.print(f"> {line}")
 
         try:
             await self.handle_line(line)
@@ -176,23 +188,13 @@ class ApplicationAsyncCmd(AsyncCmd):
         )
         return False
 
-    async def term_print(
-        self, message: str, style: str = "#dddddd", end="\n"
-    ) -> None:
-        self.term_text += [(style, message + end)]
-        # TODO: clip to the actual term window height
-        # TODO: or clip to the screen height if we cannot get the term window
-        #       height
-        self.term_text = self.term_text[-50:]
-        self.term.text = self.term_text + [("[SetCursorPosition]", "")]
-
     @override
     async def prompt_user(self) -> str:
         raise NotImplementedError("Prompting is done in another way")
 
     @override
     async def print_error(self, message: str) -> None:
-        await self.term_print(message, style="#ff0000")
+        await self.term.print(message, style="#ff0000")
 
     @override
     async def async_cmdloop(self) -> None:
