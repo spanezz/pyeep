@@ -1,21 +1,28 @@
-from __future__ import annotations
-
+import asyncio
 import unittest
 from unittest import mock
+from typing import override
 
-import pyeep.app
-
-
-class MockNamespace:
-    debug = False
-    verbose = False
+from pyeep.app.base import BaseApp, AppShutdownEvent
 
 
-class TestApp(unittest.TestCase):
-    def test_app(self):
-        app = pyeep.app.App(args=MockNamespace())
-        with app:
-            with mock.patch(
-                "pyeep.app.app.App._next_command", side_effect=KeyboardInterrupt
-            ):
-                app.main()
+class ConcreteBaseApp(BaseApp):
+    """Concrete version of BaseApp."""
+
+    @override
+    async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
+        pass
+
+
+class TestApp(unittest.IsolatedAsyncioTestCase):
+    async def test_app_shutdown(self):
+        self.enterContext(mock.patch("sys.argv", ["concretebaseapp"]))
+        app = ConcreteBaseApp(name="test", handle_sigterm_sigint=False)
+        with self.assertLogs(logger=app.log, level="INFO") as lg:
+            async with asyncio.TaskGroup() as tg:
+                tg.create_task(app.main())
+                await app.main_event_queue.put(AppShutdownEvent("testing quit"))
+
+        self.assertEqual(
+            lg.output, ["INFO:app.test:App shutdown: testing quit"]
+        )

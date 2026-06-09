@@ -64,7 +64,7 @@ class AppShutdownEvent(AppEvent):
         return self.reason
 
 
-class BaseApp:
+class BaseApp(abc.ABC):
     """Base framework for executable commands."""
 
     def __init__(

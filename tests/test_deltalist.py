@@ -1,8 +1,6 @@
-from __future__ import annotations
-
 import unittest
 
-from pyeep.deltalist import DeltaList, Event
+from pyeep.utils.deltalist import DeltaList, Event
 
 
 class TestEvent(Event):

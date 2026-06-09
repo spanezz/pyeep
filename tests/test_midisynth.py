@@ -1,8 +1,6 @@
-from __future__ import annotations
-
 import unittest
 
-from pyeep.midisynth import Envelope, EnvelopeShape
+from pyeep.midisynth.synth import Envelope, EnvelopeShape
 
 
 class TestEnvelope(unittest.TestCase):

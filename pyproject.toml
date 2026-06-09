@@ -7,8 +7,9 @@ name = "pyeep"
 dynamic = ["version"]
 requires-python = ">= 3.13"
 
-[pytest]
-addopts = ["--import-mode=importlib"]
+[tool.pytest.ini_options]
+# addopts = ["--import-mode=importlib", "--ignore=doc"]
+addopts = ["--ignore=doc"]
 
 [tool.black]
 line-length = 80
