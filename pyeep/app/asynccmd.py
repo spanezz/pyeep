@@ -1,6 +1,7 @@
 import asyncio
 import abc
-from typing import override
+import inspect
+from typing import override, Callable
 
 from prompt_toolkit import PromptSession, Application
 from prompt_toolkit.completion import WordCompleter
@@ -13,6 +14,9 @@ from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.styles import Style
 from prompt_toolkit import widgets, application
 
+from pyeep.app.base import AppShutdownEvent
+from pyeep.app.client import ClientApp
+
 
 class AsyncCmdQuit(BaseException):
     """Exception raised when the Cmd should quit."""
@@ -21,13 +25,27 @@ class AsyncCmdQuit(BaseException):
 class AsyncCmd(abc.ABC):
     """Interactive shell."""
 
-    def __init__(self) -> None:
+    def __init__(self, handler_object: object | None = None) -> None:
+        """
+        Initialize an AsyncCmd.
+
+        :param handler_object: object that will be used to lookup cmd_* methods.
+          Defaults to ``self``
+        """
         #: Default prompt
         self.prompt: str = "> "
-        #: Commands defined as do_* methods in the class
-        self.commands: list[str] = [
-            name[3:] for name in dir(self.__class__) if name.startswith("do_")
-        ]
+        #: Object that contains the cmd_* methods
+        self.handler_object = (
+            handler_object if handler_object is not None else self
+        )
+        #: Commands defined as cmd_* methods in the class
+        self.commands: dict[str, Callable[[str], None]] = {
+            name[4:]: handler
+            for name, handler in inspect.getmembers(
+                self.handler_object, inspect.iscoroutinefunction
+            )
+            if name.startswith("cmd_")
+        }
 
     @abc.abstractmethod
     async def prompt_user(self) -> str:
@@ -47,7 +65,7 @@ class AsyncCmd(abc.ABC):
         return self.prompt
 
     async def default(self, command: str, args: str | None) -> None:
-        """Handle commands that do not have a ``do_*`` method."""
+        """Handle commands that do not have a ``cmd_*`` method."""
         await self.print_error(f"*** Unknown command: {command}")
 
     async def handle_eof(self) -> None:
@@ -67,7 +85,7 @@ class AsyncCmd(abc.ABC):
         else:
             args = parts[1]
 
-        if (handler := getattr(self, f"do_{command}", None)) is None:
+        if (handler := self.commands.get(command)) is None:
             await self.default(command, args)
         else:
             try:
@@ -95,7 +113,7 @@ class PromptSessionAsyncCmd(AsyncCmd):
     def __init__(self) -> None:
         super().__init__()
         self.session: PromptSession[str] = PromptSession(
-            completer=WordCompleter(self.commands)
+            completer=WordCompleter(self.commands.keys())
         )
 
     @override
@@ -109,6 +127,8 @@ class PromptSessionAsyncCmd(AsyncCmd):
 
 
 class MessagesControl(controls.FormattedTextControl):
+    """Display a scrolling line-based list of messages."""
+
     def __init__(self) -> None:
         super().__init__()
         self.term_text: list[tuple[str, str]] = []
@@ -127,8 +147,13 @@ class MessagesControl(controls.FormattedTextControl):
 class ApplicationAsyncCmd(AsyncCmd):
     """Concrete AsyncCmd based on Application."""
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, handler_object: object | None = None) -> None:
+        """
+        Initialize an ApplicationAsyncCmd.
+
+        :param handler_object: object that will be used to lookup cmd_* methods
+        """
+        super().__init__(handler_object=handler_object)
         self.term = MessagesControl()
         self.term_window = containers.Window(content=self.term)
         self.cmdline = widgets.TextArea(
@@ -137,7 +162,7 @@ class ApplicationAsyncCmd(AsyncCmd):
             style="class:input-field",
             multiline=False,
             wrap_lines=False,
-            completer=WordCompleter(self.commands),
+            completer=WordCompleter(self.commands.keys()),
         )
         self.cmdline.accept_handler = self.accept_line
         root_container = containers.HSplit(
@@ -160,9 +185,7 @@ class ApplicationAsyncCmd(AsyncCmd):
 
         style = Style(
             [
-                ("output-field", "bg:#000044 #ffffff"),
                 ("input-field", "bg:#000000 #ffffff"),
-                ("line", "#004400"),
             ]
         )
 
@@ -199,3 +222,39 @@ class ApplicationAsyncCmd(AsyncCmd):
     @override
     async def async_cmdloop(self) -> None:
         await self.application.run_async()
+
+
+class ApplicationAsyncCmdClientApp(ClientApp):
+    """Client App with an ApplicationAsyncCmd interface."""
+
+    def __init__(
+        self, *, name: str, handle_sigterm_sigint: bool = True
+    ) -> None:
+        super().__init__(name=name, handle_sigterm_sigint=handle_sigterm_sigint)
+        self.interface = ApplicationAsyncCmd(handler_object=self)
+
+    async def main_cmd_task(self) -> None:
+        await self.cmd_help("")
+        await self.interface.async_cmdloop()
+        await self.main_event_queue.put(AppShutdownEvent("User quit"))
+
+    @override
+    async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
+        await super().start_main_tasks(tg)
+        tg.create_task(self.main_cmd_task())
+
+    async def cmd_quit(self, arg) -> None:
+        """Quit the program."""
+        raise AsyncCmdQuit()
+
+    async def cmd_help(self, arg) -> None:
+        """Show available commands."""
+        await self.interface.term.print(
+            f"Welcome to {self.name}. Commands available:", end="\n\n"
+        )
+        for name, handler in sorted(self.interface.commands.items()):
+            if handler.__doc__ is None:
+                summary = "Description not available."
+            else:
+                summary = handler.__doc__.strip().split("\n", 1)[0].strip()
+            await self.interface.term.print(f"* {name}: {summary}")

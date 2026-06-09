@@ -3,31 +3,14 @@ import argparse
 import logging
 from typing import override
 
-from pyeep.app.asynccmd import ApplicationAsyncCmd, AsyncCmdQuit
-from pyeep.app.base import AppShutdownEvent
-from pyeep.app.client import ClientApp
+from pyeep.app.asynccmd import AsyncCmdQuit, ApplicationAsyncCmdClientApp
 from pyeep.models.color import Color
 from pyeep.models.messages import Message
 from pyeep.happylights.happylights import HappyLights
 from pyeep.models.messages.color import SetGroupColor
 
 
-class LightsCmd(ApplicationAsyncCmd):
-    """Interactive lights control."""
-
-    def __init__(self, lights_app: "LightsApp") -> None:
-        super().__init__()
-        self.lights_app = lights_app
-
-    async def do_quit(self, arg) -> None:
-        raise AsyncCmdQuit()
-
-    async def do_color(self, arg) -> None:
-        r, g, b = [float(a) for a in arg.split()]
-        await self.lights_app.set_color(Color(red=r, green=g, blue=b))
-
-
-class LightsApp(ClientApp):
+class LightsApp(ApplicationAsyncCmdClientApp):
     """Control a happylights bluetooth light source."""
 
     def __init__(
@@ -39,7 +22,6 @@ class LightsApp(ClientApp):
             self.lights = HappyLights(
                 device=self.args.addr, log=logging.getLogger(f"{self.name}.ble")
             )
-        self.cmd = LightsCmd(self)
 
     def argparser(
         self, description: str | None = None
@@ -50,16 +32,11 @@ class LightsApp(ClientApp):
         )
         return parser
 
-    async def cmd_task(self) -> None:
-        await self.cmd.async_cmdloop()
-        await self.main_event_queue.put(AppShutdownEvent("User quit"))
-
     @override
     async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
         await super().start_main_tasks(tg)
         if self.lights is not None:
             tg.create_task(self.lights.main())
-        tg.create_task(self.cmd_task())
 
     @override
     async def receive(self, msg: Message) -> None:
@@ -74,7 +51,14 @@ class LightsApp(ClientApp):
             await self.lights.set_color(Color(red=0.5, green=0, blue=0))
             await asyncio.sleep(0.3)
             await self.lights.set_color(Color(red=0, green=0, blue=0))
-        await self.cmd.term.print(f"Color set to {color}.", style=str(color))
+        await self.interface.term.print(
+            f"Color set to {color}.", style=str(color)
+        )
+
+    async def cmd_color(self, arg) -> None:
+        """Set the color to float r g b values."""
+        r, g, b = [float(a) for a in arg.split()]
+        await self.set_color(Color(red=r, green=g, blue=b))
 
 
 if __name__ == "__main__":
