@@ -51,12 +51,16 @@ class LightsApp(ApplicationAsyncCmdClientApp):
             await self.lights.set_color(Color(red=0.5, green=0, blue=0))
             await asyncio.sleep(0.3)
             await self.lights.set_color(Color(red=0, green=0, blue=0))
-        await self.interface.term.print(
-            f"Color set to {color}.", style=str(color)
-        )
+        self.interface.term.add_line([(str(color), f"Color set to {color}.")])
 
     async def cmd_color(self, arg) -> None:
-        """Set the color to float r g b values."""
+        """
+        Set the color to float r g b values.
+
+        Example:
+
+          color 1 0.5 0
+        """
         r, g, b = [float(a) for a in arg.split()]
         await self.set_color(Color(red=r, green=g, blue=b))
 

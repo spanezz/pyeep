@@ -1,6 +1,8 @@
 import asyncio
 import abc
 import inspect
+import logging
+import time as tm
 from typing import override, Callable
 
 from prompt_toolkit import PromptSession, Application
@@ -131,15 +133,20 @@ class MessagesControl(controls.FormattedTextControl):
 
     def __init__(self) -> None:
         super().__init__()
-        self.term_text: list[tuple[str, str]] = []
+        self.term_lines: list[list[tuple[str, str]]] = []
 
-    async def print(self, line: str, style: str = "#dddddd", end="\n") -> None:
-        self.term_text += [(style, line + end)]
+    def add_line(self, line: list[tuple[str, str]]) -> None:
+        self.term_lines.append(line)
         # TODO: clip to the actual term window height
         # TODO: or clip to the screen height if we cannot get the term window
         #       height
-        self.term_text = self.term_text[-50:]
-        self.text = self.term_text + [("[SetCursorPosition]", "")]
+        self.term_lines = self.term_lines[-50:]
+        contents: list[tuple[str, str]] = []
+        for line in self.term_lines:
+            contents.extend(line)
+            contents.append(("", "\n"))
+        contents.append(("[SetCursorPosition]", ""))
+        self.text = contents
         if app := application.current.get_app_or_none():
             app.invalidate()
 
@@ -186,6 +193,16 @@ class ApplicationAsyncCmd(AsyncCmd):
         style = Style(
             [
                 ("input-field", "bg:#000000 #ffffff"),
+                ("error", "#dd0000"),
+                ("log-time", "#7777ff"),
+                ("log-path", "#bbbbbb"),
+                ("log-name", "#77cccc"),
+                ("log-level-notset", "#555555"),
+                ("log-level-debug", "#00aa00"),
+                ("log-level-info", "#77aa00"),
+                ("log-level-warning", "#cccc00"),
+                ("log-level-error", "#dd0000"),
+                ("log-level-critical", "#dd0000 bold"),
             ]
         )
 
@@ -198,7 +215,7 @@ class ApplicationAsyncCmd(AsyncCmd):
         )
 
     async def accept_line_async(self, line: str) -> None:
-        await self.term.print(f"> {line}")
+        self.term.add_line([("", f"> {line}")])
 
         try:
             await self.handle_line(line)
@@ -217,11 +234,48 @@ class ApplicationAsyncCmd(AsyncCmd):
 
     @override
     async def print_error(self, message: str) -> None:
-        await self.term.print(message, style="#ff0000")
+        self.term.add_line([("#ff0000", message)])
 
     @override
     async def async_cmdloop(self) -> None:
         await self.application.run_async()
+
+
+class ApplicationAsyncCmdLogHandler(logging.Handler):
+    """Log handler for colored log output."""
+
+    def __init__(
+        self, level: int | str = logging.NOTSET, *, term: MessagesControl
+    ) -> None:
+        super().__init__(level)
+        self.term = term
+
+    @override
+    def emit(self, record: logging.LogRecord) -> None:
+        message = self.format(record)
+
+        time = (
+            "class:log-time",
+            tm.strftime("%H:%M:%S", tm.localtime(record.created)),
+        )
+        logname = ("class:log-name", record.name)
+        fname = ("class:log-path", f"{record.filename}:{record.lineno}")
+        level_name = record.levelname
+        level = (f"class:log-level-{level_name.lower()}", level_name)
+
+        self.term.add_line(
+            [
+                time,
+                ("", " "),
+                logname,
+                ("", " "),
+                fname,
+                ("", " "),
+                level,
+                ("", " "),
+                ("", message),
+            ]
+        )
 
 
 class ApplicationAsyncCmdClientApp(ClientApp):
@@ -233,8 +287,25 @@ class ApplicationAsyncCmdClientApp(ClientApp):
         super().__init__(name=name, handle_sigterm_sigint=handle_sigterm_sigint)
         self.interface = ApplicationAsyncCmd(handler_object=self)
 
+    @override
+    def setup_logging(self):
+        """Set up the logging module for this application."""
+        FORMAT = "%(name)s %(message)s"
+        if self.args.debug:
+            log_level = logging.DEBUG
+        elif self.args.verbose:
+            log_level = logging.INFO
+        else:
+            log_level = logging.WARN
+
+        logging.basicConfig(
+            level=log_level,
+            handlers=[ApplicationAsyncCmdLogHandler(term=self.interface.term)],
+            format=FORMAT,
+        )
+
     async def main_cmd_task(self) -> None:
-        await self.cmd_help("")
+        await self.cmd_help(None)
         await self.interface.async_cmdloop()
         await self.main_event_queue.put(AppShutdownEvent("User quit"))
 
@@ -249,12 +320,27 @@ class ApplicationAsyncCmdClientApp(ClientApp):
 
     async def cmd_help(self, arg) -> None:
         """Show available commands."""
-        await self.interface.term.print(
-            f"Welcome to {self.name}. Commands available:", end="\n\n"
-        )
-        for name, handler in sorted(self.interface.commands.items()):
-            if handler.__doc__ is None:
-                summary = "Description not available."
-            else:
-                summary = handler.__doc__.strip().split("\n", 1)[0].strip()
-            await self.interface.term.print(f"* {name}: {summary}")
+        if arg is None:
+            self.interface.term.add_line(
+                [
+                    ("", "Welcome to "),
+                    ("bold", self.name),
+                    ("", ". Commands available:"),
+                ]
+            )
+            self.interface.term.add_line([])
+            for name, handler in sorted(self.interface.commands.items()):
+                if handler.__doc__ is None:
+                    summary = "Description not available."
+                else:
+                    summary = handler.__doc__.strip().split("\n", 1)[0].strip()
+                self.interface.term.add_line(
+                    [("", "* "), ("bold", name), ("", ": "), ("", summary)]
+                )
+        elif (handler := self.interface.commands.get(arg)) is None:
+            self.interface.term.add_line(
+                [("class:error", f"Command {arg!r} not found.")]
+            )
+        else:
+            for line in inspect.getdoc(handler).splitlines():
+                self.interface.term.add_line([("", line)])

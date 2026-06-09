@@ -11,9 +11,13 @@ class BaseComponent(abc.ABC):
 
     def __init__(self, *, name: str) -> None:
         self.name = name
-        self.log = logging.getLogger("component." + self.name)
+        self.log = logging.getLogger(self.get_logger_name())
 
     def __str__(self) -> str:
+        return self.name
+
+    def get_logger_name(self) -> str:
+        """Return the name to use for logging."""
         return self.name
 
     @abc.abstractmethod
