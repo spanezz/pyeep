@@ -41,7 +41,9 @@ class SceneHeartbeat(Component):
                     group=self.group,
                     color=animation.ColorHeartPulse(
                         color=Color(red=0.5, green=0, blue=0),
-                        duration=0.9 * 60 / self.last_rate,
+                        duration_ns=round(
+                            0.9 * 60 / self.last_rate * 1_000_000_000
+                        ),
                         atrial_duration_ratio=self.atrial_duration_ratio,
                     ),
                 )

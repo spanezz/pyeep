@@ -166,7 +166,12 @@ class TestPower(MessageMixin, unittest.TestCase):
                 self.assertEqual(m1.power, m.power)
 
     def test_setgrouppower(self) -> None:
-        for value in (0, 3.14, 42, animation.PowerPulse(power=1, duration=0.5)):
+        for value in (
+            0,
+            3.14,
+            42,
+            animation.PowerPulse(power=1, duration_ns=5),
+        ):
             with self.subTest(value=value):
                 m = power.SetGroupPower(group=2, power=value)
                 self.assertEqual(m.name, "setgrouppower")
@@ -176,7 +181,12 @@ class TestPower(MessageMixin, unittest.TestCase):
                 self.assertEqual(m1.power, m.power)
 
     def test_increasegrouppower(self) -> None:
-        for value in (0, 3.14, 42, animation.PowerPulse(power=1, duration=0.5)):
+        for value in (
+            0,
+            3.14,
+            42,
+            animation.PowerPulse(power=1, duration_ns=5),
+        ):
             with self.subTest(value=value):
                 m = power.IncreaseGroupPower(group=2, amount=value)
                 self.assertEqual(m.name, "increasegrouppower")

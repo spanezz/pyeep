@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pyeep.models.primitive import PrimitiveField
 from pyeep.models.messages.message import Message, GroupMessage
-from pyeep.models.animation import PowerAnimation
+from pyeep.models.animation import AnimationPrimitive
 
 
 log = logging.getLogger(__name__)
@@ -34,10 +34,10 @@ class SetPower(Message):
 class SetGroupPower(GroupMessage):
     """.Set the power of the outputs in the given group."""
 
-    power: float | Annotated[PowerAnimation, PrimitiveField]
+    power: float | Annotated[AnimationPrimitive[float], PrimitiveField]
 
 
-class IncreaseGroupPower(Message):
+class IncreaseGroupPower(GroupMessage):
     """Increase the power of an output group by a given amount."""
 
-    amount: float | Annotated[PowerAnimation, PrimitiveField]
+    amount: float | Annotated[AnimationPrimitive[float], PrimitiveField]

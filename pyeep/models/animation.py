@@ -1,8 +1,6 @@
 import abc
 import logging
-import math
-from collections.abc import Generator
-from typing import override
+from typing import override, NamedTuple, Any
 
 from pyeep.models.primitive import Primitive
 from pyeep.models.color import Color
@@ -10,95 +8,204 @@ from pyeep.models.color import Color
 log = logging.getLogger(__name__)
 
 
-class Animation[T](Primitive, abc.ABC):
+class Animation[T](abc.ABC):
     """Base class for animation routines."""
 
     @abc.abstractmethod
-    def values(self, rate: int) -> Generator[T]:
+    def value(self, time_ns: int) -> T | None:
+        """Return the value at time time_ns from animation start."""
+
+
+class AnimationPrimitive[T](Primitive, abc.ABC):
+    """Description of an animation."""
+
+    @abc.abstractmethod
+    def get_animation(self) -> Animation[T]:
+        """Get the Animation object that computes this animation."""
+
+
+class Animations[T](Animation[T]):
+    """Group of animations running together."""
+
+    def __init__(self, zero: T) -> None:
         """
-        Generate the animation sequence.
+        Initialize the animations group.
 
-        :param rate: frame rate in frames per second
+        :param zero: value to return when no animation has started yet
         """
+        self.zero = zero
+        self.animations: list[tuple[int, Animation[T]]] = []
+
+    def add(self, start_time_ns: int, animation: Animation[T]) -> None:
+        """Add an animation, to start at the given animation time."""
+        self.animations.append((start_time_ns, animation))
+        self.animations.sort(key=lambda x: (x[0], id(x[1])))
+
+    @override
+    def value(self, time_ns: int) -> T | None:
+        if not self.animations:
+            return None
+
+        value = self.zero
+        i = 0
+        while i < len(self.animations):
+            start, animation = self.animations[i]
+            if time_ns < start:
+                break
+
+            if (a_value := animation.value(time_ns - start)) is None:
+                self.animations.pop(i)
+            else:
+                i += 1
+                value += a_value
+
+        if not self.animations:
+            return None
+        return value
 
 
-class PowerAnimation(Animation[float]):
-    """Animate a power value from 0 to 1."""
+class PowerAnimations(Animations[float]):
+    def __init__(self) -> None:
+        super().__init__(zero=0)
 
 
-class ColorAnimation(Animation[Color]):
-    """Animate a Color value."""
+class ColorAnimations(Animations[Color]):
+    def __init__(self) -> None:
+        super().__init__(zero=Color())
 
 
-class PowerPulse(PowerAnimation):
+class ConstAnimation[T](Animation[T]):
+    """Animation for Const."""
+
+    def __init__(self, value: "Const[T]") -> None:
+        self.duration_ns = value.duration_ns
+        self.const_value = value.value
+
+    @override
+    def value(self, time_ns: int) -> float | None:
+        if time_ns >= self.duration_ns:
+            return None
+        return self.const_value
+
+
+class Const[T](AnimationPrimitive[T]):
+    """Animation with a constant value."""
+
+    #: Constant value to use
+    value: T
+    #: Duration of the pulse
+    duration_ns: int
+
+    @override
+    def get_animation(self) -> ConstAnimation[T]:
+        return ConstAnimation(self)
+
+
+class PowerPulseAnimation(Animation[float]):
+    """Animation for PowerPulse."""
+
+    def __init__(self, value: "PowerPulse") -> None:
+        self.duration_ns = value.duration_ns
+        self.midpoint = self.duration_ns / 2
+
+    @override
+    def value(self, time_ns: int) -> float | None:
+        if time_ns >= self.duration_ns:
+            return None
+
+        if time_ns < self.midpoint:
+            return self.power * time_ns / self.midpoint
+        else:
+            return self.power * (self.duration_ns - time_ns) / self.midpoint
+
+
+class PowerPulse(AnimationPrimitive[float]):
     """Pulse the power up and down again."""
 
     #: Amount to pulse up
     power: float
     #: Duration of the pulse
-    duration: float
+    duration_ns: int
 
     @override
-    def values(self, rate: int) -> Generator[float]:
-        frame_count = math.floor(self.duration * rate)
-        for frame in range(frame_count):
-            envelope = (frame_count - frame) / frame_count
-            yield self.power * envelope
-        yield 0
+    def get_animation(self) -> PowerPulseAnimation:
+        return PowerPulseAnimation(self)
 
 
-class ColorPulse(ColorAnimation):
+class ColorPulseAnimation(Animation[float]):
+    """Animation for ColorPulse."""
+
+    def __init__(self, value: "ColorPulse") -> None:
+        self.duration_ns = value.duration_ns
+        self.midpoint = self.duration_ns / 2
+
+    @override
+    def value(self, time_ns: int) -> Color | None:
+        if time_ns >= self.duration_ns:
+            return None
+
+        if time_ns < self.midpoint:
+            return self.color * time_ns / self.midpoint
+        else:
+            return self.color * (self.duration_ns - time_ns) / self.midpoint
+
+
+class ColorPulse(AnimationPrimitive[Color]):
     """Temporarily add the color to the current color."""
 
     #: Color to add
     color: Color
     #: Duration of the pulse
-    duration: float
+    duration_ns: int
 
     @override
-    def values(self, rate: int) -> Generator[Color]:
-        frame_count = math.floor(self.duration * rate)
-        for frame in range(frame_count):
-            envelope = (frame_count - frame) / frame_count
-            yield Color(
-                red=self.color.red * envelope,
-                green=self.color.green * envelope,
-                blue=self.color.blue * envelope,
-            )
-        yield Color(red=0, green=0, blue=0)
+    def get_animation(self) -> PowerPulseAnimation:
+        return ColorPulseAnimation(self)
 
 
-class ColorHeartPulse(ColorAnimation):
+class ColorHeartPulseAnimation(Animation[float]):
+    """Animation for ColorHeartPulse."""
+
+    # TODO: refactor as an animation sequence of two color pulses
+
+    def __init__(self, value: "ColorHeartPulse") -> None:
+        self.duration_ns = value.duration_ns
+        self.atrial_duration_ns = round(
+            self.duration_ns * self.atrial_duration_ratio_ns
+        )
+
+    @override
+    def value(self, time_ns: int) -> Color | None:
+        if time_ns >= self.duration_ns:
+            return None
+
+        # See https://www.nhlbi.nih.gov/health/heart/heart-beats
+        if time_ns < self.atrial_duration_ns:
+            duration_ns = self.atrial_duration_ns
+            brightness = 0.5
+        else:
+            time_ns -= self.atrial_duration_ns
+            duration_ns = self.duration_ns - self.atrial_duration_ns
+            brightness = 1.0
+
+        midpoint = duration_ns / 2
+        if time_ns < midpoint:
+            return self.color * brightness * time_ns / midpoint
+        else:
+            return self.color * brightness * (duration_ns - time_ns) / midpoint
+
+
+class ColorHeartPulse(AnimationPrimitive[Color]):
     """Heartbeat-style color pulse."""
 
     #: Color to add
     color: Color
     #: Duration of the pulse
-    duration: float
+    duration_ns: int
     #: Ratio of the duration used for the atrial pulse
     atrial_duration_ratio: float = 0
 
     @override
-    def values(self, rate: int) -> Generator[Color]:
-        # See https://www.nhlbi.nih.gov/health/heart/heart-beats
-        frame_count = math.floor(self.duration * rate)
-        atrial_frames = round(frame_count * self.atrial_duration_ratio)
-        ventricular_frames = frame_count - atrial_frames
-
-        for frame in range(atrial_frames):
-            envelope = 0.5 * (atrial_frames - frame) / atrial_frames
-            yield Color(
-                red=self.color.red * envelope,
-                green=self.color.green * envelope,
-                blue=self.color.blue * envelope,
-            )
-
-        for frame in range(ventricular_frames):
-            envelope = (ventricular_frames - frame) / ventricular_frames
-            yield Color(
-                red=self.color.red * envelope,
-                green=self.color.green * envelope,
-                blue=self.color.blue * envelope,
-            )
-
-        yield Color(red=0, green=0, blue=0)
+    def get_animation(self) -> PowerPulseAnimation:
+        # TODO: return an Animations with two consecutive color pulses
+        return ColorHeartPulseAnimation(self)

@@ -4,6 +4,7 @@ from collections.abc import Callable, Generator
 from pyeep.models.animation import Animation
 from pyeep.models.color import Color
 from pyeep.gtk import GLib
+from pyeep.utils.asynctimer import beat_timer
 
 log = logging.getLogger(__name__)
 
