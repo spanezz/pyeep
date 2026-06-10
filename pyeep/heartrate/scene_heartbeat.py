@@ -16,7 +16,7 @@ class SceneHeartbeat(Component):
         self.last_rate: float | None = None
         self.has_rate = asyncio.Event()
         self.group: int = 1
-        self.atrial_duration_ratio = 0.2
+        self.atrial_duration_ratio = 0.3
         # self.atrial_duration_ratio = Gtk.Adjustment(
         #     lower=0.0,
         #     upper=1.0,

@@ -27,15 +27,25 @@ class HappyLights(BLEConnection):
     protocol.
     """
 
+    def __init__(
+        self,
+        *,
+        device: bleak.backends.device.BLEDevice | str,
+        log: logging.Logger,
+    ) -> None:
+        super().__init__(device=device, log=log)
+        self.last_color = Color()
+
     @override
     async def connected(self) -> None:
         assert self.client is not None
         # Sync with the color we expect to have
-        await self.update()
+        await self.set_color(self.last_color)
         # Nothing else to do while connected
         await asyncio.Event().wait()
 
     async def set_color(self, color: Color) -> None:
+        self.last_color = color
         if self.client is None:
             return
         cmd = self.cmd_color(
