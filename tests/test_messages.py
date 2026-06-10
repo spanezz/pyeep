@@ -12,8 +12,9 @@ from pyeep.models.messages.component import (
 )
 from pyeep.models.messages.config import ConfigSaveRequest, Configure
 from pyeep.models.messages.input import EmergencyStop, Pause, Resume, Shortcut
-from pyeep.models.messages import power
+from pyeep.models.messages import power, color
 from pyeep.models import animation
+from pyeep.models.color import Color
 
 
 class MessageMixin(unittest.TestCase):
@@ -194,3 +195,47 @@ class TestPower(MessageMixin, unittest.TestCase):
 
                 m1 = self.assertSerializes(m)
                 self.assertEqual(m1.amount, m.amount)
+
+
+class TestColor(MessageMixin, unittest.TestCase):
+    def test_setgroupcolor_serialize_animation(self) -> None:
+        msg = color.SetGroupColor(
+            group=1,
+            color=animation.ColorHeartPulse(
+                color=Color(red=0.5, green=0, blue=0),
+                duration_ns=100_000_000,
+                atrial_duration_ratio=0.3,
+            ),
+        )
+        self.assertEqual(
+            json.loads(msg.as_json)["color"],
+            {
+                "py_module": "pyeep.models.animation",
+                "py_class": "ColorHeartPulse",
+                "atrial_duration_ratio": 0.3,
+                "color": {"blue": 0.0, "green": 0.0, "red": 0.5},
+                "duration_ns": 100000000,
+            },
+        )
+
+        with self.assertNoLogs():
+            newmsg = load_primitive(json.loads(msg.as_json))
+
+        self.assertEqual(newmsg.color, msg.color)
+
+    def test_setgroupcolor(self) -> None:
+        for value in (
+            Color(red=1, green=0.5, blue=0.1),
+            animation.ColorHeartPulse(
+                color=Color(red=0.5, green=0, blue=0),
+                duration_ns=100_000_000,
+                atrial_duration_ratio=0.3,
+            ),
+        ):
+            with self.subTest(value=str(value)):
+                m = color.SetGroupColor(group=1, color=value)
+                self.assertEqual(m.name, "setgroupcolor")
+                self.assertEqual(m.color, value)
+
+                m1 = self.assertSerializes(m)
+                self.assertEqual(m1.color, m.color)

@@ -1,87 +1,64 @@
+import abc
 import logging
-from collections.abc import Callable, Generator
+from typing import override
+from collections.abc import AsyncGenerator
 
-from pyeep.models.animation import Animation
+from pyeep.models.animation import (
+    Animation,
+    Animations,
+    PowerAnimations,
+    ColorAnimations,
+)
 from pyeep.models.color import Color
-from pyeep.gtk import GLib
 from pyeep.utils.asynctimer import beat_timer
 
 log = logging.getLogger(__name__)
 
 
-class Animator[T]:
+class Animator[T](abc.ABC):
     """
     Run an animation using GLib timers, notifying each new value using a
     callback function
     """
 
-    def __init__(self, name: str, rate: int, on_value: Callable[[T], None]):
+    def __init__(self, name: str, frame_duration_ns: int) -> None:
         self.name = name
-        self.rate = rate
-        self.timeout: int | None = None
-        self.animations: set[Generator[T]] = set()
-        self.on_value = on_value
+        self.frame_duration_ns = frame_duration_ns
+        self.animations: Animations[T] = self.get_animations()
+        self.animation_ns: int = 0
 
     def __str__(self) -> str:
         return f"Animator({self.name})"
 
-    def start(self, animation: Animation[T]):
-        self.animations.add(animation.values(self.rate))
-        if self.timeout is None:
-            self.timeout = GLib.timeout_add(
-                round(1 / self.rate * 1000), self.on_frame
-            )
+    @abc.abstractmethod
+    def get_animations(self) -> Animations[T]:
+        """Instantiate the Animations sequence for this animator."""
 
-    def stop(self):
-        if self.timeout is not None:
-            GLib.source_remove(self.timeout)
-        self.timeout = None
-        self.animations = set()
+    def add_at_next_tick(self, a: Animation[T]) -> None:
+        """Add an animation to start at the next frame tick."""
+        self.animations.add((self.animation_ns + self.frame_duration_ns), a)
 
-    def merge(self, values: list[T]) -> T:
-        raise NotImplementedError(
-            f"{self.__class__.__name__}.merge not implmeented"
-        )
-
-    def on_frame(self) -> bool:
-        if not self.animations:
-            # All animations have finished
-            self.timeout = None
-            return False
-
-        values: list[T] = []
-        for a in list(self.animations):
-            try:
-                values.append(next(a))
-            except StopIteration:
-                self.animations.remove(a)
-
-        if not values:
-            # All animations have finished
-            self.timeout = None
-            return False
-
-        self.on_value(self.merge(values))
-        return True
+    async def values(self) -> AsyncGenerator[T]:
+        """Generate animation values every frame_duration_is."""
+        if (value := self.animations.value(self.animation_ns)) is not None:
+            yield value
+        async for ticks in beat_timer(self.frame_duration_ns):
+            self.animation_ns += ticks * self.frame_duration_ns
+            if (value := self.animations.value(self.animation_ns)) is not None:
+                yield value
 
 
 class PowerAnimator(Animator[float]):
-    """
-    Animation for power sequences
-    """
+    """Animation for power sequences."""
 
-    def merge(self, values: list[float]) -> float:
-        if len(values) == 1:
-            return values[0]
-        return sum(values, start=0.0)
+    @override
+    def get_animations(self) -> PowerAnimations:
+        return PowerAnimations()
 
 
 class ColorAnimator(Animator[Color]):
-    """
-    Animation for color sequences
-    """
+    """Animation for color sequences."""
 
-    def merge(self, values: list[Color]) -> Color:
-        if len(values) == 1:
-            return values[0]
-        return sum(values, start=Color(red=0, green=0, blue=0))
+    @override
+    def get_animations(self) -> ColorAnimations:
+        return ColorAnimations()

@@ -136,6 +136,7 @@ class ColorPulseAnimation(Animation[float]):
     """Animation for ColorPulse."""
 
     def __init__(self, value: "ColorPulse") -> None:
+        self.color = value.color
         self.duration_ns = value.duration_ns
         self.midpoint = self.duration_ns / 2
 
@@ -169,9 +170,10 @@ class ColorHeartPulseAnimation(Animation[float]):
     # TODO: refactor as an animation sequence of two color pulses
 
     def __init__(self, value: "ColorHeartPulse") -> None:
+        self.color = value.color
         self.duration_ns = value.duration_ns
         self.atrial_duration_ns = round(
-            self.duration_ns * self.atrial_duration_ratio_ns
+            self.duration_ns * value.atrial_duration_ratio
         )
 
     @override
@@ -190,9 +192,11 @@ class ColorHeartPulseAnimation(Animation[float]):
 
         midpoint = duration_ns / 2
         if time_ns < midpoint:
-            return self.color * brightness * time_ns / midpoint
+            return self.color * (brightness * time_ns / midpoint)
         else:
-            return self.color * brightness * (duration_ns - time_ns) / midpoint
+            return self.color * (
+                brightness * (duration_ns - time_ns) / midpoint
+            )
 
 
 class ColorHeartPulse(AnimationPrimitive[Color]):
