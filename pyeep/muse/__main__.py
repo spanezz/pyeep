@@ -1,0 +1,71 @@
+import asyncio
+import argparse
+import logging
+import time as tm
+from typing import override
+
+from pyeep.app.asynccmd import ApplicationAsyncCmdClientApp
+
+from .muse import Muse
+from . import modes
+
+
+class MuseApp(ApplicationAsyncCmdClientApp):
+    """Interface with the Muse EEG monitor."""
+
+    def __init__(self, *, handle_sigterm_sigint: bool = True) -> None:
+        super().__init__(
+            name="muse", handle_sigterm_sigint=handle_sigterm_sigint
+        )
+        self.muse: Muse | None = None
+        self.mode: modes.Mode | None = None
+        if self.args.addr:
+            self.muse = Muse(
+                device=self.args.addr, log=logging.getLogger(f"{self.name}.ble")
+            )
+
+    def argparser(
+        self, description: str | None = None
+    ) -> argparse.ArgumentParser:
+        parser = super().argparser(description)
+        parser.add_argument(
+            "--addr", "-a", type=str, help="Bluetooth address of the device"
+        )
+        parser.add_argument(
+            "--mode", "-m", type=str, help="Mode to set at startup"
+        )
+        return parser
+
+    @override
+    async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
+        await super().start_main_tasks(tg)
+        if self.muse is not None:
+            tg.create_task(self.muse.main())
+        if self.args.mode is not None:
+            await self.set_mode(self.args.mode)
+
+    async def set_mode(self, name: str) -> None:
+        if (selected := modes.modes.get(name)) is None:
+            await self.interface.print_error(f"Mode {name!r} not found.")
+        elif self.muse is not None:
+            self.mode = selected(muse=self.muse, app=self)
+            await self.mode.start()
+
+    async def cmd_mode(self, arg) -> None:
+        """Set the monitor mode, use 'list' to list modes."""
+        if arg == "list":
+            self.interface.term.add_line([("", "Available modes:")])
+            for name, mode_cls in modes.modes.items():
+                if mode_cls.__doc__ is None:
+                    summary = "Description not available."
+                else:
+                    summary = mode_cls.__doc__.strip().split("\n", 1)[0].strip()
+                self.interface.term.add_line(
+                    [("bold", name), ("", f": {summary}")]
+                )
+        else:
+            await self.set_mode(arg)
+
+
+if __name__ == "__main__":
+    MuseApp.run()

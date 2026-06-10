@@ -10,6 +10,8 @@ from typing import override
 import rich
 import rich.text
 
+from pyeep.models.messages import Message
+
 
 class ColoredLogHandler(logging.Handler):
     """Log handler for colored log output."""
@@ -62,6 +64,17 @@ class AppShutdownEvent(AppEvent):
     @override
     def __str__(self) -> str:
         return self.reason
+
+
+class AppSendMessageEvent(AppEvent):
+    """Request to send a message."""
+
+    def __init__(self, message: Message) -> None:
+        self.message = message
+
+    @override
+    def __str__(self) -> str:
+        return str(self.message)
 
 
 class BaseApp(abc.ABC):
@@ -169,6 +182,8 @@ class BaseApp(abc.ABC):
                             # while, so that tasks in tg are cancelled
                             self.main_event_queue.task_done()
                             raise Shutdown(str(evt))
+                        case AppSendMessageEvent():
+                            await self.send(evt.message)
                         case _:
                             self.log.warning(
                                 "Received unsupported app event: %s", evt

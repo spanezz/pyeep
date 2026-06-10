@@ -4,7 +4,7 @@ import logging
 import time as tm
 from typing import override
 
-from pyeep.app.asynccmd import ApplicationAsyncCmdClientApp, AsyncCmdQuit
+from pyeep.app.asynccmd import ApplicationAsyncCmdClientApp
 from .messages import HeartBeat, Sample
 
 from .heartrate import HeartRateMonitor
