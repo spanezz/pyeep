@@ -8,7 +8,6 @@ from pyeep.app.asynccmd import ApplicationAsyncCmdClientApp
 from .messages import HeartBeat, Sample
 
 from .heartrate import HeartRateMonitor
-from pyeep.scenes.heartbeat import SceneHeartbeat
 
 
 class Heartrate(ApplicationAsyncCmdClientApp):
@@ -23,9 +22,6 @@ class Heartrate(ApplicationAsyncCmdClientApp):
             self.monitor = HeartRateMonitor(
                 device=self.args.addr, log=logging.getLogger(f"{self.name}.ble")
             )
-        # TODO: move to a scene manager
-        self.scene_heartbeat = SceneHeartbeat()
-        self.add_component(self.scene_heartbeat)
 
     def argparser(
         self, description: str | None = None
@@ -48,7 +44,6 @@ class Heartrate(ApplicationAsyncCmdClientApp):
         if self.monitor is not None:
             tg.create_task(self.monitor.main())
             tg.create_task(self.send_beats())
-        tg.create_task(self.scene_heartbeat.tick())
 
     async def cmd_rate(self, arg) -> None:
         """Simulate a heartrate report of a float rate."""

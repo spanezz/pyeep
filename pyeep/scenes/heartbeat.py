@@ -5,13 +5,24 @@ from pyeep.models.color import Color
 from pyeep.models import animation
 from pyeep.models.messages.message import Message
 from pyeep.models.messages.color import SetGroupColor
-from pyeep.component.component import Component
-from .messages import HeartBeat
+from pyeep.heartrate.messages import HeartBeat
+from pyeep.scenes.models import SceneDescription
+from pyeep.scenes.base import Scene
 
 
-class SceneHeartbeat(Component):
-    def __init__(self, *, name: str = "scene_heartbeat") -> None:
-        super().__init__(name=name)
+class Description(SceneDescription):
+    """Heartbeat scene description."""
+
+    @override
+    def make_scene(self) -> "SceneHeartbeat":
+        return SceneHeartbeat(self)
+
+
+class SceneHeartbeat(Scene):
+    """Pulse lights in sync with heartbeat."""
+
+    def __init__(self, desc: SceneDescription, /) -> None:
+        super().__init__(desc)
         self.timeout: int | None = None
         self.last_rate: float | None = None
         self.has_rate = asyncio.Event()
@@ -32,7 +43,8 @@ class SceneHeartbeat(Component):
                 self.last_rate = msg.sample.rate
                 self.has_rate.set()
 
-    async def tick(self) -> None:
+    @override
+    async def main(self) -> None:
         await self.has_rate.wait()
         assert self.last_rate is not None
         while True:

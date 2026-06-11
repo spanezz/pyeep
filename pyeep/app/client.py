@@ -65,7 +65,7 @@ class ClientApp(BaseApp, Component):
         async with aiohttp.ClientSession(
             cookies={"Token": self.token}
         ) as session:
-            async with session.get(self.baseurl) as response:
+            async with session.get(f"{self.baseurl}/pyeep/hub/") as response:
                 response.raise_for_status()
                 content = await response.text()
                 if content != "PYEEP":

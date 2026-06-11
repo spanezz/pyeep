@@ -24,6 +24,12 @@ def get_primitive_subclass(obj: dict[str, Any]) -> type["Primitive"]:
         raise ValueError(
             f"invalid Primitive {module_name!r}.{class_name!r}: {e}"
         )
+
+    if not issubclass(cls, Primitive):
+        raise ValueError(
+            f"{module_name}.{class_name} is not a subclass of Primitive"
+        )
+
     return cls
 
 

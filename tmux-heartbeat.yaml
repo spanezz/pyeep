@@ -5,7 +5,7 @@ windows:
     shell_command_before:
       - cd ~/dev/pyeep/
     panes:
-      - python3 -m pyeep.hub -v
+      - python3 -m pyeep.hub -v --scenes scenes-heartbeat.yaml
       - python3 -m pyeep.app.inspector -v
       - shell_command: python3 -m pyeep.app.eventscli -v
         focus: true
@@ -15,5 +15,5 @@ windows:
       # - python3 -m pyeep.heartrate -v --addr CD:E3:36:F6:BB:74
       # Mock
       - python3 -m pyeep.heartrate -v
-      - python3 -m pyeep.happylights -v -a 21:04:99:10:35:05
-      # - python3 -m pyeep.happylights -v
+      # - python3 -m pyeep.happylights -v -a 21:04:99:10:35:05
+      - python3 -m pyeep.happylights -v
