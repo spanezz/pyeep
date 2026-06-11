@@ -25,6 +25,7 @@ class API:
         self.hub = hub
         #: Clients currently connected
         self.clients: dict[str, web.WebSocketResponse] = {}
+        self.app = self.make_app()
 
     def make_app(self) -> web.Application:
         """Make the main hub application."""

@@ -1,22 +1,8 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+{% extends "base.html" %}
 
-    <script type="importmap">
-    {
-        "imports": {
-            "pyeep": "{{ static_url("js/pyeep.js") }}"
-        }
-    }
-    </script>
-
-    <link href="{{ static_url('css/pyeep.css') }}" rel="stylesheet">
-
-    <title>Pyeep Hub</title>
-  </head>
-  <body>
+{% block body %}
     <h1>Pyeep Hub</h1>
-  </body>
-</html>
+    {% for scene in scenes.values() %}
+    {{scene.render_widget()}}
+    {% endfor %}
+{% endblock %}

@@ -63,14 +63,14 @@ class Hub(BaseApp):
     def __init__(self) -> None:
         super().__init__(name="hub")
         self.token = secrets.token_urlsafe()
-        self.app_main = app_main.Main()
-        self.app_api = app_api.API(hub=self)
-        self.webapp = self.app_main.make_app()
-        self.webapp.add_subapp("/pyeep/", self.app_api.make_app())
-        self.web_token_path = Path(".webtoken")
         self.scenes = Scenes(hub=self)
         if self.args.scenes:
             self.scenes.load(self.args.scenes)
+        self.app_main = app_main.Main(hub=self)
+        self.app_api = app_api.API(hub=self)
+        self.webapp = self.app_main.app
+        self.webapp.add_subapp("/pyeep/", self.app_api.app)
+        self.web_token_path = Path(".webtoken")
 
     def argparser(
         self, description: str | None = None

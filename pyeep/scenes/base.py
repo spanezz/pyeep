@@ -1,5 +1,10 @@
 import abc
 
+import aiohttp_jinja2
+from aiohttp import web
+import jinja2
+from markupsafe import Markup
+
 from pyeep.component.component import Component
 from .models import SceneDescription
 
@@ -11,6 +16,26 @@ class Scene[DESC: SceneDescription](Component, abc.ABC):
         """Initialize a scene from its description."""
         super().__init__(name=desc.name)
         self.desc = desc
+
+    def add_views(self, app: web.Application, *, prefix: str) -> None:
+        """
+        Install the scene as a subapp of the Main hub app.
+
+        :param app: add views to this app
+        :param prefix: URL prefix to use for views
+        """
+        # TODO: app.router.add_view(f"{prefix}/", Home)
+
+    @jinja2.pass_context
+    def render_widget(self, context: jinja2.runtime.Context) -> str:
+        request = context["request"]
+        return Markup(
+            aiohttp_jinja2.render_string(
+                f"scenes/{self.name}/scene.html",
+                request,
+                context.derived({"scene": self}),
+            )
+        )
 
     @abc.abstractmethod
     async def main(self) -> None:

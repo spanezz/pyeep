@@ -1,76 +1,95 @@
-import importlib
-import importlib.util
-import zipimport
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import jinja2
 import aiohttp_jinja2
 from aiohttp import web
 
+from pyeep.utils.modules import get_package_path
 
-def get_package_dir(package_name: str) -> Path:
-    """Get the filesystem directory for a Python package name."""
-    # Code adapted from jinja2 PackageLoader
-
-    # Make sure the package exists. This also makes namespace
-    # packages work, otherwise get_loader returns None.
-    importlib.import_module(package_name)
-    if (spec := importlib.util.find_spec(package_name)) is None:
-        raise AssertionError("An import spec was not found for the package.")
-    if (loader := spec.loader) is None:
-        raise AssertionError("A loader was not found for the package.")
-
-    if isinstance(loader, zipimport.zipimporter):
-        raise AssertionError("zip packages are not supported")
-
-    roots: list[Path] = []
-
-    # One element for regular packages, multiple for namespace
-    # packages, or None for single module file.
-    if spec.submodule_search_locations:
-        roots.extend(Path(p) for p in spec.submodule_search_locations)
-    # A single module file, use the parent directory instead.
-    elif spec.origin is not None:
-        roots.append(Path(spec.origin).parent)
-
-    if not roots:
-        raise ValueError(
-            f"Cannot find search locations for package {package_name!r}"
-        )
-
-    if len(roots) > 1:
-        raise ValueError(
-            f"Multiple search locations found for {package_name}:"
-            f" {', '.join(str(r) for r in roots)}"
-        )
-
-    return roots[0]
+if TYPE_CHECKING:
+    from .hub import Hub
 
 
 class Home(web.View):
     @aiohttp_jinja2.template("home.html")
     async def get(self):
-        return {}
+        from pyeep.hub.hub import Scenes
+
+        scenes = self.request.app["scenes"]
+        assert isinstance(scenes, Scenes)
+        return {"scenes": scenes.scenes}
 
 
 class Main:
+    def __init__(self, *, hub: "Hub") -> None:
+        self.hub = hub
+        self.app = self.make_app()
+
     def static_url(self, path: str) -> str:
+        """Return a static URL for a relative path."""
         return "/static/" + path.lstrip("/")
+
+    @jinja2.pass_context
+    def scene_static_url(
+        self, context: jinja2.runtime.Context, path: str
+    ) -> str:
+        """Return a static URL for a scene-relative path."""
+        from pyeep.scenes.base import Scene
+
+        if (scene := context.get("scene")) is None:
+            raise jinja2.TemplateError(
+                "scene_static_url used without a scene in context"
+            )
+        assert isinstance(scene, Scene)
+        return "/static/scenes/{scene.name}" + path.lstrip("/")
 
     def make_app(self) -> web.Application:
         """Make the main hub application."""
         app = web.Application()
+        app["scenes"] = self.hub.scenes
         app.router.add_view("/", Home)
 
         # Examples of how to add assets from system dirs
-        # app.router.add_static("/static/bootstrap5", "/usr/share/bootstrap-html")
+        # app.router.add_static(
+        #     "/static/bootstrap5", "/usr/share/bootstrap-html"
+        # )
 
+        # Add individual scenes
+        scene_loaders: dict[str, jinja2.PackageLoader] = {}
+        for scene in self.hub.scenes.scenes.values():
+            # Static router
+            app.router.add_static(
+                f"/static/scenes/{scene.name}",
+                get_package_path(scene.desc.module) / "static",
+            )
+            # Template loader
+            scene_loaders[scene.name] = jinja2.PackageLoader(scene.desc.module)
+            # Views
+            prefix = f"scenes/{scene.name}"
+            scene.add_views(app, prefix=prefix)
+
+        # Add static router for the main hub
         app.router.add_static(
-            "/static", get_package_dir("pyeep.hub") / "static"
+            "/static", get_package_path("pyeep.hub") / "static"
         )
-        # app.add_routes([web.static("/static", ".")])
-        aiohttp_jinja2.setup(app, loader=jinja2.PackageLoader("pyeep.hub"))
+
+        aiohttp_jinja2.setup(
+            app,
+            context_processors=[aiohttp_jinja2.request_processor],
+            loader=jinja2.ChoiceLoader(
+                [
+                    jinja2.PackageLoader("pyeep.hub"),
+                    jinja2.PrefixLoader(
+                        {"scenes": jinja2.PrefixLoader(scene_loaders)}
+                    ),
+                ]
+            ),
+        )
+
         j2_env = aiohttp_jinja2.get_env(app)
-        j2_env.globals.update(static_url=self.static_url)
+        j2_env.globals.update(
+            static_url=self.static_url,
+            scene_static_url=self.scene_static_url,
+        )
 
         return app
