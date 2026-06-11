@@ -75,7 +75,7 @@ class ClientApp(BaseApp, Component):
                     )
 
             async with session.ws_connect(
-                f"{self.baseurl}/pyeep/{self.name}"
+                f"{self.baseurl}/pyeep/hub/{self.name}"
             ) as ws:
                 try:
                     self.ws = ws

@@ -1,18 +1,16 @@
 import asyncio
-import json
 import logging
 import os
 import secrets
 from pathlib import Path
-from typing import Callable, Awaitable, override
+from typing import override
 
 from aiohttp import web
 
 from pyeep.app.base import BaseApp
 from pyeep.component.component import Component
-from pyeep.models import load_primitive
-from pyeep.models.messages import Message
 from pyeep.models.messages.component import Shutdown
+from . import app_main, app_api
 
 log = logging.getLogger(__name__)
 
@@ -25,14 +23,10 @@ class PyeepServer(Component):
         self.host = host
         self.port = port
         self.token = secrets.token_urlsafe()
-        self.webapp = web.Application(middlewares=[self.check_token])
-        self.webapp.add_routes(
-            [
-                web.get("/", self.home),
-                web.get("/pyeep/{name}", self.messages),
-            ]
-        )
-        self.clients: dict[str, web.WebSocketResponse] = {}
+        self.main = app_main.Main()
+        self.api = app_api.API(token=self.token)
+        self.webapp = self.main.make_app()
+        self.webapp.add_subapp("/pyeep/", self.api.make_app())
 
     def write_token(self, path: Path) -> None:
         fd = os.open(
@@ -41,80 +35,27 @@ class PyeepServer(Component):
         with open(fd, mode="wt") as out:
             out.write(self.token)
 
-    @web.middleware
-    async def check_token(
-        self,
-        request: web.Request,
-        handler: Callable[[web.Request], Awaitable[web.StreamResponse]],
-    ) -> web.StreamResponse:
-        """Check for the presence of an auth token."""
-        if (token := request.cookies.get("Token")) is None:
-            raise web.HTTPForbidden(reason="missing token")
-        if token != self.token:
-            raise web.HTTPForbidden(reason="invalid token")
-        return await handler(request)
-
-    async def home(self, request: web.BaseRequest) -> web.Response:
-        return web.Response(text="PYEEP")
-
-    async def fanout(self, msg: Message) -> None:
-        """Send a message to all connected clients but the one it comes from."""
-        for name, ws in self.clients.items():
-            if msg.src and msg.src[0] == name:
-                continue
-            await ws.send_str(msg.as_json)
-
-    async def messages(self, request: web.Request) -> web.WebSocketResponse:
-        client_name = request.match_info["name"]
-        if client_name in self.downstream:
-            raise web.HTTPForbidden(
-                reason=f"client {client_name!r} already registered"
-            )
-
-        ws = web.WebSocketResponse()
-        await ws.prepare(request)
-        self.clients[client_name] = ws = ws
-        try:
-            async for wsmsg in ws:
-                match wsmsg.type:
-                    case web.WSMsgType.text:
-                        msg = load_primitive(json.loads(wsmsg.data))
-                        if isinstance(msg, Message):
-                            await self.fanout(msg)
-                    case web.WSMsgType.binary:
-                        log.warning("received unexpected binary message", wsmsg)
-                    case web.WSMsgType.close:
-                        break
-                    case web.WSMsgType.error:
-                        log.error("received unexpected error message", wsmsg)
-                        break
-        finally:
-            del self.clients[client_name]
-        return ws
-
     async def shutdown_requested(self) -> None:
         """Close client websockets when a shutdown has been requested."""
         # Send a shutdown message to each connected client
         shutdown_msg = Shutdown(src=())
         try:
-            await asyncio.wait(
-                [
-                    asyncio.create_task(ws.send_str(shutdown_msg.as_json))
-                    for ws in self.clients.values()
-                ],
-                timeout=2,
-            )
+            notify_tasks = [
+                asyncio.create_task(ws.send_str(shutdown_msg.as_json))
+                for ws in self.api.clients.values()
+            ]
+            if notify_tasks:
+                await asyncio.wait(notify_tasks, timeout=2)
         except TimeoutError:
             self.log.warning("timed out when sending shutdown signals")
         # Close the websockets for all clients
         try:
-            await asyncio.wait(
-                [
-                    asyncio.create_task(ws.close())
-                    for ws in self.clients.values()
-                ],
-                timeout=2,
-            )
+            close_tasks = [
+                asyncio.create_task(ws.close())
+                for ws in self.api.clients.values()
+            ]
+            if close_tasks:
+                await asyncio.wait(close_tasks, timeout=2)
         except TimeoutError:
             self.log.warning("timed out when closing websocket connections")
 
