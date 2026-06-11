@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import json
 import logging
+import time as tm
 from pathlib import Path
 from typing import override
 
@@ -10,6 +11,7 @@ import aiohttp
 from pyeep.app.base import BaseApp, AppShutdownEvent
 from pyeep.component.component import Component
 from pyeep.models import load_primitive
+from pyeep.models.hub import HubConnectInfo
 from pyeep.models.messages import Message
 from pyeep.models.messages.component import NewComponent
 
@@ -26,10 +28,9 @@ class ClientApp(BaseApp, Component):
             self, name=name, handle_sigterm_sigint=handle_sigterm_sigint
         )
         Component.__init__(self, name=name)
-        self.host = self.args.host
-        self.port = self.args.port
-        self.baseurl = f"http://{self.host}:{self.port}"
-        self.token = self.args.token.read_text()
+        self.hub_info: HubConnectInfo | None = None
+        if self.args.hub:
+            self.hub_info = self.load_hub_info()
         self.ws: aiohttp.ClientWebSocketResponse | None = None
 
     def argparser(
@@ -37,22 +38,22 @@ class ClientApp(BaseApp, Component):
     ) -> argparse.ArgumentParser:
         parser = super().argparser(description)
         parser.add_argument(
-            "--host", "-H", default="localhost", help="HTTP host to connect to"
-        )
-        parser.add_argument(
-            "--port",
-            "-P",
-            type=int,
-            default=8001,
-            help="HTTP port to connect to",
-        )
-        parser.add_argument(
-            "--token",
+            "--hub",
             type=Path,
-            default=Path(".webtoken"),
-            help="file with the authentication token",
+            help="connect to the pyeep hub using the information in this file",
         )
         return parser
+
+    def load_hub_info(self) -> HubConnectInfo:
+        """Wait for the hub info file to exists and load it."""
+        attempts = 0
+        while attempts < 20:
+            try:
+                data = self.args.hub.read_text()
+            except FileNotFoundError:
+                tm.sleep(0.1)
+            else:
+                return HubConnectInfo.model_validate(json.loads(data))
 
     @override
     async def route_up(self, msg: Message) -> None:
@@ -62,10 +63,12 @@ class ClientApp(BaseApp, Component):
 
     async def connect(self) -> None:
         """Connect to the server and handle message traffic."""
+        assert self.hub_info is not None
+        baseurl = self.hub_info.get_baseurl()
         async with aiohttp.ClientSession(
-            cookies={"Token": self.token}
+            cookies={"Token": self.hub_info.token}
         ) as session:
-            async with session.get(f"{self.baseurl}/pyeep/hub/") as response:
+            async with session.get(f"{baseurl}/pyeep/hub/") as response:
                 response.raise_for_status()
                 content = await response.text()
                 if content != "PYEEP":
@@ -75,7 +78,7 @@ class ClientApp(BaseApp, Component):
                     )
 
             async with session.ws_connect(
-                f"{self.baseurl}/pyeep/hub/{self.name}"
+                f"{baseurl}/pyeep/hub/{self.name}"
             ) as ws:
                 try:
                     self.ws = ws
@@ -98,8 +101,11 @@ class ClientApp(BaseApp, Component):
                     self.ws = None
 
     async def client_task(self) -> None:
-        await self.connect()
-        await self.main_event_queue.put(AppShutdownEvent("Server disconnected"))
+        if self.hub_info:
+            await self.connect()
+            await self.main_event_queue.put(
+                AppShutdownEvent("Server disconnected")
+            )
 
     @override
     async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:

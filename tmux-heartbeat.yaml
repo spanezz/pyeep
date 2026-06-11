@@ -6,14 +6,14 @@ windows:
       - cd ~/dev/pyeep/
     panes:
       - python3 -m pyeep.hub -v --scenes scenes-heartbeat.yaml
-      - python3 -m pyeep.app.inspector -v
-      - shell_command: python3 -m pyeep.app.eventscli -v
+      - python3 -m pyeep.app.inspector --hub .webtoken -v
+      - shell_command: python3 -m pyeep.app.eventscli --hub .webtoken -v
         focus: true
       # CYCPLUS H1
-      # - python3 -m pyeep.heartrate -v --addr F9:EC:3D:7A:10:C2
+      # - python3 -m pyeep.heartrate --hub .webtoken -v --addr F9:EC:3D:7A:10:C2
       # Moofit
-      # - python3 -m pyeep.heartrate -v --addr CD:E3:36:F6:BB:74
+      # - python3 -m pyeep.heartrate --hub .webtoken -v --addr CD:E3:36:F6:BB:74
       # Mock
-      - python3 -m pyeep.heartrate -v
-      # - python3 -m pyeep.happylights -v -a 21:04:99:10:35:05
-      - python3 -m pyeep.happylights -v
+      - python3 -m pyeep.heartrate --hub .webtoken -v
+      # - python3 -m pyeep.happylights --hub .webtoken -v -a 21:04:99:10:35:05
+      - python3 -m pyeep.happylights --hub .webtoken -v

@@ -1,8 +1,10 @@
 import argparse
 import asyncio
+import json
 import logging
 import os
 import secrets
+import tempfile
 from pathlib import Path
 from typing import override
 
@@ -14,7 +16,9 @@ from pyeep.scenes.base import Scene
 from pyeep.app.base import BaseApp
 from pyeep.component.component import Component
 from pyeep.models.messages.component import Shutdown
+from pyeep.models.hub import HubConnectInfo
 from pyeep.models.messages import Message
+from pyeep.utils.atomic import atomic_writer
 from . import app_main, app_api
 
 log = logging.getLogger(__name__)
@@ -95,11 +99,15 @@ class Hub(BaseApp):
 
     def write_token(self, path: Path) -> None:
         """Write out information needed to connect to the server."""
-        fd = os.open(
-            path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_TRUNC, mode=0o400
+        if path.exists():
+            raise RuntimeError(
+                f"{path} already exists: is another server running?"
+            )
+        info = HubConnectInfo(
+            host=self.args.host, port=self.args.port, token=self.token
         )
-        with open(fd, mode="wt") as out:
-            out.write(self.token)
+        with atomic_writer(path, mode="wt", chmod=0o400) as out:
+            json.dump(info.model_dump(), out)
 
     async def process_message_from_client(self, msg: Message) -> None:
         """Process a message received from a client."""
