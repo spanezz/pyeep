@@ -5,7 +5,7 @@ windows:
     shell_command_before:
       - cd ~/dev/pyeep/
     panes:
-      - python3 -m pyeep.app.server -v
+      - python3 -m pyeep.hub -v
       - python3 -m pyeep.app.inspector -v
       - shell_command: python3 -m pyeep.app.eventscli -v
         focus: true

@@ -44,7 +44,7 @@ class PyeepServer(Component):
     @web.middleware
     async def check_token(
         self,
-        request: web.BaseRequest,
+        request: web.Request,
         handler: Callable[[web.Request], Awaitable[web.StreamResponse]],
     ) -> web.StreamResponse:
         """Check for the presence of an auth token."""
@@ -64,7 +64,7 @@ class PyeepServer(Component):
                 continue
             await ws.send_str(msg.as_json)
 
-    async def messages(self, request: web.BaseRequest) -> web.WebSocketResponse:
+    async def messages(self, request: web.Request) -> web.WebSocketResponse:
         client_name = request.match_info["name"]
         if client_name in self.downstream:
             raise web.HTTPForbidden(

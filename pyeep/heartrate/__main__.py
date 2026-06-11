@@ -8,7 +8,7 @@ from pyeep.app.asynccmd import ApplicationAsyncCmdClientApp
 from .messages import HeartBeat, Sample
 
 from .heartrate import HeartRateMonitor
-from .scene_heartbeat import SceneHeartbeat
+from pyeep.scenes.heartbeat import SceneHeartbeat
 
 
 class Heartrate(ApplicationAsyncCmdClientApp):
