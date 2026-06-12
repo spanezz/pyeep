@@ -21,7 +21,7 @@ class Description(SceneDescription):
 class SceneHeartbeat(Scene):
     """Pulse lights in sync with heartbeat."""
 
-    def __init__(self, desc: SceneDescription, /) -> None:
+    def __init__(self, desc: Description, /) -> None:
         super().__init__(desc)
         self.timeout: int | None = None
         self.last_rate: float | None = None

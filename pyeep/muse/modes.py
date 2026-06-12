@@ -223,7 +223,6 @@ class ModeHeadYesNo(Mode, name="yesno"):
         self.app.main_event_queue.put_nowait(
             AppSendMessageEvent(
                 HeadYesNo(
-                    frames=len(timestamps),
                     gesture=selected[0],
                     duration=selected[1],
                     intensity=selected[2],

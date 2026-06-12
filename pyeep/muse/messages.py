@@ -2,7 +2,6 @@ from pyeep.models.messages import Message
 
 
 class HeadYesNo(Message):
-    frames: int
     #: Gesture name
     gesture: str
     #: Duration of the gesture in seconds
