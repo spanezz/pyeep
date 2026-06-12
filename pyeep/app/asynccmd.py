@@ -1,8 +1,10 @@
+import argparse
 import asyncio
 import abc
 import inspect
 import logging
 import time as tm
+from pathlib import Path
 from typing import override, Callable
 
 from prompt_toolkit import PromptSession, Application
@@ -287,6 +289,15 @@ class ApplicationAsyncCmdClientApp(ClientApp):
         super().__init__(name=name, handle_sigterm_sigint=handle_sigterm_sigint)
         self.interface = ApplicationAsyncCmd(handler_object=self)
 
+    def argparser(
+        self, description: str | None = None
+    ) -> argparse.ArgumentParser:
+        parser = super().argparser(description)
+        parser.add_argument(
+            "--logfile", type=Path, help="Write logs to this file, too."
+        )
+        return parser
+
     @override
     def setup_logging(self):
         """Set up the logging module for this application."""
@@ -298,11 +309,13 @@ class ApplicationAsyncCmdClientApp(ClientApp):
         else:
             log_level = logging.WARN
 
-        logging.basicConfig(
-            level=log_level,
-            handlers=[ApplicationAsyncCmdLogHandler(term=self.interface.term)],
-            format=FORMAT,
-        )
+        handlers: list[logging.Handler] = [
+            ApplicationAsyncCmdLogHandler(term=self.interface.term)
+        ]
+        if self.args.logfile:
+            handlers.append(logging.FileHandler(self.args.logfile))
+
+        logging.basicConfig(level=log_level, handlers=handlers, format=FORMAT)
 
     async def main_cmd_task(self) -> None:
         await self.cmd_help(None)

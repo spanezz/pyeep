@@ -2,6 +2,8 @@ from pyeep.models.messages import Message
 
 
 class HeadYesNo(Message):
+    """Yes/no/meh gestures."""
+
     #: Gesture name
     gesture: str
     #: Duration of the gesture in seconds
@@ -11,46 +13,36 @@ class HeadYesNo(Message):
 
 
 class HeadMoved(Message):
+    """Head position tracking."""
+
     frames: int
     pitch: float
     roll: float
 
 
-# class HeadGyro(Message):
-#     def __init__(
-#         self,
-#         *,
-#         timestamps: numpy.ndarray,
-#         x: numpy.ndarray,
-#         y: numpy.ndarray,
-#         z: numpy.ndarray,
-#         **kwargs,
-#     ):
-#         super().__init__(**kwargs)
-#         self.timestamps = timestamps
-#         self.x = x
-#         self.y = y
-#         self.z = z
-#
-#     def __str__(self):
-#         return super().__str__() + (
-#             f"(timestamps={self.timestamps},"
-#             f" x={self.x}, y={self.y}, z={self.z})"
-#         )
-#
-#     # def _distance2(self) -> float:
-#     #     """
-#     #     Experiment with comparing messages
-#     #     """
-#     #     return self.x ** 2 + self.y ** 2 + self.z ** 2
-#
-#     # def _adistance2(self) -> float:
-#     #     """
-#     #     Experiment with comparing messages
-#     #     """
-#     #     return self.ax ** 2 + self.ay ** 2 + self.az ** 2
-#
-#
+class HeadGyro(Message):
+    """Head acceleration tracking."""
+
+    #: X axis acceleration
+    x: float
+    #: Y axis acceleration
+    y: float
+    #: Z axis acceleration
+    z: float
+
+    # def _distance2(self) -> float:
+    #     """
+    #     Experiment with comparing messages
+    #     """
+    #     return self.x ** 2 + self.y ** 2 + self.z ** 2
+
+    # def _adistance2(self) -> float:
+    #     """
+    #     Experiment with comparing messages
+    #     """
+    #     return self.ax ** 2 + self.ay ** 2 + self.az ** 2
+
+
 # class BrainWaves(Message):
 #     def __init__(
 #         self,

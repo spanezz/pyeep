@@ -1,4 +1,5 @@
 import abc
+import logging
 import inspect
 import json
 import math
@@ -11,7 +12,7 @@ import scipy.signal
 from pyeep.utils import dsp
 from pyeep.app.base import BaseApp, AppSendMessageEvent
 
-from .messages import HeadMoved, HeadYesNo
+from .messages import HeadMoved, HeadYesNo, HeadGyro
 from .muse import Muse
 from . import aio_muse
 
@@ -172,9 +173,13 @@ class GyroAxisSwing(GyroAxisBase):
 
 
 class GyroAxisLast(GyroAxisBase):
+    """Track the last acceleration value for a gyro axis."""
+
     def __init__(self, name: str):
         super().__init__(name)
+        #: Last acceleration value
         self.last: float = 0
+        #: Difference between the last and the previous values
         self.alast: float = 0
 
     @override
@@ -231,26 +236,38 @@ class ModeHeadYesNo(Mode, name="yesno"):
         )
 
 
-# class ModeHeadGyro(Mode, name="headgyro"):
-#     """
-#     Head gyro
-#     """
-#
-#     def __init__(self, **kwargs):
-#         super().__init__(**kwargs)
-#         self.rate = 52
-#
-#     def on_gyro(self, data: numpy.ndarray, timestamps: list[float]):
-#         self.app.main_event_queue.put_nowait(
-#             AppSendMessageEvent(
-#                 HeadGyro(
-#                     timestamps=timestamps,
-#                     x=data[0, :],
-#                     y=data[1, :],
-#                     z=data[2, :],
-#                 )
-#             )
-#         )
+class ModeHeadGyro(Mode, name="headgyro"):
+    """Head gyro values."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.x_axis = GyroAxisLast("x")
+        self.y_axis = GyroAxisLast("y")
+        self.z_axis = GyroAxisLast("z")
+
+    @override
+    async def start(self) -> None:
+        try:
+            await self.muse.subscribe(gyro=self.on_gyro)
+        except Exception as e:
+            logging.error("start exception %s", e, exc_info=e)
+
+    def on_gyro(
+        self, data: aio_muse.SamplesGyro, timestamps: aio_muse.Timestamps
+    ):
+        self.x_axis.add_samples(timestamps, data[0, :])
+        self.y_axis.add_samples(timestamps, data[1, :])
+        self.z_axis.add_samples(timestamps, data[2, :])
+
+        self.app.main_event_queue.put_nowait(
+            AppSendMessageEvent(
+                HeadGyro(
+                    x=self.x_axis.value()[0],
+                    y=self.y_axis.value()[0],
+                    z=self.z_axis.value()[0],
+                )
+            )
+        )
 
 
 # class ModeBrainWaves(ModeBase):

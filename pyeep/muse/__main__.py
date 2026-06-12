@@ -47,7 +47,8 @@ class MuseApp(ApplicationAsyncCmdClientApp):
     async def set_mode(self, name: str) -> None:
         if (selected := modes.modes.get(name)) is None:
             await self.interface.print_error(f"Mode {name!r} not found.")
-        elif self.muse is not None:
+            return
+        if self.muse is not None:
             self.mode = selected(muse=self.muse, app=self)
             await self.mode.start()
 

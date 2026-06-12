@@ -247,9 +247,12 @@ class Muse(muselsl.muse.Muse):
             ]
         if not chars:
             return
-        async with asyncio.TaskGroup() as tg:
-            for char in chars:
-                tg.create_task(self.client.stop_notify(char))
+        try:
+            async with asyncio.TaskGroup() as tg:
+                for char in chars:
+                    tg.create_task(self.client.stop_notify(char))
+        except bleak.exc.BleakDBusError:
+            pass
 
     async def _disable_light(self) -> None:
         await self._write_cmd_str("L0")
