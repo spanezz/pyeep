@@ -10,7 +10,7 @@ class ConcreteBaseApp(BaseApp):
     """Concrete version of BaseApp."""
 
     @override
-    async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
+    async def start_main_tasks(self) -> None:
         pass
 
 

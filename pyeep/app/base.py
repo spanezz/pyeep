@@ -5,7 +5,7 @@ import functools
 import signal
 import logging
 import time as tm
-from typing import override
+from typing import override, Coroutine, Any
 
 import rich
 import rich.text
@@ -94,6 +94,7 @@ class BaseApp(abc.ABC):
         parser = self.argparser()
         self.args = parser.parse_args()
         self.main_event_queue: asyncio.Queue[AppEvent] = asyncio.Queue()
+        self.main_task_group = asyncio.TaskGroup()
 
     def argparser(
         self, description: str | None = None
@@ -147,14 +148,48 @@ class BaseApp(abc.ABC):
                     functools.partial(self.handle_termination_signal, signum),
                 )
 
-    @abc.abstractmethod
-    async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
+    def supervise_coroutine[T](
+        self, coro: Coroutine[None, None, T]
+    ) -> Coroutine[None, None, T | None]:
+        """
+        Supervise a coroutine.
+
+        This will log any exceptions raised other than CancelledError.
+        """
+
+        async def wrapper() -> T | None:
+            cancelled: asyncio.CancelledError | None = None
+            try:
+                return await coro
+            except asyncio.CancelledError as cexc:
+                cancelled = cexc
+            except Exception as exc:
+                self.log.error(
+                    "Coroutine %r failed: %s", coro, exc, exc_info=exc
+                )
+            if cancelled is not None:
+                raise cancelled
+            return None
+
+        return wrapper()
+
+    async def start_task(self, coro: Coroutine[None, None, Any]) -> None:
+        """
+        Run the coroutine as a task in the main task group.
+
+        Exceptions raised by the coroutine, except for CancelledError, are
+        logged.
+        """
+        self.main_task_group.create_task(self.supervise_coroutine(coro))
+
+    async def start_main_tasks(self) -> None:
         """
         Start tasks for the application.
 
         Start the tasks via the task group; the application will exit when the
         task group exists.
         """
+        # Do nothing by default
 
     async def main_shutdown_requested(self) -> None:
         """Callen when an app shutdown has been requested."""
@@ -170,8 +205,8 @@ class BaseApp(abc.ABC):
 
         await self.main_init()
         try:
-            async with asyncio.TaskGroup() as tg:
-                await self.start_main_tasks(tg)
+            async with self.main_task_group:
+                await self.start_main_tasks()
                 while True:
                     evt = await self.main_event_queue.get()
                     self.log.debug("App event: %s", evt)

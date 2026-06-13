@@ -42,11 +42,11 @@ class LightsApp(ApplicationAsyncCmdClientApp):
             await self.set_color(value)
 
     @override
-    async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
-        await super().start_main_tasks(tg)
+    async def start_main_tasks(self) -> None:
+        await super().start_main_tasks()
         if self.lights is not None:
-            tg.create_task(self.lights.main())
-        tg.create_task(self.animator_task())
+            await self.start_task(self.lights.main())
+        await self.start_task(self.animator_task())
 
     @override
     async def receive(self, msg: Message) -> None:

@@ -323,9 +323,9 @@ class ApplicationAsyncCmdClientApp(ClientApp):
         await self.main_event_queue.put(AppShutdownEvent("User quit"))
 
     @override
-    async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
-        await super().start_main_tasks(tg)
-        tg.create_task(self.main_cmd_task())
+    async def start_main_tasks(self) -> None:
+        await super().start_main_tasks()
+        await self.start_task(self.main_cmd_task())
 
     async def cmd_quit(self, arg) -> None:
         """Quit the program."""

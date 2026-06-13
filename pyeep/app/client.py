@@ -108,8 +108,9 @@ class ClientApp(BaseApp, Component):
             )
 
     @override
-    async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
-        tg.create_task(self.client_task())
+    async def start_main_tasks(self) -> None:
+        await super().start_main_tasks()
+        await self.start_task(self.client_task())
 
 
 if __name__ == "__main__":

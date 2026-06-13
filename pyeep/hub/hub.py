@@ -159,9 +159,10 @@ class Hub(BaseApp):
         self.write_token(self.web_token_path)
 
     @override
-    async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
-        tg.create_task(self.webapp_run())
-        tg.create_task(self.scenes.main())
+    async def start_main_tasks(self) -> None:
+        await super().start_main_tasks()
+        await self.start_task(self.webapp_run())
+        await self.start_task(self.scenes.main())
 
     @override
     async def main_shutdown_requested(self) -> None:

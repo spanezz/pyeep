@@ -39,11 +39,11 @@ class Heartrate(ApplicationAsyncCmdClientApp):
             await self.send(HeartBeat(sample=sample))
 
     @override
-    async def start_main_tasks(self, tg: asyncio.TaskGroup) -> None:
-        await super().start_main_tasks(tg)
+    async def start_main_tasks(self) -> None:
+        await super().start_main_tasks()
         if self.monitor is not None:
-            tg.create_task(self.monitor.main())
-            tg.create_task(self.send_beats())
+            await self.start_task(self.monitor.main())
+            await self.start_task(self.send_beats())
 
     async def cmd_rate(self, arg) -> None:
         """Simulate a heartrate report of a float rate."""
