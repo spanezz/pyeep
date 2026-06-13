@@ -15,6 +15,7 @@ from pyeep.models.messages.input import EmergencyStop, Pause, Resume, Shortcut
 from pyeep.models.messages import power, color
 from pyeep.models import animation
 from pyeep.models.color import Color
+from pyeep.midisynth.messages import MIDIMessages, MIDIMessage
 
 
 class MessageMixin(unittest.TestCase):
@@ -221,6 +222,7 @@ class TestColor(MessageMixin, unittest.TestCase):
         with self.assertNoLogs():
             newmsg = load_primitive(json.loads(msg.as_json))
 
+        assert isinstance(newmsg, color.SetGroupColor)
         self.assertEqual(newmsg.color, msg.color)
 
     def test_setgroupcolor(self) -> None:
@@ -239,3 +241,22 @@ class TestColor(MessageMixin, unittest.TestCase):
 
                 m1 = self.assertSerializes(m)
                 self.assertEqual(m1.color, m.color)
+
+
+class TestMIDIMessages(MessageMixin, unittest.TestCase):
+    def test_midimessages_serialize(self) -> None:
+        m = MIDIMessages(frame_time=1, messages=[MIDIMessage(42, b"123")])
+        self.assertEqual(
+            m.model_dump()["messages"], [{"t": 42, "m": b"123".hex()}]
+        )
+
+    def test_midimessages(self) -> None:
+        for value in ([], [MIDIMessage(0, b"123")]):
+            with self.subTest(value=str(value)):
+                m = MIDIMessages(frame_time=1, messages=value)
+                self.assertEqual(m.frame_time, 1)
+                self.assertEqual(m.messages, value)
+
+                m1 = self.assertSerializes(m)
+                self.assertEqual(m1.frame_time, m.frame_time)
+                self.assertEqual(m1.messages, m.messages)

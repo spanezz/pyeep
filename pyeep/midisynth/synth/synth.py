@@ -1,103 +1,166 @@
+import abc
 import math
+from typing import override, Callable, Any
 
 import numpy
 
-# import numba
-# from numba.experimental import jitclass
+try:
+    import numba
+    from numba import jit
+    from numba.experimental import jitclass
+
+    phase_accumulator_spec = [("rate", numba.int32), ("phase", numba.float64)]
+except ModuleNotFoundError:
+
+    def jit[T](*args: Any, **kwargs: Any) -> Callable[[T], T]:
+        def wrapper(value: T) -> T:
+            return value
+
+        return wrapper
+
+    def jitclass[T](*args: Any, **kwargs: Any) -> Callable[[T], T]:
+        def wrapper(value: T) -> T:
+            return value
+
+        return wrapper
+
+    phase_accumulator_spec = []
 
 
-class Wave:
-    """
-    Base class for wave synthesizers
-    """
+@jitclass(phase_accumulator_spec)
+class PhaseAccumulator:
+    """Phase accumulator for wave generation."""
 
-    def wave(self, array: numpy.ndarray, freq: float) -> None:
-        raise NotImplementedError(f"{self.__class__.__name__}.wave")
-
-    def synth(
-        self, array: numpy.ndarray, freq: float, envelope: numpy.ndarray
-    ) -> None:
-        raise NotImplementedError(f"{self.__class__.__name__}.synth")
-
-
-# @jitclass(
-#     [
-#         ("rate", numba.int32),
-#         ("phase", numba.float64),
-#     ]
-# )
-class SineWave(Wave):
-    """
-    Phase accumulation synthesis
-    """
-
-    # See https://www.gkbrk.com/wiki/PhaseAccumulator/
-
-    def __init__(self, rate: int):
-        self.rate: int = rate
+    def __init__(self, rate: int) -> None:
+        self.rate = rate
         self.phase: float = 0.0
 
-    def skip(self, frames: int, freq: float):
+    def advance(self, frames: int, freq: float) -> None:
+        """
+        Advance the phase.
+
+        :param frames: number of frames to advance
+        :param freq: wave frequency
+        """
         self.phase = (
             self.phase + frames * 2.0 * math.pi * freq / self.rate
         ) % (2 * math.pi)
 
-    def wave(self, array: numpy.ndarray, freq: float) -> None:
-        for i in range(len(array)):
-            self.phase = (self.phase + 2.0 * math.pi * freq / self.rate) % (
-                2 * math.pi
-            )
-            array[i] += math.sin(self.phase)
 
+class Wave(abc.ABC):
+    """Base class for wave synthesizers."""
+
+    def __init__(self, rate: int) -> None:
+        """
+        Initialize a Wave.
+
+        :param rate: sampling rate in samples per second.
+        """
+        self.rate = rate
+
+    @abc.abstractmethod
+    def wave(self, array: numpy.ndarray, freq: float) -> None:
+        """
+        Generate a wave at full amplitude.
+
+        :param array: array where generated data is stored. The length of the
+          array is used for the number of frames to generate
+        :param freq: frequency of the wave
+        """
+
+    @abc.abstractmethod
     def synth(
         self, array: numpy.ndarray, freq: float, envelope: numpy.ndarray
     ) -> None:
-        for i in range(len(array)):
-            self.phase = (self.phase + 2.0 * math.pi * freq / self.rate) % (
-                2 * math.pi
-            )
-            array[i] += math.sin(self.phase) * envelope[i]
+        """
+        Generate a wave with an amplitude envelope.
+
+        :param array: array where generated data is stored. The length of the
+          array is used for the number of frames to generate
+        :param freq: frequency of the wave
+        :param envelope: amplitude envelope to apply to the wave
+        """
 
 
-# @jitclass(
-#     [
-#         ("rate", numba.int32),
-#         ("phase", numba.float64),
-#     ]
-# )
-class SawWave:
+class PhaseAccumulationWave(Wave):
+    """Phase-accumulation wave synthesis."""
+
+    # See https://www.gkbrk.com/wiki/PhaseAccumulator/
+
+    def __init__(self, rate: int) -> None:
+        super().__init__(rate)
+        self.phase = PhaseAccumulator(self.rate)
+
+    def skip(self, frames: int, freq: float):
+        """
+        Simulate generating a portion of the wave.
+
+        :param frames: number of frames to simulate
+        :param freq: wave frequency to simulate
+        """
+        self.phase.advance(frames, freq)
+
+
+@jit(nopython=True)
+def synth_sine(
+    phase: PhaseAccumulator,
+    out: numpy.ndarray,
+    freq: float,
+    envelope: numpy.ndarray,
+) -> None:
+    for i in range(len(out)):
+        out[i] += math.sin(phase.phase) * envelope[i]
+        phase.advance(1, freq)
+
+
+class SineWave(PhaseAccumulationWave):
     """
     Phase accumulation synthesis
     """
 
-    # See https://www.gkbrk.com/wiki/PhaseAccumulator/
-
-    def __init__(self, rate: int):
-        self.rate: int = rate
-        self.phase: float = 0.0
-
+    @override
     def wave(self, array: numpy.ndarray, freq: float) -> None:
         for i in range(len(array)):
-            self.phase = (self.phase + freq / self.rate) % 2
-            array[i] += self.phase - 1
+            array[i] += math.sin(self.phase.phase)
+            self.phase.advance(1, freq)
 
+    @override
     def synth(
         self, array: numpy.ndarray, freq: float, envelope: numpy.ndarray
     ) -> None:
+        synth_sine(self.phase, array, freq, envelope)
+
+
+@jit(nopython=True)
+def synth_saw(
+    phase: PhaseAccumulator,
+    out: numpy.ndarray,
+    freq: float,
+    envelope: numpy.ndarray,
+) -> None:
+    for i in range(len(out)):
+        out[i] += phase.phase / (2 * math.pi) * envelope[i]
+        phase.advance(1, freq)
+
+
+class SawWave(PhaseAccumulationWave):
+    """
+    Phase accumulation synthesis
+    """
+
+    @override
+    def wave(self, array: numpy.ndarray, freq: float) -> None:
         for i in range(len(array)):
-            self.phase = (self.phase + freq / self.rate) % 2
-            array[i] += (self.phase - 1) * envelope[i]
+            array[i] += self.phase.phase / (2 * math.pi)
+            self.phase.advance(1, freq)
+
+    @override
+    def synth(
+        self, array: numpy.ndarray, freq: float, envelope: numpy.ndarray
+    ) -> None:
+        synth_saw(self.phase, array, freq, envelope)
 
 
-# @jitclass(
-#     [
-#         ("attack_level", numba.float64),
-#         ("attack_time", numba.float64),
-#         ("decay_time", numba.float64),
-#         ("sustain_level", numba.float64),
-#         ("release_time", numba.float64),
-#     ]
-# )
 class EnvelopeShape:
     def __init__(
         self,
@@ -114,19 +177,9 @@ class EnvelopeShape:
         self.release_time = release_time
 
 
-# @jitclass(
-#     [
-#         ("start_frame", numba.int32),
-#         ("rate", numba.int32),
-#         ("velocity", numba.float64),
-#         ("sustain_start", numba.int32),
-#         ("release_frames", numba.int32),
-#         ("release_start", numba.int32),
-#         ("head", numba.float64[:]),
-#         ("tail", numba.float64[:]),
-#     ]
-# )
 class Envelope:
+    """Generate amplitude envelopes."""
+
     shape: EnvelopeShape
 
     def __init__(

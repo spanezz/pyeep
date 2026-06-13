@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import math
 
 A_SHIFTS = {
@@ -7,7 +5,7 @@ A_SHIFTS = {
     "C#": -8,
     "Db": -8,
     "D": -7,
-    "D#": 66,
+    "D#": -6,
     "Eb": -6,
     "E": -5,
     "F": -4,

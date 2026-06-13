@@ -77,6 +77,10 @@ class AppSendMessageEvent(AppEvent):
         return str(self.message)
 
 
+class Shutdown(Exception):
+    """Shutdown has been requested."""
+
+
 class BaseApp(abc.ABC):
     """Base framework for executable commands."""
 
@@ -197,11 +201,22 @@ class BaseApp(abc.ABC):
     async def main_shutdown(self) -> None:
         """Shut down the application."""
 
+    async def main_process_event(self, evt: AppEvent) -> None:
+        """Process an event from the main event queue."""
+        match evt:
+            case AppShutdownEvent():
+                await self.main_shutdown_requested()
+                # Raise an exception instead of breaking out of the
+                # while, so that tasks in tg are cancelled
+                self.main_event_queue.task_done()
+                raise Shutdown(str(evt))
+            case AppSendMessageEvent():
+                await self.send(evt.message)
+            case _:
+                self.log.warning("Received unsupported app event: %s", evt)
+
     async def main(self) -> None:
         """Main entry point for the application."""
-
-        class Shutdown(Exception):
-            """Shutdown has been requested."""
 
         await self.main_init()
         try:
@@ -210,19 +225,7 @@ class BaseApp(abc.ABC):
                 while True:
                     evt = await self.main_event_queue.get()
                     self.log.debug("App event: %s", evt)
-                    match evt:
-                        case AppShutdownEvent():
-                            await self.main_shutdown_requested()
-                            # Raise an exception instead of breaking out of the
-                            # while, so that tasks in tg are cancelled
-                            self.main_event_queue.task_done()
-                            raise Shutdown(str(evt))
-                        case AppSendMessageEvent():
-                            await self.send(evt.message)
-                        case _:
-                            self.log.warning(
-                                "Received unsupported app event: %s", evt
-                            )
+                    await self.main_process_event(evt)
                     self.main_event_queue.task_done()
         except* Shutdown as exc:
             self.log.info("App shutdown: %s", exc.exceptions[0])
