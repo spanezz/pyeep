@@ -32,8 +32,7 @@ class MessageMixin(unittest.TestCase):
 
         assert isinstance(newmsg, Message)
         self.assertEqual(newmsg.__class__, msg.__class__)
-        self.assertEqual(newmsg.py_module, msg.py_module)
-        self.assertEqual(newmsg.py_class, msg.py_class)
+        self.assertEqual(newmsg.primitive, msg.primitive)
         self.assertEqual(newmsg.name, msg.name)
         self.assertEqual(newmsg.ts, msg.ts)
         self.assertEqual(newmsg.src, msg.src)
@@ -44,8 +43,7 @@ class MessageMixin(unittest.TestCase):
 class TestBase(MessageMixin, unittest.TestCase):
     def test_message(self) -> None:
         m = Message()
-        self.assertEqual(m.py_module, "pyeep.models.messages.message")
-        self.assertEqual(m.py_class, "Message")
+        self.assertEqual(m.primitive, "pyeep.models.messages.message.Message")
         self.assertEqual(m.name, "message")
         self.assertIsInstance(m.ts, int)
         self.assertIsNone(m.src)
@@ -211,8 +209,7 @@ class TestColor(MessageMixin, unittest.TestCase):
         self.assertEqual(
             json.loads(msg.as_json)["color"],
             {
-                "py_module": "pyeep.models.animation",
-                "py_class": "ColorHeartPulse",
+                "primitive": "pyeep.models.animation.ColorHeartPulse",
                 "atrial_duration_ratio": 0.3,
                 "color": {"blue": 0.0, "green": 0.0, "red": 0.5},
                 "duration_ns": 100000000,

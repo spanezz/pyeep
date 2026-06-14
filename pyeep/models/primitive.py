@@ -12,8 +12,12 @@ log = logging.getLogger(__name__)
 def get_primitive_subclass(obj: dict[str, Any]) -> type["Primitive"]:
     """Get the Primitive subclass for a serialized Primitive."""
     try:
-        module_name = obj["py_module"]
-        class_name = obj["py_class"]
+        primitive_name = obj["primitive"]
+    except Exception as e:
+        raise ValueError(e)
+
+    try:
+        module_name, class_name = primitive_name.rsplit(".", 1)
     except Exception as e:
         raise ValueError(e)
 
@@ -36,15 +40,13 @@ def get_primitive_subclass(obj: dict[str, Any]) -> type["Primitive"]:
 class Primitive(pydantic.BaseModel):
     """Base for all serialized primitives used in pyeep."""
 
-    py_module: str = ""
-    py_class: str = ""
+    primitive: str = ""
 
     @pydantic.model_validator(mode="before")
     @classmethod
     def _fill_primitive_defaults(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            data.setdefault("py_module", cls.__module__)
-            data.setdefault("py_class", cls.__name__)
+            data.setdefault("primitive", f"{cls.__module__}.{cls.__name__}")
         return data
 
 

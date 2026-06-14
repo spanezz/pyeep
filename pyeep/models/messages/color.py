@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 def get_color_discriminator_value(v: Any) -> str | None:
     match v:
         case dict():
-            if "py_module" in v:
+            if "primitive" in v:
                 return "animation"
             else:
                 return "color"

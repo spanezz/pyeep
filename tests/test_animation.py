@@ -21,8 +21,7 @@ class AnimationMixin(unittest.TestCase):
 
         assert isinstance(new, animation.AnimationPrimitive)
         self.assertEqual(new.__class__, value.__class__)
-        self.assertEqual(new.py_module, value.py_module)
-        self.assertEqual(new.py_class, value.py_class)
+        self.assertEqual(new.primitive, value.primitive)
         return cast(A, new)
 
 
