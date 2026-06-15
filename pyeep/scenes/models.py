@@ -1,6 +1,6 @@
 import abc
 import importlib
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Self
 import pydantic
 
 if TYPE_CHECKING:
@@ -26,7 +26,7 @@ class SceneDescription(pydantic.BaseModel, abc.ABC):
         return data
 
     @abc.abstractmethod
-    def make_scene(self) -> "Scene":
+    def make_scene(self) -> "Scene[Self]":
         """Create the Scene from this description."""
 
 
@@ -52,7 +52,9 @@ def get_scene_description_subclass(
             f"{module_name}.Description is not a subclass of SceneDescription"
         )
 
-    return cls
+    # This is checked by issubclass to be a SceneDescription subclass, but mypy
+    # doesn't seem to pick it up
+    return cls  # type: ignore[no-any-return]
 
 
 def load_scene_description(obj: Any) -> SceneDescription:

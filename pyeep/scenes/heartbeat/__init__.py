@@ -18,7 +18,7 @@ class Description(SceneDescription):
         return SceneHeartbeat(self)
 
 
-class SceneHeartbeat(Scene):
+class SceneHeartbeat(Scene[Description]):
     """Pulse lights in sync with heartbeat."""
 
     def __init__(self, desc: Description, /) -> None:

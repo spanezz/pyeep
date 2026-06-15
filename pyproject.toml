@@ -22,7 +22,8 @@ max-line-length = 80
 mypy_path = "stubs"
 packages = ["pyeep"]
 modules = ["tests"]
-# strict = true
+strict = true
+enable_error_code = "explicit-override"
 
 [[tool.mypy.overrides]]
 module = ["mido", "muselsl", "muselsl.constants", "muselsl.muse", "numba", "numba.experimental", "scipy", "scipy.signal"]

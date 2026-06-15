@@ -1,4 +1,4 @@
-from typing import Self
+from typing import Self, override
 
 import pydantic
 
@@ -12,6 +12,7 @@ class Color(pydantic.BaseModel):
     green: float = 0
     blue: float = 0
 
+    @override
     def __str__(self) -> str:
         return (
             "#"

@@ -9,9 +9,11 @@ from pyeep.midisynth.synth.midisynth import (
     AudioConfig,
     Instruments,
 )
-from pyeep.midisynth.synth.midisynth import EnvelopeShape, Sine, Saw
+from pyeep.midisynth.synth.synth import EnvelopeShape
+from pyeep.midisynth.synth.midisynth import Sine, Saw
 from pyeep.midisynth import synth
-from .jack import JackClient, JackHandler, MIDIHandler, MIDIInput, MIDIMessage
+from .jack import JackClient, JackHandler, MIDIHandler, MIDIInput
+from .messages import MIDIMessage
 
 
 class AudioOut(JackHandler):

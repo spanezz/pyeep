@@ -1,14 +1,11 @@
 import asyncio
-import argparse
-import logging
-import time as tm
 from typing import override
 
 from pyeep.app.base import AppEvent
 from pyeep.app.asynccmd import ApplicationAsyncCmdClientApp
-from .jack import JackClient, MIDIInput, MIDIMessage, MIDIHandler
+from .jack import JackClient, MIDIInput, MIDIHandler
 from .midisynth import setup_synth
-from .messages import MIDIMessages
+from .messages import MIDIMessage, MIDIMessages
 
 
 class AppMIDIEvent(AppEvent):
@@ -79,11 +76,6 @@ class MidiSynth(ApplicationAsyncCmdClientApp):
         self.midi_input.add_handler(notify_midi_events)
         await super().start_main_tasks()
         await self.start_task(self.jack.main())
-
-    # async def cmd_rate(self, arg) -> None:
-    #     """Simulate a heartrate report of a float rate."""
-    #     rate = float(arg)
-    #     await self.send(HeartBeat(sample=Sample(time=tm.time_ns(), rate=rate)))
 
 
 if __name__ == "__main__":

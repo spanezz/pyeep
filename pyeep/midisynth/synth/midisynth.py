@@ -1,14 +1,15 @@
+import abc
 import logging
 import math
 import threading
 from collections import deque
 from collections.abc import Sequence
-from typing import NamedTuple
+from typing import NamedTuple, override, Any
 
 import mido
 import numpy
 
-from .synth import Envelope, EnvelopeShape, SawWave, SineWave
+from .synth import Envelope, EnvelopeShape, SawWave, SineWave, WaveArray
 
 log = logging.getLogger(__name__)
 
@@ -19,14 +20,14 @@ class AudioConfig(NamedTuple):
     dtype: type
 
 
-class Note:
+class Note(abc.ABC):
     """A note being played on the synth."""
 
     def __init__(
         self, *, instrument: "Instrument", note: int, envelope: EnvelopeShape
     ):
         self.audio_config = instrument.audio_config
-        self.note = note
+        self.note: int = note
         self.envelope_shape = envelope
         self.next_events: deque[mido.Message] = deque()
         self.last_pitchwheel: mido.Message | None = None
@@ -34,6 +35,7 @@ class Note:
 
     def get_semitone(self) -> float:
         if (msg := self.last_pitchwheel) is not None and (t := msg.pitch):
+            assert isinstance(t, int)
             return (self.note - 69) + 2 * t / 8192
         else:
             return self.note - 69
@@ -41,11 +43,11 @@ class Note:
     def get_freq(self) -> float:
         return 440.0 * math.exp2(self.get_semitone() / 12)
 
-    def add_event(self, msg: mido.Message):
+    def add_event(self, msg: mido.Message) -> None:
         # msg.time seems to always grow monotonically
         self.next_events.append(msg)
 
-    def _update_note_state(self, msg: mido.Message):
+    def _update_note_state(self, msg: mido.Message) -> None:
         """
         Update the state of the node with the effect of the event in msg
         """
@@ -96,14 +98,13 @@ class Note:
                 events.append(msg)
         return events
 
+    @abc.abstractmethod
     def add_wave(
-        self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray
-    ):
-        raise NotImplementedError()
+        self, frame_time: int, array: WaveArray, envelope: WaveArray
+    ) -> None:
+        """Add a wave to the given array."""
 
-    def get_envelope(
-        self, frame_time: int, frames: int
-    ) -> numpy.ndarray | None:
+    def get_envelope(self, frame_time: int, frames: int) -> WaveArray | None:
         if self.envelope is None:
             return None
 
@@ -112,12 +113,12 @@ class Note:
 
         return envelope
 
-    def synth(self, frame_time: int, array: numpy.ndarray) -> None:
+    def synth(self, frame_time: int, array: WaveArray) -> None:
         frames = len(array)
         if (envelope := self.get_envelope(frame_time, frames)) is not None:
             self.add_wave(frame_time, array, envelope)
 
-    def generate(self, frame_time: int, array: numpy.ndarray) -> bool:
+    def generate(self, frame_time: int, array: WaveArray) -> bool:
         """
         Generate samples and add them to the values in the array, effectively
         mixing the output of this note into the array.
@@ -151,23 +152,25 @@ class Note:
 
 
 class Sine(Note):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.sine_synth = SineWave(self.audio_config.out_samplerate)
 
+    @override
     def add_wave(
-        self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray
+        self, frame_time: int, array: WaveArray, envelope: WaveArray
     ) -> None:
         self.sine_synth.synth(array, self.get_freq(), envelope)
 
 
 class Saw(Note):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.saw_synth = SawWave(self.audio_config.out_samplerate)
 
+    @override
     def add_wave(
-        self, frame_time: int, array: numpy.ndarray, envelope: numpy.ndarray
+        self, frame_time: int, array: WaveArray, envelope: WaveArray
     ) -> None:
         self.saw_synth.synth(array, self.get_freq(), envelope)
 
@@ -196,7 +199,7 @@ class Instrument:
         note.add_event(msg)
         return True
 
-    def add_pitchwheel(self, msg: mido.Message):
+    def add_pitchwheel(self, msg: mido.Message) -> None:
         # Transpose the notes
         #
         # Pitch is an integer from from -8192 to 8191
@@ -208,7 +211,7 @@ class Instrument:
         for note in self.notes.values():
             note.add_event(msg)
 
-    def generate(self, frame_time: int, array: numpy.ndarray) -> None:
+    def generate(self, frame_time: int, array: WaveArray) -> None:
         for note_id, note in list(self.notes.items()):
             if not note.generate(frame_time, array):
                 del self.notes[note_id]
@@ -231,12 +234,14 @@ class Instruments:
                 / self.audio_config.in_samplerate
             )
 
-    def set(self, channel: int, note_cls: type[Note], envelope: EnvelopeShape):
+    def set(
+        self, channel: int, note_cls: type[Note], envelope: EnvelopeShape
+    ) -> None:
         self.instruments[channel] = Instrument(
             self.audio_config, channel, note_cls, envelope=envelope
         )
 
-    def start_input_frame(self, in_last_frame_time: int):
+    def start_input_frame(self, in_last_frame_time: int) -> None:
         if self.samplerate_conversion is not None:
             self.out_last_frame_time = int(
                 round(in_last_frame_time * self.samplerate_conversion)
@@ -272,7 +277,7 @@ class Instruments:
             case _:
                 return False
 
-    def generate(self, out_frame_time: int, array: numpy.ndarray) -> None:
+    def generate(self, out_frame_time: int, array: WaveArray) -> None:
         """
         Generate a waveform for the given time, expressed as the output frame
         rate
@@ -308,7 +313,7 @@ class MidiSynth:
 
     def add_messages(
         self, last_frame_time: int, messages: Sequence[mido.Message]
-    ):
+    ) -> None:
         """
         Enqueue midi events in the right instruments/notes
         """
@@ -320,7 +325,7 @@ class MidiSynth:
                 for i in self.instrument_banks:
                     i.add_event(msg)
 
-    def generate(self, out_frame_time: int, array: numpy.ndarray) -> None:
+    def generate(self, out_frame_time: int, array: WaveArray) -> None:
         """
         Generate a waveform for the given time, expressed as the output frame
         rate

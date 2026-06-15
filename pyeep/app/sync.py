@@ -4,7 +4,7 @@ import concurrent
 import os
 import signal
 import threading
-from typing import Coroutine
+from typing import Coroutine, Any
 
 from pyeep.app.client import ClientApp
 from pyeep.app.base import AppEvent, AppShutdownEvent
@@ -28,7 +28,7 @@ class SyncClientApp(abc.ABC):
         self.app = app
         self.log = self.app.log
         self.app_thread: threading.Thread | None = None
-        self.loop: asyncio.EventLoop | None = None
+        self.loop: asyncio.AbstractEventLoop | None = None
         self.loop_available = threading.Event()
         #: Set to True when the user explicitly asked to quit
         self.pid = os.getpid()
@@ -39,7 +39,7 @@ class SyncClientApp(abc.ABC):
         signal.signal(signal.SIGTERM, self.on_sigterm_sigint)
         signal.signal(signal.SIGINT, self.on_sigterm_sigint)
 
-    def on_sigterm_sigint(self, signal: signal.Signals, frame) -> None:
+    def on_sigterm_sigint(self, signal: int, frame: Any) -> None:
         raise RemoteQuit()
 
     async def app_thread_async_main(self) -> None:

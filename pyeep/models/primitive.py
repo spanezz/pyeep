@@ -34,7 +34,9 @@ def get_primitive_subclass(obj: dict[str, Any]) -> type["Primitive"]:
             f"{module_name}.{class_name} is not a subclass of Primitive"
         )
 
-    return cls
+    # This is checked by issubclass to be a Primitive subclass, but mypy
+    # doesn't seem to pick it up
+    return cls  # type: ignore[no-any-return]
 
 
 class Primitive(pydantic.BaseModel):
@@ -65,7 +67,7 @@ class PrimitiveField:
             primitive_cls = get_primitive_subclass(value)
             return primitive_cls.model_validate(value)
 
-        def _serialize(instance):
+        def _serialize(instance: Primitive) -> dict[str, Any]:
             return instance.model_dump()
 
         from_dict_schema = core_schema.chain_schema(

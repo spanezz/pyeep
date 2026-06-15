@@ -2,7 +2,7 @@ import abc
 import math
 from typing import override, Callable, Any
 
-import numpy
+import numpy as np
 
 try:
     import numba
@@ -25,6 +25,8 @@ except ModuleNotFoundError:
         return wrapper
 
     phase_accumulator_spec = []
+
+type WaveArray = np.ndarray[tuple[int], np.dtype[np.float64]]
 
 
 @jitclass(phase_accumulator_spec)
@@ -59,7 +61,7 @@ class Wave(abc.ABC):
         self.rate = rate
 
     @abc.abstractmethod
-    def wave(self, array: numpy.ndarray, freq: float) -> None:
+    def wave(self, array: WaveArray, freq: float) -> None:
         """
         Generate a wave at full amplitude.
 
@@ -70,7 +72,10 @@ class Wave(abc.ABC):
 
     @abc.abstractmethod
     def synth(
-        self, array: numpy.ndarray, freq: float, envelope: numpy.ndarray
+        self,
+        array: WaveArray,
+        freq: float,
+        envelope: WaveArray,
     ) -> None:
         """
         Generate a wave with an amplitude envelope.
@@ -91,7 +96,7 @@ class PhaseAccumulationWave(Wave):
         super().__init__(rate)
         self.phase = PhaseAccumulator(self.rate)
 
-    def skip(self, frames: int, freq: float):
+    def skip(self, frames: int, freq: float) -> None:
         """
         Simulate generating a portion of the wave.
 
@@ -103,10 +108,7 @@ class PhaseAccumulationWave(Wave):
 
 @jit(nopython=True)
 def synth_sine(
-    phase: PhaseAccumulator,
-    out: numpy.ndarray,
-    freq: float,
-    envelope: numpy.ndarray,
+    phase: PhaseAccumulator, out: WaveArray, freq: float, envelope: WaveArray
 ) -> None:
     for i in range(len(out)):
         out[i] += math.sin(phase.phase) * envelope[i]
@@ -119,24 +121,24 @@ class SineWave(PhaseAccumulationWave):
     """
 
     @override
-    def wave(self, array: numpy.ndarray, freq: float) -> None:
+    def wave(self, array: WaveArray, freq: float) -> None:
         for i in range(len(array)):
             array[i] += math.sin(self.phase.phase)
             self.phase.advance(1, freq)
 
     @override
     def synth(
-        self, array: numpy.ndarray, freq: float, envelope: numpy.ndarray
+        self,
+        array: WaveArray,
+        freq: float,
+        envelope: WaveArray,
     ) -> None:
         synth_sine(self.phase, array, freq, envelope)
 
 
 @jit(nopython=True)
 def synth_saw(
-    phase: PhaseAccumulator,
-    out: numpy.ndarray,
-    freq: float,
-    envelope: numpy.ndarray,
+    phase: PhaseAccumulator, out: WaveArray, freq: float, envelope: WaveArray
 ) -> None:
     for i in range(len(out)):
         out[i] += phase.phase / (2 * math.pi) * envelope[i]
@@ -149,15 +151,13 @@ class SawWave(PhaseAccumulationWave):
     """
 
     @override
-    def wave(self, array: numpy.ndarray, freq: float) -> None:
+    def wave(self, array: WaveArray, freq: float) -> None:
         for i in range(len(array)):
             array[i] += self.phase.phase / (2 * math.pi)
             self.phase.advance(1, freq)
 
     @override
-    def synth(
-        self, array: numpy.ndarray, freq: float, envelope: numpy.ndarray
-    ) -> None:
+    def synth(self, array: WaveArray, freq: float, envelope: WaveArray) -> None:
         synth_saw(self.phase, array, freq, envelope)
 
 
@@ -189,7 +189,7 @@ class Envelope:
         rate: int,
         start_level: float = 0.0,
         velocity: float = 1.0,
-    ):
+    ) -> None:
         self.shape = shape
         self.start_frame = frame_time
         self.rate = rate
@@ -200,21 +200,23 @@ class Envelope:
         self.release_frames = round(self.shape.release_time * rate)
         self.release_start: int = 0
         # Precomputed lead values
-        self.head = numpy.concatenate(
+        self.head: WaveArray = np.concatenate(
             (
-                numpy.linspace(
+                np.linspace(
                     start_level,
                     self.shape.attack_level * velocity,
                     round(self.shape.attack_time * rate),
+                    dtype=np.float64,
                 ),
-                numpy.linspace(
+                np.linspace(
                     self.shape.attack_level * velocity,
                     self.shape.sustain_level * velocity,
                     round(self.shape.decay_time * rate),
+                    dtype=np.float64,
                 ),
             )
         )
-        self.tail = numpy.zeros(1)
+        self.tail: WaveArray = np.zeros(1)
 
     def release(self, frame_time: int) -> None:
         """
@@ -228,9 +230,9 @@ class Envelope:
         else:
             # Release happened during the sustain phase
             start_level = self.shape.sustain_level * self.velocity
-        self.tail = numpy.linspace(start_level, 0, self.release_frames)
+        self.tail = np.linspace(start_level, 0, self.release_frames)
 
-    def get_chunk(self, frame_time: int, frames: int) -> numpy.ndarray | None:
+    def get_chunk(self, frame_time: int, frames: int) -> WaveArray | None:
         elapsed = frame_time - self.start_frame
         # print(f"get_chunk {frame_time=} {frames=} {elapsed=}")
 
@@ -252,7 +254,7 @@ class Envelope:
             else:
                 count = min(frames, self.release_start - elapsed)
             # print(f"  s {count=}")
-            return numpy.full(count, self.shape.sustain_level * self.velocity)
+            return np.full(count, self.shape.sustain_level * self.velocity)
         else:
             # Attack/decay
             size = min(frames, len(self.head))
@@ -261,8 +263,8 @@ class Envelope:
             # print(f"  ad {elapsed=} {size=}")
             return self.head[elapsed : elapsed + size]
 
-    def generate(self, frame_time: int, frames: int) -> numpy.ndarray | None:
-        res = numpy.zeros(frames)
+    def generate(self, frame_time: int, frames: int) -> WaveArray | None:
+        res = np.zeros(frames)
         start = 0
         has_data = False
 
@@ -271,7 +273,7 @@ class Envelope:
             if chunk is None:
                 if not has_data:
                     return None
-                chunk = numpy.zeros(frames - start)
+                chunk = np.zeros(frames - start)
             else:
                 has_data = True
             res[start : start + len(chunk)] = chunk

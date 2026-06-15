@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import jinja2
 import aiohttp_jinja2
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 class Home(web.View):
     @aiohttp_jinja2.template("home.html")
-    async def get(self):
+    async def get(self) -> dict[str, Any]:
         from pyeep.hub.hub import Scenes
 
         scenes = self.request.app["scenes"]
@@ -55,7 +55,7 @@ class Main:
         # )
 
         # Add individual scenes
-        scene_loaders: dict[str, jinja2.PackageLoader] = {}
+        scene_loaders: dict[str, jinja2.BaseLoader] = {}
         for scene in self.hub.scenes.scenes.values():
             # Static router
             static_path = get_package_path(scene.desc.module) / "static"

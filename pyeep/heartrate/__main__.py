@@ -23,6 +23,7 @@ class Heartrate(ApplicationAsyncCmdClientApp):
                 device=self.args.addr, log=logging.getLogger(f"{self.name}.ble")
             )
 
+    @override
     def argparser(
         self, description: str | None = None
     ) -> argparse.ArgumentParser:
@@ -45,9 +46,8 @@ class Heartrate(ApplicationAsyncCmdClientApp):
             await self.start_task(self.monitor.main())
             await self.start_task(self.send_beats())
 
-    async def cmd_rate(self, arg) -> None:
+    async def cmd_rate(self, rate: float) -> None:
         """Simulate a heartrate report of a float rate."""
-        rate = float(arg)
         await self.send(HeartBeat(sample=Sample(time=tm.time_ns(), rate=rate)))
 
 

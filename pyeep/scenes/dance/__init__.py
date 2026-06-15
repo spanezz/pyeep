@@ -20,7 +20,7 @@ class Description(SceneDescription):
         return SceneDance(self)
 
 
-class SceneDance(Scene):
+class SceneDance(Scene[Description]):
     """Control lights based on head position."""
 
     def __init__(self, desc: Description, /) -> None:
@@ -75,7 +75,9 @@ class SceneDance(Scene):
 
             case HeadMoved():
 
-                def normpos(val: float, min_angle=0, max_angle=80) -> float:
+                def normpos(
+                    val: float, min_angle: float = 0, max_angle: float = 80
+                ) -> float:
                     return (
                         (abs(val) - min_angle) / (max_angle - min_angle)
                     ) ** 2

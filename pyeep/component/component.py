@@ -13,6 +13,7 @@ class BaseComponent(abc.ABC):
         self.name = name
         self.log = logging.getLogger(self.get_logger_name())
 
+    @override
     def __str__(self) -> str:
         return self.name
 

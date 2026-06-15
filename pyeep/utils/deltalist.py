@@ -23,7 +23,7 @@ class DeltaList(Generic[EventType]):
     def __init__(self) -> None:
         self.events: deque[EventType] = deque()
 
-    def add_event(self, event: EventType):
+    def add_event(self, event: EventType) -> None:
         """
         Enqueue an event at its frame_delay position.
         """

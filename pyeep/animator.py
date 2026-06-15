@@ -27,6 +27,7 @@ class Animator[T](abc.ABC):
         self.animations: Animations[T] = self.get_animations()
         self.animation_ns: int = 0
 
+    @override
     def __str__(self) -> str:
         return f"Animator({self.name})"
 

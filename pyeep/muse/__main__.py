@@ -1,7 +1,5 @@
-import asyncio
 import argparse
 import logging
-import time as tm
 from typing import override
 
 from pyeep.app.asynccmd import ApplicationAsyncCmdClientApp
@@ -24,6 +22,7 @@ class MuseApp(ApplicationAsyncCmdClientApp):
                 device=self.args.addr, log=logging.getLogger(f"{self.name}.ble")
             )
 
+    @override
     def argparser(
         self, description: str | None = None
     ) -> argparse.ArgumentParser:
@@ -52,9 +51,9 @@ class MuseApp(ApplicationAsyncCmdClientApp):
             self.mode = selected(muse=self.muse, app=self)
             await self.mode.start()
 
-    async def cmd_mode(self, arg) -> None:
+    async def cmd_mode(self, value: str) -> None:
         """Set the monitor mode, use 'list' to list modes."""
-        if arg == "list":
+        if value == "list":
             self.interface.term.add_line([("", "Available modes:")])
             for name, mode_cls in modes.modes.items():
                 if mode_cls.__doc__ is None:
@@ -65,7 +64,7 @@ class MuseApp(ApplicationAsyncCmdClientApp):
                     [("bold", name), ("", f": {summary}")]
                 )
         else:
-            await self.set_mode(arg)
+            await self.set_mode(value)
 
 
 if __name__ == "__main__":

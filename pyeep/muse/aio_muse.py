@@ -13,7 +13,7 @@ import numpy.typing as npt
 type SamplesEEG = np.ndarray[tuple[int, int], np.dtype[np.int64]]
 type SamplesPPG = np.ndarray[tuple[int], np.dtype[np.float64]]
 type SamplesACC = np.ndarray[tuple[int], np.dtype[np.float64]]
-type SamplesGyro = np.ndarray[tuple[int, int, int], np.dtype[np.float64]]
+type SamplesGyro = np.ndarray[tuple[int, int], np.dtype[np.float64]]
 type Timestamps = np.ndarray[tuple[int], np.dtype[np.float64]]
 type CallbackEEG = Callable[[SamplesEEG, Timestamps], None]
 type CallbackPPG = Callable[[SamplesPPG, Timestamps], None]
@@ -50,7 +50,7 @@ class Muse(muselsl.muse.Muse):
         """
         await self.client.write_gatt_char(0x000E - 1, bytearray(cmd), False)
 
-    async def _write_cmd_str(self, cmd: str):
+    async def _write_cmd_str(self, cmd: str) -> None:
         """
         Encode and write a command string to the Muse device
         """
@@ -120,7 +120,7 @@ class Muse(muselsl.muse.Muse):
         """Keep streaming, sending 'k' command"""
         await self._write_cmd_str("k")
 
-    async def select_preset(self, preset=21) -> None:
+    async def select_preset(self, preset: str | int = 21) -> None:
         """Set preset for headband configuration
 
         See details here https://articles.jaredcamins.com/figuring-out-bluetooth-low-energy-part-2-750565329a7d
@@ -129,24 +129,26 @@ class Muse(muselsl.muse.Muse):
           'p22','p23','p31','p32','p50','p51','p52','p53','p60','p61','p63','pAB','pAD'
         Default is 'p21'."""
 
-        if type(preset) is int:
+        if isinstance(preset, int):
             preset = str(preset)
         if preset[0] == "p":
             preset = preset[1:]
         if str(preset) != "21":
             print("Sending command for non-default preset: p" + preset)
-        preset = bytes(preset, "utf-8")
-        await self._write_cmd([0x04, 0x70, *preset, 0x0A])
+        preset_bytes = bytes(preset, "utf-8")
+        await self._write_cmd([0x04, 0x70, *preset_bytes, 0x0A])
 
-    async def _start_notify(self, uuid, callback):
+    async def _start_notify(
+        self, uuid: str, callback: Callable[..., None]
+    ) -> None:
         @functools.wraps(callback)
-        def wrap(gatt_characteristic, data):
+        def wrap(gatt_characteristic, data) -> None:
             value_handle = gatt_characteristic.handle + 1
             callback(value_handle, data)
 
         await self.client.start_notify(uuid, wrap)
 
-    async def subscribe_eeg(self, callback_eeg: CallbackEEG):
+    async def subscribe_eeg(self, callback_eeg: CallbackEEG) -> None:
         """subscribe to eeg stream."""
         self.callback_eeg = callback_eeg
         await self._start_notify(

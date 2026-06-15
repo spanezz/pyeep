@@ -4,9 +4,9 @@ import inspect
 import json
 import math
 from pathlib import Path
-from typing import Any, override
+from typing import Any, override, cast
 
-import numpy
+import numpy as np
 import scipy.signal
 
 from pyeep.utils import dsp
@@ -106,16 +106,20 @@ class GyroAxisBase(abc.ABC):
             if len(self.bias_samples) < 256:
                 self.bias_samples.append(sample)
             else:
-                self.bias = numpy.mean(self.bias_samples)
+                self.bias = cast(float, np.mean(self.bias_samples))
                 self.calibration_path.write_text(
                     json.dumps({"bias": self.bias})
                 )
         else:
             self.process_sample(timestamp, sample - self.bias)
 
-    def add_samples(self, timestamps: list[float], samples: numpy.ndarray):
+    def add_samples(
+        self,
+        timestamps: aio_muse.Timestamps,
+        samples: np.ndarray[tuple[int], np.dtype[np.float64]],
+    ) -> None:
         for ts, sample in zip(timestamps, samples):
-            self.add(ts, sample)
+            self.add(ts, cast(float, sample))
 
     @abc.abstractmethod
     def process_sample(self, timestamp: float, sample: float) -> None:
@@ -169,7 +173,7 @@ class GyroAxisSwing(GyroAxisBase):
             if elapsed == 0:
                 return 0, 0
             dps = abs(self.total_angle / 52 / elapsed)
-            return elapsed, numpy.clip(dps / self.max_dps, 0, 1)
+            return elapsed, np.clip(dps / self.max_dps, 0, 1)
 
 
 class GyroAxisLast(GyroAxisBase):
@@ -183,7 +187,7 @@ class GyroAxisLast(GyroAxisBase):
         self.alast: float = 0
 
     @override
-    def process_sample(self, timestamp: float, sample: float):
+    def process_sample(self, timestamp: float, sample: float) -> None:
         self.alast = sample - self.last
         self.last = sample
 
@@ -195,7 +199,7 @@ class GyroAxisLast(GyroAxisBase):
 class ModeHeadYesNo(Mode, name="yesno"):
     """Head yes/no."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.x_axis = GyroAxisSwing("x", gesture="meh", max_dps=200)
         self.y_axis = GyroAxisSwing("y", gesture="yes", max_dps=150)
@@ -207,7 +211,7 @@ class ModeHeadYesNo(Mode, name="yesno"):
 
     def on_gyro(
         self, data: aio_muse.SamplesGyro, timestamps: aio_muse.Timestamps
-    ):
+    ) -> None:
         self.x_axis.add_samples(timestamps, data[0, :])
         self.y_axis.add_samples(timestamps, data[1, :])
         self.z_axis.add_samples(timestamps, data[2, :])
@@ -239,7 +243,7 @@ class ModeHeadYesNo(Mode, name="yesno"):
 class ModeHeadGyro(Mode, name="headgyro"):
     """Head gyro values."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.x_axis = GyroAxisLast("x")
         self.y_axis = GyroAxisLast("y")
@@ -254,7 +258,7 @@ class ModeHeadGyro(Mode, name="headgyro"):
 
     def on_gyro(
         self, data: aio_muse.SamplesGyro, timestamps: aio_muse.Timestamps
-    ):
+    ) -> None:
         self.x_axis.add_samples(timestamps, data[0, :])
         self.y_axis.add_samples(timestamps, data[1, :])
         self.z_axis.add_samples(timestamps, data[2, :])
@@ -280,9 +284,9 @@ class ModeHeadGyro(Mode, name="headgyro"):
 #         self.win_size = 256 * 2
 #         self.hop = 16
 #         self.hamming = scipy.signal.windows.hamming(self.win_size, sym=False)
-#         self.freqs = numpy.fft.fftfreq(self.win_size, 1 / 256)
-#         self.timestamps: numpy.ndarray | None = None
-#         self.samples: dict[str, numpy.ndarray] = {}
+#         self.freqs = np.fft.fftfreq(self.win_size, 1 / 256)
+#         self.timestamps: np.ndarray | None = None
+#         self.samples: dict[str, np.ndarray] = {}
 #         self.channels = ["TP9", "AF7", "AF8", "TP10"]
 #         self.dend: int | None = None
 #         self.tend: int | None = None
@@ -301,17 +305,17 @@ class ModeHeadGyro(Mode, name="headgyro"):
 #             elif self.gend is None and val >= 70:
 #                 self.gend = idx
 #
-#     def on_eeg(self, data: numpy.ndarray, timestamps: numpy.ndarray):
+#     def on_eeg(self, data: np.ndarray, timestamps: np.ndarray):
 #         if self.timestamps is None:
 #             self.timestamps = timestamps
 #             for idx, name in enumerate(self.channels, start=1):
 #                 self.samples[name] = data[idx, :]
 #             return
 #
-#         self.timestamps = numpy.concatenate((self.timestamps, timestamps))
+#         self.timestamps = np.concatenate((self.timestamps, timestamps))
 #         for idx, name in enumerate(self.channels, start=0):
 #             old = self.samples.get(name)
-#             self.samples[name] = numpy.concatenate((old, data[idx, :]))
+#             self.samples[name] = np.concatenate((old, data[idx, :]))
 #
 #         if len(self.timestamps) >= self.win_size:
 #             window_end_time = self.timestamps[self.win_size - 1]
@@ -328,18 +332,18 @@ class ModeHeadGyro(Mode, name="headgyro"):
 #                 signal = arr[: self.win_size] * self.hamming
 #                 powers = abs(scipy.fft.rfft(signal))
 #
-#                 ch_delta = numpy.mean(20 * numpy.log10(powers[0 : self.dend]))
-#                 ch_theta = numpy.mean(
-#                     20 * numpy.log10(powers[self.dend : self.tend])
+#                 ch_delta = np.mean(20 * np.log10(powers[0 : self.dend]))
+#                 ch_theta = np.mean(
+#                     20 * np.log10(powers[self.dend : self.tend])
 #                 )
-#                 ch_alpha = numpy.mean(
-#                     20 * numpy.log10(powers[self.tend : self.aend])
+#                 ch_alpha = np.mean(
+#                     20 * np.log10(powers[self.tend : self.aend])
 #                 )
-#                 ch_beta = numpy.mean(
-#                     20 * numpy.log10(powers[self.aend : self.bend])
+#                 ch_beta = np.mean(
+#                     20 * np.log10(powers[self.aend : self.bend])
 #                 )
-#                 ch_gamma = numpy.mean(
-#                     20 * numpy.log10(powers[self.bend : self.gend])
+#                 ch_gamma = np.mean(
+#                     20 * np.log10(powers[self.bend : self.gend])
 #                 )
 #
 #                 all_delta += ch_delta
@@ -391,8 +395,8 @@ class ModeHeadGyro(Mode, name="headgyro"):
 # #         if len(self.window) == self.window_len:
 # #             signal = self.hamming * self.window
 # #             powers = abs(scipy.fft.rfft(signal))
-# #             freqs = numpy.fft.fftfreq(len(self.window), 1/52)
-# #             idx = numpy.argmax(powers[:32])
+# #             freqs = np.fft.fftfreq(len(self.window), 1/52)
+# #             idx = np.argmax(powers[:32])
 # #             return freqs[idx], powers[idx]
 # #         else:
 # #             return 0, 0
@@ -427,17 +431,17 @@ class ModeHeadGyro(Mode, name="headgyro"):
 #         await self.muse.subscribe_eeg(self.on_eeg)
 #         await self.muse.start()
 #
-#     def on_gyro(self, data: numpy.ndarray, timestamps: list[float]):
+#     def on_gyro(self, data: np.ndarray, timestamps: list[float]):
 #         if not self.active:
 #             return
 #         self.mode.on_gyro(data, timestamps)
 #
-#     def on_acc(self, data: numpy.ndarray, timestamps: list[float]):
+#     def on_acc(self, data: np.ndarray, timestamps: list[float]):
 #         if not self.active:
 #             return
 #         self.mode.on_acc(data, timestamps)
 #
-#     def on_eeg(self, data: numpy.ndarray, timestamps: list[float]):
+#     def on_eeg(self, data: np.ndarray, timestamps: list[float]):
 #         if not self.active:
 #             return
 #         self.mode.on_eeg(data, timestamps)
@@ -546,12 +550,12 @@ class ModeHeadGyro(Mode, name="headgyro"):
 # #                         await self.process_samples(msg.samples, msg.timestamps)
 # #
 # #     async def process_samples(self, samples: list, timestamps: list):
-# #         data = numpy.array(samples, dtype=float)
+# #         data = np.array(samples, dtype=float)
 # #
 # #         # TODO: replace with a low-pass filter?
-# #         x = numpy.mean(data[:, 0])
-# #         y = numpy.mean(data[:, 1])
-# #         z = numpy.mean(data[:, 2])
+# #         x = np.mean(data[:, 0])
+# #         y = np.mean(data[:, 1])
+# #         z = np.mean(data[:, 2])
 # #
 # #         roll = math.atan2(y, z) / math.pi * 180
 # #         pitch = math.atan2(-x, math.sqrt(y*y + z*z)) / math.pi * 180

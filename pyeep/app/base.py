@@ -104,7 +104,8 @@ class BaseApp(abc.ABC):
         self, description: str | None = None
     ) -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser(
-            description=description or self.__doc__.strip()
+            description=description
+            or (self.__doc__ or self.__class__.__name__).strip()
         )
         parser.add_argument(
             "-v", "--verbose", action="store_true", help="verbose output"
@@ -114,7 +115,7 @@ class BaseApp(abc.ABC):
         )
         return parser
 
-    def setup_logging(self):
+    def setup_logging(self) -> None:
         """
         Set up the logging module for this application
         """

@@ -9,7 +9,7 @@ from pyeep.models.messages.power import SetGroupPower, IncreaseGroupPower
 class EventsCli(SyncClientApp, cmd.Cmd):
     """Interacively send pyeep messages."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         SyncClientApp.__init__(
             self, app=ClientApp(name="eventscli", handle_sigterm_sigint=False)
         )
@@ -19,13 +19,13 @@ class EventsCli(SyncClientApp, cmd.Cmd):
     def main(self) -> None:
         self.cmdloop()
 
-    def do_quit(self, arg) -> None:
+    def do_quit(self, arg: str) -> bool:
         return True
 
-    def do_EOF(self, arg) -> None:
+    def do_EOF(self, arg: str) -> bool:
         return True
 
-    def do_power(self, arg) -> None:
+    def do_power(self, arg: str) -> None:
         args = arg.split()
         group = int(args[0])
         if (value := args[1]).startswith("+"):
@@ -34,7 +34,7 @@ class EventsCli(SyncClientApp, cmd.Cmd):
             self.send(SetGroupPower(group=group, power=int(value)))
 
 
-def main():
+def main() -> None:
     eventscli = EventsCli()
     eventscli.run()
 

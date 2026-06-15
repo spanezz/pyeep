@@ -88,7 +88,7 @@ class DecayedToZeroEvent(Event):
     """Output decayed to zero."""
 
 
-class SceneConsent(Scene):
+class SceneConsent(Scene[Description]):
     """Pulse lights red/yellow/green based on head yes/no movements."""
 
     def __init__(self, desc: Description, /) -> None:

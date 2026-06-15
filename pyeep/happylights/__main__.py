@@ -28,6 +28,7 @@ class LightsApp(ApplicationAsyncCmdClientApp):
                 device=self.args.addr, log=logging.getLogger(f"{self.name}.ble")
             )
 
+    @override
     def argparser(
         self, description: str | None = None
     ) -> argparse.ArgumentParser:
@@ -65,7 +66,7 @@ class LightsApp(ApplicationAsyncCmdClientApp):
             await self.lights.set_color(color)
         # self.interface.term.add_line([(str(color), f"Color set to {color}.")])
 
-    async def cmd_color(self, arg) -> None:
+    async def cmd_color(self, r: float, g: float, b: float) -> None:
         """
         Set the color to float r g b values.
 
@@ -73,7 +74,6 @@ class LightsApp(ApplicationAsyncCmdClientApp):
 
           color 1 0.5 0
         """
-        r, g, b = [float(a) for a in arg.split()]
         await self.set_color(Color(red=r, green=g, blue=b))
 
 

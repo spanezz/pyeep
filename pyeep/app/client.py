@@ -33,6 +33,7 @@ class ClientApp(BaseApp, Component):
             self.hub_info = self.load_hub_info()
         self.ws: aiohttp.ClientWebSocketResponse | None = None
 
+    @override
     def argparser(
         self, description: str | None = None
     ) -> argparse.ArgumentParser:
@@ -54,6 +55,7 @@ class ClientApp(BaseApp, Component):
                 tm.sleep(0.1)
             else:
                 return HubConnectInfo.model_validate(json.loads(data))
+        raise RuntimeError("Cannot connect to hub after 20 attempts.")
 
     @override
     async def route_up(self, msg: Message) -> None:
@@ -73,7 +75,7 @@ class ClientApp(BaseApp, Component):
                 content = await response.text()
                 if content != "PYEEP":
                     raise RuntimeError(
-                        f"Server at {self.baseurl}"
+                        f"Server at {baseurl}"
                         " does not look like a pyeep server"
                     )
 

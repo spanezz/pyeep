@@ -2,11 +2,9 @@ import argparse
 import asyncio
 import json
 import logging
-import os
 import secrets
-import tempfile
 from pathlib import Path
-from typing import override
+from typing import override, Any
 
 from aiohttp import web
 import yaml
@@ -30,7 +28,7 @@ class Scenes(Component):
     def __init__(self, *, hub: "Hub") -> None:
         super().__init__(name="scenes")
         self.hub = hub
-        self.scenes: dict[str, Scene] = {}
+        self.scenes: dict[str, Scene[Any]] = {}
 
     def load(self, source: Path) -> None:
         """Load scenes from a YAML file."""
@@ -47,6 +45,7 @@ class Scenes(Component):
             self.scenes[scene.name] = scene
             self.add_component(scene)
 
+    @override
     async def route_up(self, msg: Message) -> None:
         """Fanout the message to connected clients."""
         await self.hub.app_api.fanout(msg)
@@ -72,6 +71,7 @@ class Hub(BaseApp):
         self.webapp.add_subapp("/pyeep/", self.app_api.app)
         self.web_token_path = Path(".webtoken")
 
+    @override
     def argparser(
         self, description: str | None = None
     ) -> argparse.ArgumentParser:

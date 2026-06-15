@@ -33,7 +33,7 @@ class Scene[DESC: SceneDescription](Component, abc.ABC):
             await aiohttp_jinja2.render_string_async(
                 f"scenes/{self.name}/scene.html",
                 request,
-                context.derived({"scene": self}),
+                context.derived({"scene": self}),  # type: ignore[arg-type]
             )
         )
 

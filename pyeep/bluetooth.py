@@ -252,7 +252,7 @@ class BLEConnection(abc.ABC):
         self.log = log
         self.client: bleak.BleakClient | None = None
         self.event_queue: asyncio.Queue[str] = asyncio.Queue()
-        self.connected_task: asyncio.Task | None = None
+        self.connected_task: asyncio.Task[None] | None = None
 
     async def connect(self) -> None:
         """Manage (re)connection to the device."""
@@ -280,7 +280,7 @@ class BLEConnection(abc.ABC):
 
     async def main(self) -> None:
         """Main handling of the device."""
-        connected_task: asyncio.Task | None = None
+        connected_task: asyncio.Task[None] | None = None
         async with asyncio.TaskGroup() as tg:
             tg.create_task(self.connect())
             while True:

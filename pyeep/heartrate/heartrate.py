@@ -44,7 +44,7 @@ class HeartRateMonitor(BLEConnection):
         self,
         characteristic: bleak.backends.characteristic.BleakGATTCharacteristic,
         data: bytearray,
-    ):
+    ) -> None:
         """
         Decode heart rate information
         """

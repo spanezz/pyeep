@@ -71,7 +71,9 @@ class JackClient:
         self.failed_queue: asyncio.Queue[HandlerFailed] = asyncio.Queue()
         self.aioloop: asyncio.AbstractEventLoop
 
-    def _notify_failed_handler(self, handler: JackHandler, exc: Exception):
+    def _notify_failed_handler(
+        self, handler: JackHandler, exc: Exception
+    ) -> None:
         asyncio.run_coroutine_threadsafe(
             self.failed_queue.put(HandlerFailed(handler, exc)), self.aioloop
         )
@@ -98,7 +100,7 @@ class JackClient:
             for handler in self.jack_handlers:
                 handler.jack_samplerate(samplerate)
 
-    def jack_process(self, frames: int):
+    def jack_process(self, frames: int) -> None:
         """
         JACK process function.
 
@@ -209,7 +211,7 @@ class MIDIInput(JackHandler):
                 self.midi_handlers.append(handler)
 
     @override
-    def jack_process(self, frames: int):
+    def jack_process(self, frames: int) -> None:
         assert hasattr(self.inport, "incoming_midi_events")
         messages: list[MIDIMessage] = []
         frame_time = self.jack_client.last_frame_time
