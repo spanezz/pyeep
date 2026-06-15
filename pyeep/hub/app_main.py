@@ -58,12 +58,22 @@ class Main:
         scene_loaders: dict[str, jinja2.PackageLoader] = {}
         for scene in self.hub.scenes.scenes.values():
             # Static router
-            app.router.add_static(
-                f"/static/scenes/{scene.name}",
-                get_package_path(scene.desc.module) / "static",
-            )
+            static_path = get_package_path(scene.desc.module) / "static"
+            if static_path.exists():
+                app.router.add_static(
+                    f"/static/scenes/{scene.name}", static_path
+                )
             # Template loader
-            scene_loaders[scene.name] = jinja2.PackageLoader(scene.desc.module)
+            template_path = get_package_path(scene.desc.module) / "templates"
+            if template_path.exists():
+                scene_loaders[scene.name] = jinja2.PackageLoader(
+                    scene.desc.module
+                )
+            else:
+                scene_loaders[scene.name] = jinja2.DictLoader(
+                    {"scene.html": "{% extends 'scene.html' %}"}
+                )
+
             # Views
             prefix = f"scenes/{scene.name}"
             scene.add_views(app, prefix=prefix)
@@ -84,6 +94,7 @@ class Main:
                     ),
                 ]
             ),
+            enable_async=True,
         )
 
         j2_env = aiohttp_jinja2.get_env(app)

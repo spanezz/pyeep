@@ -2,8 +2,6 @@ from typing import Self
 
 import pydantic
 
-from pyeep.gtk import Gdk
-
 
 class Color(pydantic.BaseModel):
     """
@@ -52,10 +50,10 @@ class Color(pydantic.BaseModel):
             blue=self._clip(self.blue * value),
         )
 
-    def as_rgba(self) -> Gdk.RGBA:
-        color = Gdk.RGBA()
-        color.red = self.red
-        color.green = self.green
-        color.blue = self.blue
-        color.alpha = 1
-        return color
+    # def as_rgba(self) -> Gdk.RGBA:
+    #     color = Gdk.RGBA()
+    #     color.red = self.red
+    #     color.green = self.green
+    #     color.blue = self.blue
+    #     color.alpha = 1
+    #     return color

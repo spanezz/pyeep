@@ -27,10 +27,10 @@ class Scene[DESC: SceneDescription](Component, abc.ABC):
         # TODO: app.router.add_view(f"{prefix}/", Home)
 
     @jinja2.pass_context
-    def render_widget(self, context: jinja2.runtime.Context) -> str:
+    async def render_widget(self, context: jinja2.runtime.Context) -> str:
         request = context["request"]
         return Markup(
-            aiohttp_jinja2.render_string(
+            await aiohttp_jinja2.render_string_async(
                 f"scenes/{self.name}/scene.html",
                 request,
                 context.derived({"scene": self}),

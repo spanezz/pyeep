@@ -5,7 +5,7 @@ import inspect
 import logging
 import time as tm
 from pathlib import Path
-from typing import override, Callable
+from typing import override, Callable, Awaitable
 
 from prompt_toolkit import PromptSession, Application
 from prompt_toolkit.completion import WordCompleter
@@ -20,6 +20,8 @@ from prompt_toolkit import widgets, application
 
 from pyeep.app.base import AppShutdownEvent
 from pyeep.app.client import ClientApp
+
+type AsyncCmdHandler = Callable[[str], Awaitable[None]]
 
 
 class AsyncCmdQuit(BaseException):
@@ -43,7 +45,7 @@ class AsyncCmd(abc.ABC):
             handler_object if handler_object is not None else self
         )
         #: Commands defined as cmd_* methods in the class
-        self.commands: dict[str, Callable[[str], None]] = {
+        self.commands: dict[str, AsyncCmdHandler] = {
             name[4:]: handler
             for name, handler in inspect.getmembers(
                 self.handler_object, inspect.iscoroutinefunction
@@ -355,5 +357,9 @@ class ApplicationAsyncCmdClientApp(ClientApp):
                 [("class:error", f"Command {arg!r} not found.")]
             )
         else:
-            for line in inspect.getdoc(handler).splitlines():
-                self.interface.term.add_line([("", line)])
+            await self.print_usage(handler)
+
+    async def print_usage(self, handler: AsyncCmdHandler) -> None:
+        """Print the usage for the given command."""
+        for line in inspect.getdoc(handler).splitlines():
+            self.interface.term.add_line([("", line)])
