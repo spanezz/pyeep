@@ -139,6 +139,7 @@ class SceneConsent(Scene):
 
     @override
     async def receive(self, msg: Message) -> None:
+        assert self.streak_start is not None and self.streak_last is not None
         match msg:
             case HeadYesNo():
                 if (
@@ -160,7 +161,7 @@ class SceneConsent(Scene):
         Handle sending events and decaying color and power intensities.
         """
         fps: int = 24
-        async for steps in beat_timer(1 / fps * 1_000_000_000):
+        async for steps in beat_timer(round(1 / fps * 1_000_000_000)):
             if self.gesture_info is None:
                 break
             if self.power_output == 0.0 and self.color_output == 0.0:
@@ -183,6 +184,9 @@ class SceneConsent(Scene):
             )
 
     def increment_output(self) -> None:
+        assert self.streak_start is not None
+        assert self.streak_last is not None
+        assert self.gesture_info is not None
         # in_streak = round(self.streak_last.ts - self.streak_start.ts)
 
         # Deal with instant no
@@ -224,6 +228,7 @@ class SceneConsent(Scene):
                 while True:
                     match await self.event_queue.get():
                         case NewStreakEvent():
+                            assert self.streak_start is not None
                             try:
                                 self.gesture_info = GESTURES[
                                     self.streak_start.gesture

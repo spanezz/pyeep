@@ -43,9 +43,9 @@ class SceneDance(Scene):
             case HeadYesNo():
                 value = msg.intensity**2
 
-                red = 0
-                green = 0
-                blue = 0
+                red = 0.0
+                green = 0.0
+                blue = 0.0
 
                 match msg.gesture:
                     case "meh":
@@ -75,13 +75,13 @@ class SceneDance(Scene):
 
             case HeadMoved():
 
-                def norm(val: float, min_angle=0, max_angle=80) -> float:
+                def normpos(val: float, min_angle=0, max_angle=80) -> float:
                     return (
                         (abs(val) - min_angle) / (max_angle - min_angle)
                     ) ** 2
 
-                blue = self.filter_blue(norm(msg.pitch, max_angle=40))
-                green = self.filter_green(norm(msg.roll, max_angle=40))
+                blue = self.filter_blue(normpos(msg.pitch, max_angle=40))
+                green = self.filter_green(normpos(msg.roll, max_angle=40))
                 red = self.filter_red(1 - max(blue, green))
 
                 color = Color(
@@ -98,12 +98,12 @@ class SceneDance(Scene):
                 min_dps = 0.0
                 max_dps = 200.0
 
-                def norm(val: float) -> float:
+                def normgyro(val: float) -> float:
                     return ((abs(val) - min_dps) / (max_dps - min_dps)) ** 2
 
-                red = self.filter_red(norm(msg.x))
-                green = self.filter_green(norm(msg.y))
-                blue = self.filter_blue(norm(msg.z))
+                red = self.filter_red(normgyro(msg.x))
+                green = self.filter_green(normgyro(msg.y))
+                blue = self.filter_blue(normgyro(msg.z))
 
                 color = Color(
                     red=np.clip(red, 0, 1),

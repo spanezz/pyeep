@@ -82,7 +82,7 @@ class ConstAnimation[T](Animation[T]):
         self.const_value = value.value
 
     @override
-    def value(self, time_ns: int) -> float | None:
+    def value(self, time_ns: int) -> T | None:
         if time_ns >= self.duration_ns:
             return None
         return self.const_value
@@ -105,6 +105,7 @@ class PowerPulseAnimation(Animation[float]):
     """Animation for PowerPulse."""
 
     def __init__(self, value: "PowerPulse") -> None:
+        self.power = value.power
         self.duration_ns = value.duration_ns
         self.midpoint = self.duration_ns / 2
 
@@ -160,7 +161,7 @@ class ColorPulse(AnimationPrimitive[Color]):
     duration_ns: int
 
     @override
-    def get_animation(self) -> PowerPulseAnimation:
+    def get_animation(self) -> ColorPulseAnimation:
         return ColorPulseAnimation(self)
 
 
