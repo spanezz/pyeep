@@ -111,10 +111,8 @@ class HubApp(BaseApp, Hub):
         self.groups = Groups(hub=self)
         self.log_events = LogEvents(name="log_events", hub=self)
 
-        self.app_main = app_main.Main(hub=self)
-        self.app_api = app_api.API(hub=self)
-        self.webapp = self.app_main.app
-        self.webapp.add_subapp("/pyeep/", self.app_api.app)
+        self.ui = app_main.Main(hub=self)
+        self.api = app_api.API(hub=self)
         self.web_token_path = Path(".webtoken")
 
     @override
@@ -161,11 +159,11 @@ class HubApp(BaseApp, Hub):
 
     @override
     async def outbound_broadcast(self, msg: Broadcast) -> None:
-        await self.app_api.fanout_broadcast(msg)
+        await self.api.fanout_broadcast(msg)
 
     @override
     async def outbound_command(self, msg: Command) -> None:
-        await self.app_api.fanout_command(msg)
+        await self.api.fanout_command(msg)
 
     async def shutdown_clients(self) -> None:
         """Close client websockets when a shutdown has been requested."""
@@ -180,12 +178,14 @@ class HubApp(BaseApp, Hub):
         # Close the websockets for all clients
         try:
             async with asyncio.timeout(2):
-                await self.app_api.close_all_clients()
+                await self.api.close_all_clients()
         except TimeoutError:
             self.log.warning("timed out when closing websocket connections")
 
     async def webapp_run(self) -> None:
-        runner = web.AppRunner(self.webapp)
+        webapp = self.ui.make_app()
+        webapp.add_subapp("/pyeep/", self.api.app)
+        runner = web.AppRunner(webapp)
         await runner.setup()
         try:
             site = web.TCPSite(runner, self.args.host, self.args.port)

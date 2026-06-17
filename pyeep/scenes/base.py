@@ -1,36 +1,31 @@
 import abc
-
-import aiohttp_jinja2
-import jinja2
-from aiohttp import web
-from markupsafe import Markup
+from pathlib import Path
+from typing import override
 
 from pyeep.models.scene import SceneDescription
 from pyeep.nodes.scene import Scene
+from pyeep.nodes.web import WebComponent
+from pyeep.utils.modules import get_package_path
 
 
-class WebScene[DESC: SceneDescription](Scene[DESC], abc.ABC):
+class WebScene[DESC: SceneDescription](Scene[DESC], WebComponent, abc.ABC):
     """Base class for scenes."""
 
-    def add_views(self, app: web.Application, *, prefix: str) -> None:
-        """
-        Install the scene as a subapp of the Main hub app.
+    section = "scenes"
 
-        :param app: add views to this app
-        :param prefix: URL prefix to use for views
-        """
-        # TODO: app.router.add_view(f"{prefix}/", Home)
+    @override
+    def get_static_path(self) -> Path | None:
+        static_path = get_package_path(self.desc.module) / "static"
+        if static_path.exists():
+            return static_path
+        return None
 
-    @jinja2.pass_context
-    async def render_widget(self, context: jinja2.runtime.Context) -> str:
-        request = context["request"]
-        return Markup(
-            await aiohttp_jinja2.render_string_async(
-                f"scenes/{self.name}/scene.html",
-                request,
-                context.derived({"scene": self}),  # type: ignore[arg-type]
-            )
-        )
+    @override
+    def get_template_path(self) -> Path | None:
+        template_path = get_package_path(self.desc.module) / "templates"
+        if template_path.exists():
+            return template_path
+        return None
 
     @abc.abstractmethod
     async def main(self) -> None:

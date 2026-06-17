@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 import aiohttp_jinja2
@@ -5,6 +6,7 @@ import jinja2
 from aiohttp import web
 
 from pyeep.utils.modules import get_package_path
+from pyeep.nodes.web import WebComponent
 
 if TYPE_CHECKING:
     from .hub import HubApp
@@ -23,7 +25,6 @@ class Home(web.View):
 class Main:
     def __init__(self, *, hub: "HubApp") -> None:
         self.hub = hub
-        self.app = self.make_app()
 
     def static_url(self, path: str) -> str:
         """Return a static URL for a relative path."""
@@ -45,6 +46,7 @@ class Main:
 
     def make_app(self) -> web.Application:
         """Make the main hub application."""
+        print("MA")
         app = web.Application()
         app["scenes"] = self.hub.scenes
         app.router.add_view("/", Home)
@@ -54,29 +56,35 @@ class Main:
         #     "/static/bootstrap5", "/usr/share/bootstrap-html"
         # )
 
-        # Add individual scenes
-        scene_loaders: dict[str, jinja2.BaseLoader] = {}
-        for scene in self.hub.scenes.scenes.values():
+        # Add web components
+        component_loaders: dict[dict[str, jinja2.BaseLoader]] = defaultdict(
+            dict
+        )
+        for wc in self.hub.components.values():
+            print("WC0", wc, isinstance(wc, WebComponent))
+            if not isinstance(wc, WebComponent):
+                continue
+            print("WC", wc)
+
             # Static router
-            static_path = get_package_path(scene.desc.module) / "static"
-            if static_path.exists():
+            if static_path := wc.get_static_path():
                 app.router.add_static(
-                    f"/static/scenes/{scene.name}", static_path
+                    f"/static/{wc.section}/{wc.name}", static_path
                 )
+
             # Template loader
-            template_path = get_package_path(scene.desc.module) / "templates"
-            if template_path.exists():
-                scene_loaders[scene.name] = jinja2.PackageLoader(
-                    scene.desc.module
+            if template_path := wc.get_template_path():
+                component_loaders[wc.section][wc.name] = (
+                    jinja2.FileSystemLoader(template_path)
                 )
             else:
-                scene_loaders[scene.name] = jinja2.DictLoader(
-                    {"scene.html": "{% extends 'scene.html' %}"}
+                tpl_name = f"{wc.section}_ui.html"
+                component_loaders[wc.section][wc.name] = jinja2.DictLoader(
+                    {"ui.html": f"{{% extends '{tpl_name}' %}}"}
                 )
 
             # Views
-            prefix = f"scenes/{scene.name}"
-            scene.add_views(app, prefix=prefix)
+            wc.add_views(app, prefix=f"{wc.section}/{wc.name}")
 
         # Add static router for the main hub
         app.router.add_static(
@@ -90,7 +98,10 @@ class Main:
                 [
                     jinja2.PackageLoader("pyeep.hub"),
                     jinja2.PrefixLoader(
-                        {"scenes": jinja2.PrefixLoader(scene_loaders)}
+                        {
+                            section: jinja2.PrefixLoader(loaders)
+                            for section, loaders in component_loaders.items()
+                        }
                     ),
                 ]
             ),
