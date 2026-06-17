@@ -1,8 +1,8 @@
-from typing import NamedTuple, Any, Annotated, override
+from typing import Annotated, Any, NamedTuple, override
 
 import pydantic
 
-from pyeep.models.messages import Message
+from pyeep.models.messages import Event
 
 
 class MIDIMessage(NamedTuple):
@@ -44,7 +44,7 @@ type SerializableMIDIMessage = Annotated[
 ]
 
 
-class MIDIMessages(Message):
+class MIDIMessages(Event):
     """Bundle of MIDI messages received together."""
 
     #: JACK frame time for this bundle of messages

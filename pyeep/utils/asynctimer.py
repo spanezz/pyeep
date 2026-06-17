@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time as tm
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 log = logging.getLogger(__name__)
 

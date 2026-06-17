@@ -4,8 +4,8 @@ from typing import override
 
 from pyeep.app.asynccmd import ApplicationAsyncCmdClientApp
 
-from .muse import Muse
 from . import modes
+from .muse import Muse
 
 
 class MuseApp(ApplicationAsyncCmdClientApp):

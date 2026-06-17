@@ -1,26 +1,11 @@
-import logging
 from typing import Annotated
 
-from pyeep.models.primitive import PrimitiveField
-from pyeep.models.messages.message import Message, GroupMessage
 from pyeep.models.animation import AnimationPrimitive
+from pyeep.models.messages.message import Command
+from pyeep.models.primitive import PrimitiveField
 
 
-log = logging.getLogger(__name__)
-
-
-class SetRate(Message):
-    """
-    Notify the sample rate of a component
-
-    This is mainly used to for communication between a PowerOutputBottom and a
-    PowerOutputTop
-    """
-
-    rate: float
-
-
-class SetPower(Message):
+class SetPower(Command):
     """
     Set the power of an output.
 
@@ -28,16 +13,10 @@ class SetPower(Message):
     PowerOutputBottom
     """
 
-    power: float
-
-
-class SetGroupPower(GroupMessage):
-    """.Set the power of the outputs in the given group."""
-
     power: float | Annotated[AnimationPrimitive[float], PrimitiveField]
 
 
-class IncreaseGroupPower(GroupMessage):
-    """Increase the power of an output group by a given amount."""
+class IncreasePower(Command):
+    """Increase the power of an output by a given amount."""
 
-    amount: float | Annotated[AnimationPrimitive[float], PrimitiveField]
+    power: float | Annotated[AnimationPrimitive[float], PrimitiveField]

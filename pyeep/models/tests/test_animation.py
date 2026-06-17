@@ -2,8 +2,8 @@ import json
 import unittest
 from typing import Any, cast, override
 
-from pyeep.models.primitive import load_primitive
 from pyeep.models import animation
+from pyeep.models.primitive import load_primitive
 
 
 class AnimationMixin(unittest.TestCase):
@@ -42,7 +42,7 @@ class TestAnimations(unittest.TestCase):
         self, *animations: animation.Animation[float]
     ) -> None:
         self.assertEqual(
-            set(x[1] for x in self.animations.animations), set(animations)
+            {x[1] for x in self.animations.animations}, set(animations)
         )
 
     def assert_value(self, time_ns: int, value: float | None) -> None:

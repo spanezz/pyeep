@@ -1,9 +1,9 @@
 import abc
 import logging
-from typing import override, NamedTuple, Any
+from typing import override
 
-from pyeep.models.primitive import Primitive
 from pyeep.models.color import Color
+from pyeep.models.primitive import Primitive
 
 log = logging.getLogger(__name__)
 

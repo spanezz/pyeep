@@ -9,7 +9,7 @@ requires-python = ">= 3.13"
 
 [tool.pytest.ini_options]
 # addopts = ["--import-mode=importlib", "--ignore=doc"]
-addopts = ["--ignore=doc"]
+addopts = ["--ignore=doc", "--ignore=attic"]
 
 [tool.black]
 line-length = 80
@@ -21,7 +21,6 @@ max-line-length = 80
 # https://mypy.readthedocs.io/en/latest/config_file.html
 mypy_path = "stubs"
 packages = ["pyeep"]
-modules = ["tests"]
 strict = true
 enable_error_code = "explicit-override"
 

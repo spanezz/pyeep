@@ -1,13 +1,13 @@
 import abc
 import logging
-from typing import override
 from collections.abc import AsyncGenerator
+from typing import override
 
 from pyeep.models.animation import (
     Animation,
     Animations,
-    PowerAnimations,
     ColorAnimations,
+    PowerAnimations,
 )
 from pyeep.models.color import Color
 from pyeep.utils.asynctimer import beat_timer

@@ -1,14 +1,16 @@
+import asyncio
 import json
 import logging
-from typing import Callable, Awaitable, TYPE_CHECKING
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING
 
 from aiohttp import web
 
 from pyeep.models import load_primitive
-from pyeep.models.messages import Message
+from pyeep.models.messages import Broadcast, Command, Event
 
 if TYPE_CHECKING:
-    from .hub import Hub
+    from .hub import HubApp
 
 log = logging.getLogger("hub.api")
 
@@ -16,7 +18,7 @@ log = logging.getLogger("hub.api")
 class API:
     """Handle Hub API for pyeep clients."""
 
-    def __init__(self, *, hub: "Hub") -> None:
+    def __init__(self, *, hub: "HubApp") -> None:
         """
         Initialize the API app.
 
@@ -55,12 +57,28 @@ class API:
         # TODO: return JSON
         return web.Response(text="PYEEP")
 
-    async def fanout(self, msg: Message) -> None:
-        """Send a message to all connected clients but the one it comes from."""
-        for name, ws in self.clients.items():
-            if msg.src and msg.src[0] == name:
-                continue
-            await ws.send_str(msg.as_json)
+    async def fanout_broadcast(self, msg: Broadcast) -> None:
+        """Send a broadcast message to connected clients."""
+        async with asyncio.TaskGroup() as tg:
+            for ws in self.clients.values():
+                tg.create_task(ws.send_str(msg.as_json))
+
+    async def fanout_command(self, cmd: Command) -> None:
+        """Send a command to matching connected clients."""
+        client_names: set[str] = set()
+        for rk in cmd.dst:
+            client_names.add(rk.split(".", 1)[0])
+
+        async with asyncio.TaskGroup() as tg:
+            for name in client_names:
+                if (ws := self.clients.get(name)) is not None:
+                    tg.create_task(ws.send_str(cmd.as_json))
+
+    async def close_all_clients(self) -> None:
+        """Close all client connections."""
+        async with asyncio.TaskGroup() as tg:
+            for ws in self.clients.values():
+                tg.create_task(ws.close())
 
     async def messages(self, request: web.Request) -> web.WebSocketResponse:
         """Websocket message exchange endpoint."""
@@ -78,9 +96,8 @@ class API:
                 match wsmsg.type:
                     case web.WSMsgType.text:
                         msg = load_primitive(json.loads(wsmsg.data))
-                        if isinstance(msg, Message):
-                            await self.fanout(msg)
-                            await self.hub.process_message_from_client(msg)
+                        if isinstance(msg, Event):
+                            await self.hub.inbound_event(msg)
                     case web.WSMsgType.binary:
                         log.warning("received unexpected binary message", wsmsg)
                     case web.WSMsgType.close:

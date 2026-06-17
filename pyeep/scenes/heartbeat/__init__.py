@@ -1,40 +1,31 @@
 import asyncio
-from typing import override
-from pyeep.models.color import Color
+from typing import Unpack, override
 
-from pyeep.models import animation
-from pyeep.models.messages.message import Message
-from pyeep.models.messages.color import SetGroupColor
 from pyeep.heartrate.messages import HeartBeat
-from pyeep.scenes.models import SceneDescription
-from pyeep.scenes.base import Scene
+from pyeep.models import animation
+from pyeep.models.color import Color
+from pyeep.models.messages import Message
+from pyeep.models.messages.color import SetColor
+from pyeep.models.scene import SceneDescription
+from pyeep.nodes.scene import SceneArgs
+from pyeep.scenes.base import WebScene
 
 
 class Description(SceneDescription):
     """Heartbeat scene description."""
 
-    @override
-    def make_scene(self) -> "SceneHeartbeat":
-        return SceneHeartbeat(self)
 
-
-class SceneHeartbeat(Scene[Description]):
+@Description.scene
+class SceneHeartbeat(WebScene[Description]):
     """Pulse lights in sync with heartbeat."""
 
-    def __init__(self, desc: Description, /) -> None:
-        super().__init__(desc)
+    def __init__(self, **kwargs: Unpack[SceneArgs[Description]]) -> None:
+        super().__init__(**kwargs)
         self.timeout: int | None = None
         self.last_rate: float | None = None
         self.has_rate = asyncio.Event()
-        self.group: int = 1
+        # TODO: make adjustable via UI
         self.atrial_duration_ratio = 0.3
-        # self.atrial_duration_ratio = Gtk.Adjustment(
-        #     lower=0.0,
-        #     upper=1.0,
-        #     step_increment=0.1,
-        #     page_increment=0.2,
-        #     value=0.2,
-        # )
 
     @override
     async def receive(self, msg: Message) -> None:
@@ -48,9 +39,10 @@ class SceneHeartbeat(Scene[Description]):
         await self.has_rate.wait()
         assert self.last_rate is not None
         while True:
-            await self.send(
-                SetGroupColor(
-                    group=self.group,
+            # TODO: define target group
+            await self.send_command(
+                SetColor(
+                    dst=self.hub.groups.all(),
                     color=animation.ColorHeartPulse(
                         color=Color(red=0.5, green=0, blue=0),
                         duration_ns=round(

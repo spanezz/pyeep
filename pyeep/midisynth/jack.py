@@ -1,11 +1,12 @@
-import asyncio
 import abc
+import asyncio
 import logging
 import threading
 from typing import override
-from .messages import MIDIMessage
 
 import jack
+
+from .messages import MIDIMessage
 
 
 class JackHandler(abc.ABC):

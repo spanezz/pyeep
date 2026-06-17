@@ -1,5 +1,6 @@
-from pyeep.models.messages import Message
 from typing import NamedTuple
+
+from pyeep.models.messages import Event
 
 
 class Sample(NamedTuple):
@@ -11,7 +12,7 @@ class Sample(NamedTuple):
     rr: tuple[float, ...] = ()
 
 
-class HeartBeat(Message):
+class HeartBeat(Event):
     """Heartbeat information notification event."""
 
     sample: Sample

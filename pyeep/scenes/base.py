@@ -1,21 +1,16 @@
 import abc
 
 import aiohttp_jinja2
-from aiohttp import web
 import jinja2
+from aiohttp import web
 from markupsafe import Markup
 
-from pyeep.component.component import Component
-from .models import SceneDescription
+from pyeep.models.scene import SceneDescription
+from pyeep.nodes.scene import Scene
 
 
-class Scene[DESC: SceneDescription](Component, abc.ABC):
+class WebScene[DESC: SceneDescription](Scene[DESC], abc.ABC):
     """Base class for scenes."""
-
-    def __init__(self, desc: DESC, /) -> None:
-        """Initialize a scene from its description."""
-        super().__init__(name=desc.name)
-        self.desc = desc
 
     def add_views(self, app: web.Application, *, prefix: str) -> None:
         """

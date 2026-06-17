@@ -1,28 +1,26 @@
+import abc
 import argparse
 import asyncio
-import abc
 import inspect
-import shlex
 import logging
+import shlex
 import time as tm
-from types import GenericAlias, UnionType
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import override, Callable, Awaitable, Any
+from types import GenericAlias, UnionType
+from typing import Any, override
 
 import pydantic
-
-from prompt_toolkit import PromptSession, Application
-from prompt_toolkit.completion import WordCompleter
-from prompt_toolkit.patch_stdout import patch_stdout
+from prompt_toolkit import Application, PromptSession, application, widgets
 from prompt_toolkit.buffer import Buffer
+from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.key_binding import KeyBindings, KeyPressEvent
-from prompt_toolkit.layout import containers
-from prompt_toolkit.layout import controls
+from prompt_toolkit.layout import containers, controls
 from prompt_toolkit.layout.layout import Layout
+from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
-from prompt_toolkit import widgets, application
 
-from pyeep.app.base import AppShutdownEvent
+from pyeep.app.base import AppEventShutdown
 from pyeep.app.client import ClientApp
 
 type AsyncCmdHandler = Callable[..., Awaitable[None]]
@@ -398,7 +396,7 @@ class ApplicationAsyncCmdClientApp(ClientApp):
     async def main_cmd_task(self) -> None:
         await self.cmd_help(None)
         await self.interface.async_cmdloop()
-        await self.main_event_queue.put(AppShutdownEvent("User quit"))
+        await self.main_event_queue.put(AppEventShutdown("User quit"))
 
     @override
     async def start_main_tasks(self) -> None:

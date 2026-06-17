@@ -1,6 +1,7 @@
 import abc
 import math
-from typing import override, Callable, Any
+from collections.abc import Callable
+from typing import Any, override
 
 import numpy as np
 

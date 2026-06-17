@@ -1,14 +1,15 @@
 import asyncio
 from typing import override
 
-from pyeep.app.base import AppEvent
 from pyeep.app.asynccmd import ApplicationAsyncCmdClientApp
-from .jack import JackClient, MIDIInput, MIDIHandler
-from .midisynth import setup_synth
+from pyeep.app.base import AppEvent
+
+from .jack import JackClient, MIDIHandler, MIDIInput
 from .messages import MIDIMessage, MIDIMessages
+from .midisynth import setup_synth
 
 
-class AppMIDIEvent(AppEvent):
+class AppEventMIDI(AppEvent):
     def __init__(self, *, frame_time: int, messages: list[MIDIMessage]) -> None:
         self.frame_time = frame_time
         self.messages = messages
@@ -34,7 +35,7 @@ class NotifyMIDIEvents(MIDIHandler):
         frame_time = self.midi_input.jack_client.last_frame_time
         asyncio.run_coroutine_threadsafe(
             self.queue.put(
-                AppMIDIEvent(frame_time=frame_time, messages=messages)
+                AppEventMIDI(frame_time=frame_time, messages=messages)
             ),
             self.loop,
         )
@@ -55,8 +56,8 @@ class MidiSynth(ApplicationAsyncCmdClientApp):
     @override
     async def main_process_event(self, evt: AppEvent) -> None:
         match evt:
-            case AppMIDIEvent():
-                await self.send(
+            case AppEventMIDI():
+                await self.send_event(
                     MIDIMessages(
                         frame_time=evt.frame_time, messages=evt.messages
                     )

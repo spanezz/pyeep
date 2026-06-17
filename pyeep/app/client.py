@@ -1,33 +1,36 @@
-import argparse
 import asyncio
+import argparse
 import json
-import logging
 import time as tm
 from pathlib import Path
-from typing import override
+from typing import Unpack, override
 
 import aiohttp
 
-from pyeep.app.base import BaseApp, AppShutdownEvent
-from pyeep.component.component import Component
+from pyeep.app.base import AppEvent, AppEventShutdown, BaseApp, BaseAppArgs
 from pyeep.models import load_primitive
 from pyeep.models.hub import HubConnectInfo
-from pyeep.models.messages import Message
-from pyeep.models.messages.component import NewComponent
+from pyeep.models.messages import Broadcast, Command, Event
+from pyeep.nodes import Hub, NodeArgs, PublicComponent
+from pyeep.nodes.messages import ComponentAdded, ComponentRemoved
 
-log = logging.getLogger(__name__)
+
+class AppEventSendEvent(AppEvent):
+    """Request to send an event up towards the hub."""
+
+    def __init__(self, event: Event) -> None:
+        self.event = event
+
+    @override
+    def __str__(self) -> str:
+        return str(self.event)
 
 
-class ClientApp(BaseApp, Component):
+class ClientApp(BaseApp, Hub):
     """Base for pyeep client apps."""
 
-    def __init__(
-        self, *, name: str, handle_sigterm_sigint: bool = True
-    ) -> None:
-        BaseApp.__init__(
-            self, name=name, handle_sigterm_sigint=handle_sigterm_sigint
-        )
-        Component.__init__(self, name=name)
+    def __init__(self, **kwargs: Unpack[BaseAppArgs]) -> None:
+        super().__init__(**kwargs)
         self.hub_info: HubConnectInfo | None = None
         if self.args.hub:
             self.hub_info = self.load_hub_info()
@@ -58,10 +61,42 @@ class ClientApp(BaseApp, Component):
         raise RuntimeError("Cannot connect to hub after 20 attempts.")
 
     @override
-    async def route_up(self, msg: Message) -> None:
+    async def advertise_component_added(
+        self, component: PublicComponent
+    ) -> None:
+        if isinstance(component, PublicComponent):
+            await component.send_event(ComponentAdded())
+
+    @override
+    async def advertise_component_removed(
+        self, component: PublicComponent
+    ) -> None:
+        if isinstance(component, PublicComponent):
+            await component.send_event(ComponentRemoved())
+
+    async def advertise_public_components(self) -> None:
+        """Advertise existing public components to the remote hub."""
+        async with asyncio.TaskGroup() as tg:
+            for component in self.components.values():
+                if not isinstance(component, PublicComponent):
+                    continue
+                tg.create_task(self.advertise_component_added(component))
+
+    @override
+    async def outbound_event(self, msg: Event) -> None:
         if self.ws is None:
             return
         await self.ws.send_str(msg.as_json)
+
+    @override
+    async def outbound_broadcast(self, msg: Broadcast) -> None:
+        self.log.warning("Ignoring client attempt to send broadcast %s", msg)
+        return
+
+    @override
+    async def outbound_command(self, msg: Command) -> None:
+        self.log.warning("Ignoring client attempt to send command %s", msg)
+        return
 
     async def connect(self) -> None:
         """Connect to the server and handle message traffic."""
@@ -84,17 +119,27 @@ class ClientApp(BaseApp, Component):
             ) as ws:
                 try:
                     self.ws = ws
-                    await self.send(NewComponent())
+                    await self.advertise_public_components()
                     async for wsmsg in ws:
                         match wsmsg.type:
                             case aiohttp.WSMsgType.TEXT:
-                                msg = load_primitive(json.loads(wsmsg.data))
-                                if isinstance(msg, Message):
-                                    await self.route(msg)
+                                match msg := load_primitive(
+                                    json.loads(wsmsg.data)
+                                ):
+                                    case Broadcast():
+                                        await self.inbound_broadcast(msg)
+                                    case Command():
+                                        await self.inbound_command(msg)
+                                    case _:
+                                        self.log.warning(
+                                            "Ignoring unsupported"
+                                            " inbound message: %s",
+                                            msg,
+                                        )
                             case aiohttp.WSMsgType.CLOSE:
                                 break
                             case _:
-                                log.error(
+                                self.log.error(
                                     "received unexpected %s message %r",
                                     wsmsg.type,
                                     wsmsg,
@@ -106,13 +151,22 @@ class ClientApp(BaseApp, Component):
         if self.hub_info:
             await self.connect()
             await self.main_event_queue.put(
-                AppShutdownEvent("Server disconnected")
+                AppEventShutdown("Server disconnected")
             )
 
     @override
     async def start_main_tasks(self) -> None:
         await super().start_main_tasks()
         await self.start_task(self.client_task())
+
+    @override
+    async def main_process_event(self, evt: AppEvent) -> None:
+        """Process an event from the main event queue."""
+        match evt:
+            case AppEventSendEvent():
+                await self.outbound_event(evt.event)
+            case _:
+                await super().main_process_event(evt)
 
 
 if __name__ == "__main__":

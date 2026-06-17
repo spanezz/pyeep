@@ -4,14 +4,16 @@ import jack
 import mido
 import numpy as np
 
+from pyeep.midisynth import synth
 from pyeep.midisynth.synth.midisynth import (
-    MidiSynth,
     AudioConfig,
     Instruments,
+    MidiSynth,
+    Saw,
+    Sine,
 )
 from pyeep.midisynth.synth.synth import EnvelopeShape
-from pyeep.midisynth.synth.midisynth import Sine, Saw
-from pyeep.midisynth import synth
+
 from .jack import JackClient, JackHandler, MIDIHandler, MIDIInput
 from .messages import MIDIMessage
 

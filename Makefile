@@ -5,19 +5,19 @@ check: flake8 mypy
 format: pyupgrade autoflake isort black 
 
 pyupgrade:
-	pyupgrade --exit-zero-even-if-changed --py313-plus $(shell find pyeep tests -name "*.py")
+	pyupgrade --exit-zero-even-if-changed --py313-plus $(shell find pyeep -name "*.py")
 
 black:
-	black pyeep tests
+	black pyeep
 
 autoflake:
-	autoflake --in-place --recursive pyeep tests
+	autoflake --in-place --recursive pyeep
 
 isort:
-	isort pyeep tests
+	isort pyeep
 
 flake8:
-	flake8 pyeep tests
+	flake8 pyeep
 
 mypy:
 	mypy

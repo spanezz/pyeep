@@ -1,12 +1,14 @@
-from functools import cached_property
 import json
-import time as tm
 import logging
-from typing import Any, Annotated
+import time as tm
+from functools import cached_property
+from typing import Annotated
 
 import pydantic
 
 from pyeep.models.primitive import Primitive
+
+from .routing import RoutingKey, RoutingKeys
 
 log = logging.getLogger(__name__)
 
@@ -16,17 +18,8 @@ class Message(Primitive):
 
     model_config = pydantic.ConfigDict(frozen=True)
 
-    name: str = ""
     ts: Annotated[int, pydantic.Field(default_factory=tm.time_ns)] = 0
-    src: tuple[str, ...] | None = None
-    dst: str | None = None
-
-    @pydantic.model_validator(mode="before")
-    @classmethod
-    def _fill_message_defaults(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            data.setdefault("name", cls.__name__.lower())
-        return data
+    src: RoutingKey | None = None
 
     @cached_property
     def as_json(self) -> str:
@@ -34,7 +27,20 @@ class Message(Primitive):
         return json.dumps(self.model_dump())
 
 
-class GroupMessage(Message):
-    """Message targeting a group."""
+class Event(Message):
+    """
+    Notify an event that happened in a component.
 
-    group: int
+    This type of messages travels only upwards towards the hub, to be processed
+    by scenes.
+    """
+
+
+class Broadcast(Message):
+    """Message sent to all connected components."""
+
+
+class Command(Message):
+    """Command sent to one component."""
+
+    dst: RoutingKeys

@@ -3,8 +3,8 @@ import logging
 from typing import Any
 
 import pydantic
-from pydantic_core import core_schema
 from pydantic import json_schema
+from pydantic_core import core_schema
 
 log = logging.getLogger(__name__)
 

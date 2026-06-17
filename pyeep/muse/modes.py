@@ -1,20 +1,20 @@
 import abc
-import logging
 import inspect
 import json
+import logging
 import math
 from pathlib import Path
-from typing import Any, override, cast
+from typing import Any, cast, override
 
 import numpy as np
 import scipy.signal
 
+from pyeep.app.client import AppEventSendEvent, ClientApp
 from pyeep.utils import dsp
-from pyeep.app.base import BaseApp, AppSendMessageEvent
 
-from .messages import HeadMoved, HeadYesNo, HeadGyro
-from .muse import Muse
 from . import aio_muse
+from .messages import HeadGyro, HeadMoved, HeadYesNo
+from .muse import Muse
 
 #: Mode registry
 modes: dict[str, "type[Mode]"] = {}
@@ -38,7 +38,7 @@ class Mode(abc.ABC):
         cls.name = name or cls.__name__.lower()
         modes[cls.name] = cls
 
-    def __init__(self, *, muse: "Muse", app: BaseApp) -> None:
+    def __init__(self, *, muse: "Muse", app: ClientApp) -> None:
         self.muse = muse
         self.app = app
 
@@ -75,8 +75,8 @@ class ModeHeadPosition(Mode, name="headpos"):
             pitch = self.filter_pitch(pitch)
 
         self.app.main_event_queue.put_nowait(
-            AppSendMessageEvent(
-                message=HeadMoved(frames=frames, pitch=pitch, roll=roll)
+            AppEventSendEvent(
+                event=HeadMoved(frames=frames, pitch=pitch, roll=roll)
             )
         )
 
@@ -230,8 +230,8 @@ class ModeHeadYesNo(Mode, name="yesno"):
             return
 
         self.app.main_event_queue.put_nowait(
-            AppSendMessageEvent(
-                HeadYesNo(
+            AppEventSendEvent(
+                event=HeadYesNo(
                     gesture=selected[0],
                     duration=selected[1],
                     intensity=selected[2],
@@ -264,8 +264,8 @@ class ModeHeadGyro(Mode, name="headgyro"):
         self.z_axis.add_samples(timestamps, data[2, :])
 
         self.app.main_event_queue.put_nowait(
-            AppSendMessageEvent(
-                HeadGyro(
+            AppEventSendEvent(
+                event=HeadGyro(
                     x=self.x_axis.value()[0],
                     y=self.y_axis.value()[0],
                     z=self.z_axis.value()[0],

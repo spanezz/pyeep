@@ -4,7 +4,7 @@ import math
 import threading
 from collections import deque
 from collections.abc import Sequence
-from typing import NamedTuple, override, Any
+from typing import Any, NamedTuple, override
 
 import mido
 import numpy

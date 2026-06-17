@@ -1,13 +1,12 @@
 import logging
-from typing import Annotated, Union, Any
+from typing import Annotated, Any
 
 import pydantic
 
-from pyeep.models.primitive import PrimitiveField
-from pyeep.models.messages.message import GroupMessage
 from pyeep.models.animation import AnimationPrimitive
 from pyeep.models.color import Color
-
+from pyeep.models.messages import Command
+from pyeep.models.primitive import PrimitiveField
 
 log = logging.getLogger(__name__)
 
@@ -27,19 +26,19 @@ def get_color_discriminator_value(v: Any) -> str | None:
             return None
 
 
-class SetGroupColor(GroupMessage):
+class SetColor(Command):
     """
     Set the power of the outputs in the given group
     """
 
     color: Annotated[
-        Union[
-            Annotated[Color, pydantic.Tag("color")],
-            Annotated[
+        (
+            Annotated[Color, pydantic.Tag("color")]
+            | Annotated[
                 AnimationPrimitive[Color],
                 PrimitiveField,
                 pydantic.Tag("animation"),
-            ],
-        ],
+            ]
+        ),
         pydantic.Discriminator(get_color_discriminator_value),
     ]

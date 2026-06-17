@@ -4,67 +4,113 @@ import json
 import logging
 import secrets
 from pathlib import Path
-from typing import override, Any
+from typing import Any, override
 
-from aiohttp import web
 import yaml
+from aiohttp import web
 
-from pyeep.scenes.models import load_scene_description
-from pyeep.scenes.base import Scene
 from pyeep.app.base import BaseApp
-from pyeep.component.component import Component
-from pyeep.models.messages.component import Shutdown
 from pyeep.models.hub import HubConnectInfo
-from pyeep.models.messages import Message
+from pyeep.models.messages import (
+    Command,
+    Event,
+    Broadcast,
+    RoutingKey,
+    RoutingKeys,
+    build_routing_keys,
+    Message,
+)
+from pyeep.nodes.messages import ComponentAdded, ComponentRemoved, Shutdown
+from pyeep.nodes import Component, Hub
+from pyeep.scenes.base import WebScene
+from pyeep.models.scene import load_scene_description
 from pyeep.utils.atomic import atomic_writer
-from . import app_main, app_api
+
+from . import app_api, app_main
 
 log = logging.getLogger(__name__)
+
+
+class LogEvents(Component):
+    """Log incoming events."""
+
+    async def receive(self, msg: Message) -> None:
+        await super().receive(msg)
+        match msg:
+            case Event():
+                self.log.info("Event received: %s", msg)
+
+
+class Groups(Component):
+    """Manage groups of connected clients."""
+
+    def __init__(self, *, hub: "Hub") -> None:
+        super().__init__(name="groups", hub=hub)
+        self.scenes: dict[str, WebScene[Any]] = {}
+        self.remotes: set[RoutingKey] = set()
+
+    @override
+    async def receive(self, msg: Message) -> None:
+        await super().receive(msg)
+        if msg.src is None:
+            self.log.error("Ignoring event without source: %s", msg)
+            return
+        match msg:
+            case ComponentAdded():
+                self.log.info("New component: %s", msg.src)
+                self.remotes.add(msg.src)
+            case ComponentRemoved():
+                self.log.info("Component removed: %s", msg.src)
+                self.remotes.discard(msg.src)
+            case _:
+                await super().receive(msg)
+
+    def all(self) -> RoutingKeys:
+        """Return a RoutingKeys targeting all known components."""
+        return build_routing_keys(self.remotes)
 
 
 class Scenes(Component):
     """Container component for scenes."""
 
     def __init__(self, *, hub: "Hub") -> None:
-        super().__init__(name="scenes")
-        self.hub = hub
-        self.scenes: dict[str, Scene[Any]] = {}
+        super().__init__(name="scenes", hub=hub)
+        self.scenes: dict[str, WebScene[Any]] = {}
 
-    def load(self, source: Path) -> None:
+    async def load(self, source: Path) -> None:
         """Load scenes from a YAML file."""
+        self.log.info("Loading scenes from %s", source)
         data = yaml.safe_load(source.read_text())
         if not isinstance(data, list):
             raise RuntimeError(f"{source} does not contain a list of records")
         for scene_data in data:
             desc = load_scene_description(scene_data)
-            scene = desc.make_scene()
+            scene = desc.make_scene(hub=self.hub)
+            assert isinstance(scene, WebScene)
             if scene.name in self.scenes:
                 raise RuntimeError(
                     f"{source}: scene {scene.name} defined multiple times"
                 )
             self.scenes[scene.name] = scene
-            self.add_component(scene)
-
-    @override
-    async def route_up(self, msg: Message) -> None:
-        """Fanout the message to connected clients."""
-        await self.hub.app_api.fanout(msg)
+            await self.hub.add_component(scene)
+            self.log.info("Added scene %s - %s", scene.name, scene.desc.label)
 
     async def main(self) -> None:
         async with asyncio.TaskGroup() as tg:
             for scene in self.scenes.values():
-                tg.create_task(scene.main())
+                tg.create_task(self.supervise_coroutine(scene.main()))
 
 
-class Hub(BaseApp):
+class HubApp(BaseApp, Hub):
     """Pyeep main coordination app."""
 
-    def __init__(self) -> None:
-        super().__init__(name="hub")
+    def __init__(self, *, name: str) -> None:
+        super().__init__(name=name)
         self.token = secrets.token_urlsafe()
         self.scenes = Scenes(hub=self)
-        if self.args.scenes:
-            self.scenes.load(self.args.scenes)
+        self.groups = Groups(hub=self)
+        self.log_events = LogEvents(name="log_events", hub=self)
+
         self.app_main = app_main.Main(hub=self)
         self.app_api = app_api.API(hub=self)
         self.webapp = self.app_main.app
@@ -109,31 +155,32 @@ class Hub(BaseApp):
         with atomic_writer(path, mode="wt", chmod=0o400) as out:
             json.dump(info.model_dump(), out)
 
-    async def process_message_from_client(self, msg: Message) -> None:
-        """Process a message received from a client."""
-        await self.scenes.route(msg)
+    @override
+    async def outbound_event(self, msg: Event) -> None:
+        self.log.warning("Ignoring outbound event %s", msg)
+
+    @override
+    async def outbound_broadcast(self, msg: Broadcast) -> None:
+        await self.app_api.fanout_broadcast(msg)
+
+    @override
+    async def outbound_command(self, msg: Command) -> None:
+        await self.app_api.fanout_command(msg)
 
     async def shutdown_clients(self) -> None:
         """Close client websockets when a shutdown has been requested."""
         # Send a shutdown message to each connected client
-        shutdown_msg = Shutdown(src=())
         try:
-            notify_tasks = [
-                asyncio.create_task(ws.send_str(shutdown_msg.as_json))
-                for ws in self.app_api.clients.values()
-            ]
-            if notify_tasks:
-                await asyncio.wait(notify_tasks, timeout=2)
+            self.log.warning("broadcasting shutdown to clients")
+            async with asyncio.timeout(2):
+                await self.outbound_broadcast(Shutdown())
         except TimeoutError:
             self.log.warning("timed out when sending shutdown signals")
+
         # Close the websockets for all clients
         try:
-            close_tasks = [
-                asyncio.create_task(ws.close())
-                for ws in self.app_api.clients.values()
-            ]
-            if close_tasks:
-                await asyncio.wait(close_tasks, timeout=2)
+            async with asyncio.timeout(2):
+                await self.app_api.close_all_clients()
         except TimeoutError:
             self.log.warning("timed out when closing websocket connections")
 
@@ -156,6 +203,11 @@ class Hub(BaseApp):
     @override
     async def main_init(self) -> None:
         await super().main_init()
+        await self.add_component(self.scenes)
+        await self.add_component(self.groups)
+        await self.add_component(self.log_events)
+        if self.args.scenes:
+            await self.scenes.load(self.args.scenes)
         self.write_token(self.web_token_path)
 
     @override

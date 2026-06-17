@@ -1,14 +1,18 @@
 import abc
 import importlib
-from typing import Any, TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Any, Self
+
 import pydantic
 
 if TYPE_CHECKING:
-    from pyeep.scenes.base import Scene
+    from pyeep.nodes.hub import Hub
+    from pyeep.nodes.scene import Scene
 
 
 class SceneDescription(pydantic.BaseModel, abc.ABC):
     """Base for scene descriptions loaded from YAML."""
+
+    _scene_class: "type[Scene[Self]]"
 
     #: Scene name
     name: str
@@ -25,9 +29,15 @@ class SceneDescription(pydantic.BaseModel, abc.ABC):
                 data["label"] = name.capitalize()
         return data
 
-    @abc.abstractmethod
-    def make_scene(self) -> "Scene[Self]":
+    def make_scene(self, *, hub: "Hub") -> "Scene[Self]":
         """Create the Scene from this description."""
+        return self._scene_class(desc=self, hub=hub)
+
+    @classmethod
+    def scene(cls, scene_class: type["Scene[Self]"]) -> "type[Scene[Self]]":
+        """Decorate a scene as the implementation of this description."""
+        cls._scene_class = scene_class
+        return scene_class
 
 
 def get_scene_description_subclass(

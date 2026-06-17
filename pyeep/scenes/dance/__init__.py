@@ -1,30 +1,28 @@
 import asyncio
-from typing import override
+from typing import Unpack, override
 
 import numpy as np
 
 from pyeep.models.color import Color
-from pyeep.models.messages.message import Message
-from pyeep.models.messages.color import SetGroupColor
-from pyeep.scenes.models import SceneDescription
-from pyeep.scenes.base import Scene
-from pyeep.muse.messages import HeadYesNo, HeadMoved, HeadGyro
+from pyeep.models.messages import Message
+from pyeep.models.messages.color import SetColor
+from pyeep.models.scene import SceneDescription
+from pyeep.muse.messages import HeadGyro, HeadMoved, HeadYesNo
+from pyeep.nodes.scene import SceneArgs
+from pyeep.scenes.base import WebScene
 from pyeep.utils import dsp
 
 
 class Description(SceneDescription):
     """Dance with lights scene description."""
 
-    @override
-    def make_scene(self) -> "SceneDance":
-        return SceneDance(self)
 
-
-class SceneDance(Scene[Description]):
+@Description.scene
+class SceneDance(WebScene[Description]):
     """Control lights based on head position."""
 
-    def __init__(self, desc: Description, /) -> None:
-        super().__init__(desc)
+    def __init__(self, **kwargs: Unpack[SceneArgs[Description]]) -> None:
+        super().__init__(**kwargs)
 
         #: Output group for generated messages
         # TODO: configure via UI
@@ -69,8 +67,8 @@ class SceneDance(Scene[Description]):
                     blue=np.clip(blue, 0, 1),
                 )
 
-                await self.send(
-                    SetGroupColor(group=self.output_group, color=color)
+                await self.send_command(
+                    SetColor(dst=self.hub.groups.all(), color=color)
                 )
 
             case HeadMoved():
@@ -92,8 +90,8 @@ class SceneDance(Scene[Description]):
                     blue=np.clip(blue, 0, 1),
                 )
 
-                await self.send(
-                    SetGroupColor(group=self.output_group, color=color)
+                await self.send_command(
+                    SetColor(dst=self.hub.groups.all(), color=color)
                 )
 
             case HeadGyro():
@@ -113,8 +111,8 @@ class SceneDance(Scene[Description]):
                     blue=np.clip(blue, 0, 1),
                 )
 
-                await self.send(
-                    SetGroupColor(group=self.output_group, color=color)
+                await self.send_command(
+                    SetColor(dst=self.hub.groups.all(), color=color)
                 )
 
             # case BrainWaves():

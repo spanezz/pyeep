@@ -7,8 +7,6 @@ windows:
     panes:
       - python3 -m pyeep.hub -v --scenes scenes-heartbeat.yaml
       - python3 -m pyeep.app.inspector --hub .webtoken -v
-      - shell_command: python3 -m pyeep.app.eventscli --hub .webtoken -v
-        focus: true
       # CYCPLUS H1
       # - python3 -m pyeep.heartrate --hub .webtoken -v --addr F9:EC:3D:7A:10:C2
       # Moofit

@@ -1,25 +1,22 @@
 import asyncio
 import time as tm
-from typing import override, NamedTuple
+from typing import NamedTuple, Unpack, override
 
 import numpy as np
 
 from pyeep.models.color import Color
-from pyeep.models.messages.message import Message
-from pyeep.models.messages.power import SetGroupPower
-from pyeep.models.messages.color import SetGroupColor
-from pyeep.scenes.models import SceneDescription
-from pyeep.scenes.base import Scene
+from pyeep.models.messages import Message
+from pyeep.models.messages.color import SetColor
+from pyeep.models.messages.power import SetPower
+from pyeep.models.scene import SceneDescription
 from pyeep.muse.messages import HeadYesNo
+from pyeep.nodes.scene import SceneArgs
+from pyeep.scenes.base import WebScene
 from pyeep.utils.asynctimer import beat_timer
 
 
 class Description(SceneDescription):
     """Consent scene description."""
-
-    @override
-    def make_scene(self) -> "SceneConsent":
-        return SceneConsent(self)
 
 
 class GestureInfo(NamedTuple):
@@ -72,36 +69,33 @@ GESTURES = {
 }
 
 
-class Event:
+class SceneEvent:
     """Event for the scene event queue."""
 
 
-class NewStreakEvent(Event):
+class NewStreakEvent(SceneEvent):
     """New streak detected."""
 
 
-class StreakExtendedEvent(Event):
+class StreakExtendedEvent(SceneEvent):
     """Streak has been extended."""
 
 
-class DecayedToZeroEvent(Event):
+class DecayedToZeroEvent(SceneEvent):
     """Output decayed to zero."""
 
 
-class SceneConsent(Scene[Description]):
+@Description.scene
+class SceneConsent(WebScene[Description]):
     """Pulse lights red/yellow/green based on head yes/no movements."""
 
-    def __init__(self, desc: Description, /) -> None:
-        super().__init__(desc)
+    def __init__(self, **kwargs: Unpack[SceneArgs[Description]]) -> None:
+        super().__init__(**kwargs)
 
         #: Message that started the gesture streak
         self.streak_start: HeadYesNo | None = None
         #: Last message in the gesture streak
         self.streak_last: HeadYesNo | None = None
-
-        #: Output group for generated messages
-        # TODO: configure via UI
-        self.output_group: int = 1
 
         #: Information about the current gesture
         self.gesture_info: GestureInfo | None = None
@@ -120,7 +114,7 @@ class SceneConsent(Scene[Description]):
         self.instant_no: bool = False
 
         #: Scene event queue
-        self.event_queue: asyncio.Queue[Event] = asyncio.Queue()
+        self.event_queue: asyncio.Queue[SceneEvent] = asyncio.Queue()
 
         #: Power/color generation task
         self.animate_task: asyncio.Task[None] | None = None
@@ -173,12 +167,13 @@ class SceneConsent(Scene[Description]):
                 self.color_output = 0.0
             if self.power_output < 0.001:
                 self.power_output = 0.0
-            await self.send(
-                SetGroupPower(group=self.output_group, power=self.power_output)
+            target = self.hub.groups.all()
+            await self.send_command(
+                SetPower(dst=target, power=self.power_output)
             )
-            await self.send(
-                SetGroupColor(
-                    group=self.output_group,
+            await self.send_command(
+                SetColor(
+                    dst=target,
                     color=self.gesture_info.color * self.color_output,
                 )
             )

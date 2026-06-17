@@ -1,16 +1,17 @@
-import asyncio
 import abc
 import argparse
+import asyncio
 import functools
-import signal
 import logging
+import signal
 import time as tm
-from typing import override, Coroutine, Any
+from collections.abc import Coroutine
+from typing import Any, Unpack, override, TypedDict, NotRequired
 
 import rich
 import rich.text
 
-from pyeep.models.messages import Message
+from pyeep.nodes.node import Node, NodeArgs
 
 
 class ColoredLogHandler(logging.Handler):
@@ -55,7 +56,7 @@ class AppEvent:
     """Base class for events used to control app flow."""
 
 
-class AppShutdownEvent(AppEvent):
+class AppEventShutdown(AppEvent):
     """App shutdown requested."""
 
     def __init__(self, reason: str) -> None:
@@ -66,34 +67,28 @@ class AppShutdownEvent(AppEvent):
         return self.reason
 
 
-class AppSendMessageEvent(AppEvent):
-    """Request to send a message."""
-
-    def __init__(self, message: Message) -> None:
-        self.message = message
-
-    @override
-    def __str__(self) -> str:
-        return str(self.message)
-
-
 class Shutdown(Exception):
     """Shutdown has been requested."""
 
 
-class BaseApp(abc.ABC):
+class BaseAppArgs(NodeArgs):
+    """Arguments for BaseApp constructor."""
+
+    handle_sigterm_sigint: NotRequired[bool]
+
+
+class BaseApp(Node, abc.ABC):
     """Base framework for executable commands."""
 
     def __init__(
-        self, *, name: str, handle_sigterm_sigint: bool = True
+        self, *, handle_sigterm_sigint: bool = True, **kwargs: Unpack[NodeArgs]
     ) -> None:
         """
         Initialize an app.
 
         :param name: application name (used in logging)
         """
-        self.name = name
-        self.log = logging.getLogger(f"app.{self.name}")
+        super().__init__(**kwargs)
         self.handle_sigterm_sigint = handle_sigterm_sigint
         parser = self.argparser()
         self.args = parser.parse_args()
@@ -139,7 +134,7 @@ class BaseApp(abc.ABC):
         async def handler() -> None:
             reason = f"Signal {signum} ({signum.name}) received"
             self.log.info("%s", reason)
-            await self.main_event_queue.put(AppShutdownEvent(reason))
+            await self.main_event_queue.put(AppEventShutdown(reason))
 
         return asyncio.create_task(handler())
 
@@ -152,31 +147,6 @@ class BaseApp(abc.ABC):
                     signum,
                     functools.partial(self.handle_termination_signal, signum),
                 )
-
-    def supervise_coroutine[T](
-        self, coro: Coroutine[None, None, T]
-    ) -> Coroutine[None, None, T | None]:
-        """
-        Supervise a coroutine.
-
-        This will log any exceptions raised other than CancelledError.
-        """
-
-        async def wrapper() -> T | None:
-            cancelled: asyncio.CancelledError | None = None
-            try:
-                return await coro
-            except asyncio.CancelledError as cexc:
-                cancelled = cexc
-            except Exception as exc:
-                self.log.error(
-                    "Coroutine %r failed: %s", coro, exc, exc_info=exc
-                )
-            if cancelled is not None:
-                raise cancelled
-            return None
-
-        return wrapper()
 
     async def start_task(self, coro: Coroutine[None, None, Any]) -> None:
         """
@@ -205,14 +175,12 @@ class BaseApp(abc.ABC):
     async def main_process_event(self, evt: AppEvent) -> None:
         """Process an event from the main event queue."""
         match evt:
-            case AppShutdownEvent():
+            case AppEventShutdown():
                 await self.main_shutdown_requested()
                 # Raise an exception instead of breaking out of the
                 # while, so that tasks in tg are cancelled
                 self.main_event_queue.task_done()
                 raise Shutdown(str(evt))
-            case AppSendMessageEvent():
-                await self.send(evt.message)
             case _:
                 self.log.warning("Received unsupported app event: %s", evt)
 
@@ -234,7 +202,7 @@ class BaseApp(abc.ABC):
             await self.main_shutdown()
 
     @classmethod
-    def run(cls) -> None:
+    def run(cls, *, name: str) -> None:
         """Instantiate and run the app."""
-        app = cls()
+        app = cls(name=name)
         asyncio.run(app.main())

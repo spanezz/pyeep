@@ -1,7 +1,7 @@
-from pyeep.models.messages import Message
+from pyeep.models.messages import Event
 
 
-class HeadYesNo(Message):
+class HeadYesNo(Event):
     """Yes/no/meh gestures."""
 
     #: Gesture name
@@ -12,7 +12,7 @@ class HeadYesNo(Message):
     intensity: float
 
 
-class HeadMoved(Message):
+class HeadMoved(Event):
     """Head position tracking."""
 
     frames: int
@@ -20,7 +20,7 @@ class HeadMoved(Message):
     roll: float
 
 
-class HeadGyro(Message):
+class HeadGyro(Event):
     """Head acceleration tracking."""
 
     #: X axis acceleration

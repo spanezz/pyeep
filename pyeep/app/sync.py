@@ -4,11 +4,12 @@ import concurrent
 import os
 import signal
 import threading
-from typing import Coroutine, Any
+from collections.abc import Coroutine
+from typing import Any
 
+from pyeep.app.base import AppEvent, AppEventShutdown
 from pyeep.app.client import ClientApp
-from pyeep.app.base import AppEvent, AppShutdownEvent
-from pyeep.models.messages import Message
+from pyeep.models.messages import Event
 
 
 class RemoteQuit(Exception):
@@ -92,10 +93,10 @@ class SyncClientApp(abc.ABC):
         """Enqueue an AppEvent in the App event queue."""
         self.run_async(self.app.main_event_queue.put(event))
 
-    def send(self, message: Message) -> None:
-        """Send a message via the app."""
-        self.log.info("Sending %s", message)
-        self.run_async(self.app.send(message))
+    def send_event(self, event: Event) -> None:
+        """Send an event via the app."""
+        self.log.info("Sending %s", event)
+        self.run_async(self.app.send_event(event))
 
     def run(self) -> None:
         self.app_thread = threading.Thread(target=self.app_thread_main)
@@ -108,7 +109,7 @@ class SyncClientApp(abc.ABC):
         finally:
             self.quit_requested_by_main_thread = True
             if self.app_thread is not None:
-                self.notify_app(AppShutdownEvent("User quit"))
+                self.notify_app(AppEventShutdown("User quit"))
                 self.app_thread.join()
 
     @abc.abstractmethod

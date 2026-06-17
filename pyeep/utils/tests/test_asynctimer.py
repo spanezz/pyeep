@@ -1,6 +1,6 @@
 import asyncio
-import unittest
 import time as tm
+import unittest
 
 from pyeep.utils.asynctimer import beat_timer
 

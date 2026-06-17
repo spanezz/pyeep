@@ -7,7 +7,7 @@ from collections.abc import Callable
 from queue import SimpleQueue
 from typing import IO, TypeVar
 
-from pyeep.component.base import Component
+from pyeep.nodes.component import Component
 from pyeep.app.base import BaseApp
 from pyeep.app.hub import Hub
 from pyeep.models.messages.component import NewComponent, Shutdown

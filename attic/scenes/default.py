@@ -1,5 +1,5 @@
 from pyeep.models.color import Color
-from pyeep.component.base import check_hub
+from pyeep.nodes.component import check_hub
 from pyeep.gtk import GLib
 from pyeep.models.messages.input import Pause, Resume, Shortcut
 from pyeep.models.messages.message import Message

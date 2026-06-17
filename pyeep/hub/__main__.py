@@ -1,4 +1,4 @@
-from .hub import Hub
+from .hub import HubApp
 
 if __name__ == "__main__":
-    Hub.run()
+    HubApp.run(name="hub")

@@ -5,7 +5,6 @@ import logging
 import bleak
 import bleak.backends
 
-
 # import asyncio
 # import re
 # from collections.abc import Sequence

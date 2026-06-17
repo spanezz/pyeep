@@ -5,11 +5,10 @@ from typing import override
 import bleak
 import bleak.backends
 
-from pyeep.models.color import Color
-
 # from ..component.controller import ControllerWidget
 # from pyeep.gtk import Gtk
 from pyeep.bluetooth import BLEConnection
+from pyeep.models.color import Color
 
 # from pyeep.models.messages.message import Message
 # from .base import OutputController

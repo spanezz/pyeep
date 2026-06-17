@@ -1,13 +1,13 @@
 from typing import TYPE_CHECKING, Any
 
-import jinja2
 import aiohttp_jinja2
+import jinja2
 from aiohttp import web
 
 from pyeep.utils.modules import get_package_path
 
 if TYPE_CHECKING:
-    from .hub import Hub
+    from .hub import HubApp
 
 
 class Home(web.View):
@@ -21,7 +21,7 @@ class Home(web.View):
 
 
 class Main:
-    def __init__(self, *, hub: "Hub") -> None:
+    def __init__(self, *, hub: "HubApp") -> None:
         self.hub = hub
         self.app = self.make_app()
 
@@ -34,13 +34,13 @@ class Main:
         self, context: jinja2.runtime.Context, path: str
     ) -> str:
         """Return a static URL for a scene-relative path."""
-        from pyeep.scenes.base import Scene
+        from pyeep.scenes.base import WebScene
 
         if (scene := context.get("scene")) is None:
             raise jinja2.TemplateError(
                 "scene_static_url used without a scene in context"
             )
-        assert isinstance(scene, Scene)
+        assert isinstance(scene, WebScene)
         return "/static/scenes/{scene.name}" + path.lstrip("/")
 
     def make_app(self) -> web.Application:

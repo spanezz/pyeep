@@ -1,22 +1,20 @@
-import asyncio
 import argparse
 import logging
 import time as tm
-from typing import override
+from typing import override, Unpack
 
 from pyeep.app.asynccmd import ApplicationAsyncCmdClientApp
-from .messages import HeartBeat, Sample
+from pyeep.app.base import BaseAppArgs
 
 from .heartrate import HeartRateMonitor
+from .messages import HeartBeat, Sample
 
 
 class Heartrate(ApplicationAsyncCmdClientApp):
     """Inspect the pyeep system."""
 
-    def __init__(self, *, handle_sigterm_sigint: bool = True) -> None:
-        super().__init__(
-            name="heartrate", handle_sigterm_sigint=handle_sigterm_sigint
-        )
+    def __init__(self, **kwargs: Unpack[BaseAppArgs]) -> None:
+        super().__init__(**kwargs)
         self.monitor: HeartRateMonitor | None = None
         if self.args.addr:
             self.monitor = HeartRateMonitor(
@@ -36,8 +34,7 @@ class Heartrate(ApplicationAsyncCmdClientApp):
     async def send_beats(self) -> None:
         assert self.monitor is not None
         async for sample in self.monitor.samples():
-            print("Sample", sample)
-            await self.send(HeartBeat(sample=sample))
+            await self.send_event(HeartBeat(sample=sample))
 
     @override
     async def start_main_tasks(self) -> None:
@@ -48,8 +45,10 @@ class Heartrate(ApplicationAsyncCmdClientApp):
 
     async def cmd_rate(self, rate: float) -> None:
         """Simulate a heartrate report of a float rate."""
-        await self.send(HeartBeat(sample=Sample(time=tm.time_ns(), rate=rate)))
+        await self.send_event(
+            HeartBeat(sample=Sample(time=tm.time_ns(), rate=rate))
+        )
 
 
 if __name__ == "__main__":
-    Heartrate.run()
+    Heartrate.run(name="heartrate")

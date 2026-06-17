@@ -1,14 +1,13 @@
 import asyncio
 import functools
 import time
-from typing import Callable
+from collections.abc import Callable
 
 import bleak
 import muselsl.constants
 import muselsl.muse
 import numpy as np
 import numpy.typing as npt
-
 
 type SamplesEEG = np.ndarray[tuple[int, int], np.dtype[np.int64]]
 type SamplesPPG = np.ndarray[tuple[int], np.dtype[np.float64]]

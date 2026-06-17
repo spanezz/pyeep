@@ -1,7 +1,8 @@
 import asyncio
 import logging
 import time as tm
-from typing import override, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import override
 
 import bleak
 import bleak.backends
