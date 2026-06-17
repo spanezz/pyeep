@@ -46,7 +46,6 @@ class Main:
 
     def make_app(self) -> web.Application:
         """Make the main hub application."""
-        print("MA")
         app = web.Application()
         app["scenes"] = self.hub.scenes
         app.router.add_view("/", Home)
@@ -61,10 +60,8 @@ class Main:
             dict
         )
         for wc in self.hub.components.values():
-            print("WC0", wc, isinstance(wc, WebComponent))
             if not isinstance(wc, WebComponent):
                 continue
-            print("WC", wc)
 
             # Static router
             if static_path := wc.get_static_path():
@@ -112,6 +109,7 @@ class Main:
         j2_env.globals.update(
             static_url=self.static_url,
             scene_static_url=self.scene_static_url,
+            ws_url=f"ws://{self.hub.args.host}:{self.hub.args.port}/pyeep/ui/io/",
         )
 
         return app

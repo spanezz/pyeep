@@ -62,10 +62,11 @@ class API:
         handler: Callable[[web.Request], Awaitable[web.StreamResponse]],
     ) -> web.StreamResponse:
         """Check for the presence of an auth token."""
-        if (token := request.cookies.get("Token")) is None:
-            raise web.HTTPForbidden(reason="missing token")
-        if token != self.hub.token:
-            raise web.HTTPForbidden(reason="invalid token")
+        if request.path.startswith("/hub/"):
+            if (token := request.cookies.get("Token")) is None:
+                raise web.HTTPForbidden(reason="missing token")
+            if token != self.hub.token:
+                raise web.HTTPForbidden(reason="invalid token")
         return await handler(request)
 
     async def whoami(self, request: web.BaseRequest) -> web.Response:
@@ -141,10 +142,15 @@ class API:
             async for wsmsg in ws:
                 match wsmsg.type:
                     case web.WSMsgType.text:
-                        msg = json.loads(wsmsg.data)
-                        if isinstance(msg, dict):
-                            await ui.receive_from_ui(msg)
-                        log.warning("received unexpected JSON message", wsmsg)
+                        match msg := load_primitive(json.loads(wsmsg.data)):
+                            case Event():
+                                await self.hub.inbound_event(msg)
+                            case Broadcast():
+                                await self.hub.inbound_broadcast(msg)
+                            case Command():
+                                await self.hub.inbound_command(msg)
+                            case _:
+                                log.warning("received unexpected message", msg)
                     case web.WSMsgType.binary:
                         log.warning("received unexpected binary message", wsmsg)
                     case web.WSMsgType.close:
@@ -153,5 +159,5 @@ class API:
                         log.error("received unexpected error message", wsmsg)
                         break
         finally:
-            del self.ui_clients[ui]
+            self.ui_clients.discard(ui)
         return ws

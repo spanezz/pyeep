@@ -165,6 +165,21 @@ class HubApp(BaseApp, Hub):
     async def outbound_command(self, msg: Command) -> None:
         await self.api.fanout_command(msg)
 
+    @override
+    async def inbound_event(self, msg: Event) -> None:
+        await super().inbound_event(msg)
+        await self.api.fanout_ui(msg)
+
+    @override
+    async def inbound_broadcast(self, msg: Broadcast) -> None:
+        await super().inbound_broadcast(msg)
+        await self.api.fanout_ui(msg)
+
+    @override
+    async def inbound_command(self, msg: Command) -> None:
+        await super().inbound_command(msg)
+        await self.api.fanout_ui(msg)
+
     async def shutdown_clients(self) -> None:
         """Close client websockets when a shutdown has been requested."""
         # Send a shutdown message to each connected client

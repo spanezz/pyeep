@@ -7,9 +7,15 @@
     <script type="importmap">
     {
         "imports": {
-            "pyeep": "{{ static_url("js/pyeep.js") }}"
+            "pyeep": "{{ static_url("js/pyeep.js") }}",
+            "messages": "{{ static_url("js/messages.js") }}"
         }
     }
+    </script>
+    <script type="module">
+        import {Hub} from "pyeep";
+        window.pyeep = window.pyeep || {};
+        window.pyeep.hub = new Hub("{{ws_url}}")
     </script>
 
     <link href="{{ static_url('css/pyeep.css') }}" rel="stylesheet">
