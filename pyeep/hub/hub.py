@@ -4,12 +4,12 @@ import json
 import logging
 import secrets
 from pathlib import Path
-from typing import Any, override
+from typing import Any, override, Unpack
 
 import yaml
 from aiohttp import web
 
-from pyeep.app.base import BaseApp
+from pyeep.app.base import BaseApp, BaseAppArgs
 from pyeep.models.hub import HubConnectInfo
 from pyeep.models.messages import Broadcast, Command, Event, Message
 from pyeep.models.scene import load_scene_description
@@ -64,8 +64,10 @@ class Scenes(Component):
 class HubApp(BaseApp, WebHub):
     """Pyeep main coordination app."""
 
-    def __init__(self, *, name: str) -> None:
-        super().__init__(name=name)
+    DEFAULT_NAME = "hub"
+
+    def __init__(self, **kwargs: Unpack[BaseAppArgs]) -> None:
+        super().__init__(**kwargs)
         self.token = secrets.token_urlsafe()
         self.scenes = Scenes(hub=self)
         self.groups = Groups(hub=self, name="groups")
@@ -76,8 +78,9 @@ class HubApp(BaseApp, WebHub):
         self.web_token_path = Path(".webtoken")
 
     @override
+    @classmethod
     def argparser(
-        self, description: str | None = None
+        cls, description: str | None = None
     ) -> argparse.ArgumentParser:
         parser = super().argparser(description)
         parser.add_argument(

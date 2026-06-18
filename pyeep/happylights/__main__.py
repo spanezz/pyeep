@@ -82,8 +82,9 @@ class LightsApp(ApplicationAsyncCmdClientApp):
         self.lights = Lights(name="lights", addr=self.args.addr, hub=self)
 
     @override
+    @classmethod
     def argparser(
-        self, description: str | None = None
+        cls, description: str | None = None
     ) -> argparse.ArgumentParser:
         parser = super().argparser(description)
         parser.add_argument(
@@ -109,4 +110,4 @@ class LightsApp(ApplicationAsyncCmdClientApp):
 
 
 if __name__ == "__main__":
-    LightsApp.run(name="happylights")
+    LightsApp.run()

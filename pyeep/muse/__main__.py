@@ -1,7 +1,8 @@
 import argparse
 import logging
-from typing import override
+from typing import override, Unpack
 
+from pyeep.app.base import BaseAppArgs
 from pyeep.app.asynccmd import ApplicationAsyncCmdClientApp
 
 from . import modes
@@ -11,10 +12,8 @@ from .muse import Muse
 class MuseApp(ApplicationAsyncCmdClientApp):
     """Interface with the Muse EEG monitor."""
 
-    def __init__(self, *, handle_sigterm_sigint: bool = True) -> None:
-        super().__init__(
-            name="muse", handle_sigterm_sigint=handle_sigterm_sigint
-        )
+    def __init__(self, **kwargs: Unpack[BaseAppArgs]) -> None:
+        super().__init__(**kwargs)
         self.muse: Muse | None = None
         self.mode: modes.Mode | None = None
         if self.args.addr:
@@ -23,8 +22,9 @@ class MuseApp(ApplicationAsyncCmdClientApp):
             )
 
     @override
+    @classmethod
     def argparser(
-        self, description: str | None = None
+        cls, description: str | None = None
     ) -> argparse.ArgumentParser:
         parser = super().argparser(description)
         parser.add_argument(

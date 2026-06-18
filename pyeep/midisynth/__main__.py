@@ -1,8 +1,8 @@
 import asyncio
-from typing import override
+from typing import override, Unpack
 
 from pyeep.app.asynccmd import ApplicationAsyncCmdClientApp
-from pyeep.app.base import AppEvent
+from pyeep.app.base import AppEvent, BaseAppArgs
 
 from .jack import JackClient, MIDIHandler, MIDIInput
 from .messages import MIDIMessage, MIDIMessages
@@ -44,10 +44,8 @@ class NotifyMIDIEvents(MIDIHandler):
 class MidiSynth(ApplicationAsyncCmdClientApp):
     """MIDI synthetizer."""
 
-    def __init__(self, *, handle_sigterm_sigint: bool = True) -> None:
-        super().__init__(
-            name="midisynth", handle_sigterm_sigint=handle_sigterm_sigint
-        )
+    def __init__(self, **kwargs: Unpack[BaseAppArgs]) -> None:
+        super().__init__(**kwargs)
         self.jack = JackClient(self.name, log=self.log)
         self.midi_input = MIDIInput()
         self.jack.add_handler(self.midi_input)

@@ -75,13 +75,20 @@ class BaseAppArgs(NodeArgs):
     """Arguments for BaseApp constructor."""
 
     handle_sigterm_sigint: NotRequired[bool]
+    args: argparse.Namespace
 
 
 class BaseApp(Node, abc.ABC):
     """Base framework for executable commands."""
 
+    APP_NAME: str | None = None
+
     def __init__(
-        self, *, handle_sigterm_sigint: bool = True, **kwargs: Unpack[NodeArgs]
+        self,
+        *,
+        args: argparse.Namespace,
+        handle_sigterm_sigint: bool = True,
+        **kwargs: Unpack[NodeArgs],
     ) -> None:
         """
         Initialize an app.
@@ -89,18 +96,23 @@ class BaseApp(Node, abc.ABC):
         :param name: application name (used in logging)
         """
         super().__init__(**kwargs)
+        self.args = args
         self.handle_sigterm_sigint = handle_sigterm_sigint
-        parser = self.argparser()
-        self.args = parser.parse_args()
         self.main_event_queue: asyncio.Queue[AppEvent] = asyncio.Queue()
         self.main_task_group = asyncio.TaskGroup()
 
+    @classmethod
     def argparser(
-        self, description: str | None = None
+        cls, description: str | None = None
     ) -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser(
-            description=description
-            or (self.__doc__ or self.__class__.__name__).strip()
+            description=description or (cls.__doc__ or cls.__name__).strip()
+        )
+        parser.add_argument(
+            "--name",
+            action="store",
+            default=cls.APP_NAME or cls.__name__.lower(),
+            help="application name as a pyeep node",
         )
         parser.add_argument(
             "-v", "--verbose", action="store_true", help="verbose output"
@@ -202,7 +214,9 @@ class BaseApp(Node, abc.ABC):
             await self.main_shutdown()
 
     @classmethod
-    def run(cls, *, name: str) -> None:
+    def run(cls) -> None:
         """Instantiate and run the app."""
-        app = cls(name=name)
+        parser = cls.argparser()
+        args = parser.parse_args()
+        app = cls(name=args.name, args=args)
         asyncio.run(app.main())

@@ -22,8 +22,9 @@ class Heartrate(ApplicationAsyncCmdClientApp):
             )
 
     @override
+    @classmethod
     def argparser(
-        self, description: str | None = None
+        cls, description: str | None = None
     ) -> argparse.ArgumentParser:
         parser = super().argparser(description)
         parser.add_argument(
@@ -51,4 +52,4 @@ class Heartrate(ApplicationAsyncCmdClientApp):
 
 
 if __name__ == "__main__":
-    Heartrate.run(name="heartrate")
+    Heartrate.run()

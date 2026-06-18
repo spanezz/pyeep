@@ -8,7 +8,7 @@ import time as tm
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from types import GenericAlias, UnionType
-from typing import Any, override
+from typing import Any, override, Unpack
 
 import pydantic
 from prompt_toolkit import Application, PromptSession, application, widgets
@@ -20,7 +20,7 @@ from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 
-from pyeep.app.base import AppEventShutdown
+from pyeep.app.base import AppEventShutdown, BaseAppArgs
 from pyeep.app.client import ClientApp
 
 type AsyncCmdHandler = Callable[..., Awaitable[None]]
@@ -358,15 +358,14 @@ class ApplicationAsyncCmdLogHandler(logging.Handler):
 class ApplicationAsyncCmdClientApp(ClientApp):
     """Client App with an ApplicationAsyncCmd interface."""
 
-    def __init__(
-        self, *, name: str, handle_sigterm_sigint: bool = True
-    ) -> None:
-        super().__init__(name=name, handle_sigterm_sigint=handle_sigterm_sigint)
+    def __init__(self, **kwargs: Unpack[BaseAppArgs]) -> None:
+        super().__init__(**kwargs)
         self.interface = ApplicationAsyncCmd(handler_object=self)
 
     @override
+    @classmethod
     def argparser(
-        self, description: str | None = None
+        cls, description: str | None = None
     ) -> argparse.ArgumentParser:
         parser = super().argparser(description)
         parser.add_argument(

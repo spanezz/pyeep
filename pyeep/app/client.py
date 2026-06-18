@@ -37,8 +37,9 @@ class ClientApp(BaseApp, Hub):
         self.ws: aiohttp.ClientWebSocketResponse | None = None
 
     @override
+    @classmethod
     def argparser(
-        self, description: str | None = None
+        cls, description: str | None = None
     ) -> argparse.ArgumentParser:
         parser = super().argparser(description)
         parser.add_argument(
