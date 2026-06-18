@@ -21,8 +21,23 @@ export class Hub
     on_message(evt) 
     {
         console.log(this.url, "websocket message", evt);
-        let msg = Message.load(JSON.parse(evt.data));
-        console.log("PARSED AS", msg);
+        let msgdata;
+        try {
+            msgdata = JSON.parse(evt.data);
+        } catch (e) {
+            console.error("Failed to decode json %o: %o", evt.data, e)
+            return;
+        }
+
+        let msg;
+        try {
+            msg = Message.load(msgdata.msg);
+        } catch (e) {
+            console.error("Failed to load message %o: %o", msgdata, e)
+            return
+        }
+
+        console.log("PARSED FOR", msgdata.dst, "MSG", msg);
     }
     on_close(evt) 
     {

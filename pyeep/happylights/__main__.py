@@ -1,17 +1,17 @@
-import asyncio
 import argparse
+import asyncio
 import logging
-from typing import override, Unpack
+from typing import Unpack, override
 
 from pyeep.animator import ColorAnimator
-from pyeep.app.base import BaseAppArgs
 from pyeep.app.asynccmd import ApplicationAsyncCmdClientApp
+from pyeep.app.base import BaseAppArgs
 from pyeep.happylights.happylights import HappyLights
 from pyeep.models.animation import AnimationPrimitive
 from pyeep.models.color import Color
 from pyeep.models.messages import Message
 from pyeep.models.messages.color import SetColor
-from pyeep.nodes import PublicComponent, ComponentArgs
+from pyeep.nodes import ComponentArgs, PublicComponent
 
 
 class Lights(PublicComponent):

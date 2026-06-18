@@ -1,12 +1,8 @@
 from typing import Unpack, override
 
-from pyeep.models.messages import (
-    Broadcast,
-    Command,
-    Event,
-    Message,
-)
+from pyeep.models.messages import Broadcast, Command, Event, Message
 from pyeep.nodes import Component, ComponentArgs, Hub, HubArgs
+from pyeep.nodes.web import WebComponent, WebHub
 
 
 class ConcreteHub(Hub):
@@ -49,3 +45,21 @@ class ConcreteComponent(Component):
     @override
     async def receive(self, msg: Message) -> None:
         self.received.append(msg)
+
+
+class ConcreteWebHub(ConcreteHub, WebHub):
+    """
+    Concrete version of WebHub to use for testing.
+
+    By default, all messages forward to the web are stored in lists.
+    """
+
+    def __init__(self, **kwargs: Unpack[HubArgs]) -> None:
+        super().__init__(**kwargs)
+        self.messages_to_ui: list[tuple[Message, WebComponent]] = []
+
+    @override
+    async def web_message_to_ui(
+        self, msg: Message, component: WebComponent
+    ) -> None:
+        self.messages_to_ui.append((msg, component))

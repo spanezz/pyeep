@@ -1,6 +1,7 @@
 from typing import override
 from unittest import TestCase
 
+from pyeep.models.messages import Broadcast, Command, Event
 from pyeep.nodes import Node
 
 
@@ -8,6 +9,18 @@ class ConcreteNode(Node):
     @override
     def get_routing_key(self) -> str:
         return f"test.{self.name}"
+
+    @override
+    async def send_event(self, msg: Event) -> None:
+        pass
+
+    @override
+    async def send_broadcast(self, msg: Broadcast) -> None:
+        pass
+
+    @override
+    async def send_command(self, msg: Command) -> None:
+        pass
 
 
 class TestNode(TestCase):

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Unpack, override
+from typing import TYPE_CHECKING, NotRequired, Unpack, override
 
 from pyeep.models.messages import Broadcast, Command, Event
 
@@ -12,6 +12,7 @@ class ComponentArgs(NodeArgs):
     """Arguments for Node constructor."""
 
     hub: "Hub"
+    namespace: NotRequired[str | None]
 
 
 class Component(Node):
@@ -21,7 +22,13 @@ class Component(Node):
     A component can generate events and receive commands.
     """
 
-    def __init__(self, *, hub: "Hub", **kwargs: Unpack[NodeArgs]) -> None:
+    def __init__(
+        self,
+        *,
+        hub: "Hub",
+        namespace: str | None = None,
+        **kwargs: Unpack[NodeArgs],
+    ) -> None:
         """
         Initialize the component.
 
@@ -30,10 +37,11 @@ class Component(Node):
         """
         super().__init__(**kwargs)
         self.hub = hub
+        self.namespace = namespace or self.hub.routing_key
 
     @override
     def get_routing_key(self) -> str:
-        return f"{self.hub.routing_key}.{self.name}"
+        return f"{self.namespace}.{self.name}"
 
     @override
     async def send_event(self, msg: Event) -> None:

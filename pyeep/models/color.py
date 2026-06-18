@@ -1,4 +1,5 @@
-from typing import Self, override
+import struct
+from typing import Any, Self, override
 
 import pydantic
 
@@ -11,6 +12,21 @@ class Color(pydantic.BaseModel):
     red: float = 0
     green: float = 0
     blue: float = 0
+
+    @pydantic.model_validator(mode="before")
+    @classmethod
+    def accept_string(cls, data: Any) -> Any:
+        """Allow to deserialize colors from a ``#aabbcc`` string."""
+        if (
+            isinstance(data, str)
+            and len(stripped := data.strip()) == 7
+            and stripped[0] == "#"
+        ):
+            colorbytes = bytes.fromhex(data[1:])
+            r, g, b = struct.unpack("BBB", colorbytes)
+            # TODO: see if there's a way to return a Color directly
+            return {"red": r / 255, "green": g / 255, "blue": b / 255}
+        return data
 
     @override
     def __str__(self) -> str:

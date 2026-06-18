@@ -11,19 +11,13 @@ from aiohttp import web
 
 from pyeep.app.base import BaseApp
 from pyeep.models.hub import HubConnectInfo
-from pyeep.models.messages import (
-    Command,
-    Event,
-    Broadcast,
-    RoutingKey,
-    RoutingKeys,
-    build_routing_keys,
-    Message,
-)
-from pyeep.nodes.messages import ComponentAdded, ComponentRemoved, Shutdown
-from pyeep.nodes import Component, Hub
-from pyeep.scenes.base import WebScene
+from pyeep.models.messages import Broadcast, Command, Event, Message
 from pyeep.models.scene import load_scene_description
+from pyeep.nodes import Component, Hub
+from pyeep.nodes.groups import Groups
+from pyeep.nodes.messages import Shutdown
+from pyeep.nodes.web import WebComponent, WebHub
+from pyeep.scenes.base import WebScene
 from pyeep.utils.atomic import atomic_writer
 
 from . import app_api, app_main
@@ -34,40 +28,12 @@ log = logging.getLogger(__name__)
 class LogEvents(Component):
     """Log incoming events."""
 
+    @override
     async def receive(self, msg: Message) -> None:
         await super().receive(msg)
         match msg:
             case Event():
                 self.log.info("Event received: %s", msg)
-
-
-class Groups(Component):
-    """Manage groups of connected clients."""
-
-    def __init__(self, *, hub: "Hub") -> None:
-        super().__init__(name="groups", hub=hub)
-        self.scenes: dict[str, WebScene[Any]] = {}
-        self.remotes: set[RoutingKey] = set()
-
-    @override
-    async def receive(self, msg: Message) -> None:
-        await super().receive(msg)
-        if msg.src is None:
-            self.log.error("Ignoring event without source: %s", msg)
-            return
-        match msg:
-            case ComponentAdded():
-                self.log.info("New component: %s", msg.src)
-                self.remotes.add(msg.src)
-            case ComponentRemoved():
-                self.log.info("Component removed: %s", msg.src)
-                self.remotes.discard(msg.src)
-            case _:
-                await super().receive(msg)
-
-    def all(self) -> RoutingKeys:
-        """Return a RoutingKeys targeting all known components."""
-        return build_routing_keys(self.remotes)
 
 
 class Scenes(Component):
@@ -77,20 +43,14 @@ class Scenes(Component):
         super().__init__(name="scenes", hub=hub)
         self.scenes: dict[str, WebScene[Any]] = {}
 
-    async def load(self, source: Path) -> None:
+    async def load(self, data: list[dict[str, Any]]) -> None:
         """Load scenes from a YAML file."""
-        self.log.info("Loading scenes from %s", source)
-        data = yaml.safe_load(source.read_text())
-        if not isinstance(data, list):
-            raise RuntimeError(f"{source} does not contain a list of records")
         for scene_data in data:
             desc = load_scene_description(scene_data)
             scene = desc.make_scene(hub=self.hub)
             assert isinstance(scene, WebScene)
             if scene.name in self.scenes:
-                raise RuntimeError(
-                    f"{source}: scene {scene.name} defined multiple times"
-                )
+                raise RuntimeError(f"scene {scene.name} defined multiple times")
             self.scenes[scene.name] = scene
             await self.hub.add_component(scene)
             self.log.info("Added scene %s - %s", scene.name, scene.desc.label)
@@ -101,14 +61,14 @@ class Scenes(Component):
                 tg.create_task(self.supervise_coroutine(scene.main()))
 
 
-class HubApp(BaseApp, Hub):
+class HubApp(BaseApp, WebHub):
     """Pyeep main coordination app."""
 
     def __init__(self, *, name: str) -> None:
         super().__init__(name=name)
         self.token = secrets.token_urlsafe()
         self.scenes = Scenes(hub=self)
-        self.groups = Groups(hub=self)
+        self.groups = Groups(hub=self, name="groups")
         self.log_events = LogEvents(name="log_events", hub=self)
 
         self.ui = app_main.Main(hub=self)
@@ -134,10 +94,10 @@ class HubApp(BaseApp, Hub):
             help="port to use to open listening socket",
         )
         parser.add_argument(
-            "--scenes",
-            "-s",
+            "--config",
+            "-C",
             type=Path,
-            help="YAML file describing the scenes to load",
+            help="YAML file with the Hub configuration",
         )
         return parser
 
@@ -154,6 +114,12 @@ class HubApp(BaseApp, Hub):
             json.dump(info.model_dump(), out)
 
     @override
+    async def web_message_to_ui(
+        self, msg: Message, component: WebComponent
+    ) -> None:
+        await self.api.message_to_ui(msg, component)
+
+    @override
     async def outbound_event(self, msg: Event) -> None:
         self.log.warning("Ignoring outbound event %s", msg)
 
@@ -164,21 +130,6 @@ class HubApp(BaseApp, Hub):
     @override
     async def outbound_command(self, msg: Command) -> None:
         await self.api.fanout_command(msg)
-
-    @override
-    async def inbound_event(self, msg: Event) -> None:
-        await super().inbound_event(msg)
-        await self.api.fanout_ui(msg)
-
-    @override
-    async def inbound_broadcast(self, msg: Broadcast) -> None:
-        await super().inbound_broadcast(msg)
-        await self.api.fanout_ui(msg)
-
-    @override
-    async def inbound_command(self, msg: Command) -> None:
-        await super().inbound_command(msg)
-        await self.api.fanout_ui(msg)
 
     async def shutdown_clients(self) -> None:
         """Close client websockets when a shutdown has been requested."""
@@ -215,14 +166,33 @@ class HubApp(BaseApp, Hub):
             await runner.cleanup()
             log.info("HTTP server shut down")
 
+    async def load_config(self, source: Path) -> None:
+        """Load configuration from the given file."""
+        self.log.info("Loading configuration from %s", source)
+        data = yaml.safe_load(source.read_text())
+        if not isinstance(data, dict):
+            raise RuntimeError(f"{source} does not contain a dict")
+        if groups := data.get("groups"):
+            if not isinstance(groups, list):
+                raise RuntimeError(
+                    f"{source}:groups does not contain a list of records"
+                )
+            await self.groups.load(groups)
+        if scenes := data.get("scenes"):
+            if not isinstance(scenes, list):
+                raise RuntimeError(
+                    f"{source}:scenes does not contain a list of records"
+                )
+            await self.scenes.load(scenes)
+
     @override
     async def main_init(self) -> None:
         await super().main_init()
         await self.add_component(self.scenes)
         await self.add_component(self.groups)
         await self.add_component(self.log_events)
-        if self.args.scenes:
-            await self.scenes.load(self.args.scenes)
+        if self.args.config:
+            await self.load_config(self.args.config)
         self.write_token(self.web_token_path)
 
     @override

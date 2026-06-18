@@ -1,0 +1,14 @@
+groups:
+ - name: ledstrip
+   label: Led strip
+   icon: 💡
+   color: "#ffcccc"
+   match:
+     - happylights.lights
+scenes:
+ - name: heartbeat
+   # Default: capitalized name
+   # label: Heartbeat
+   module: pyeep.scenes.heartbeat
+   targets:
+     - ledstrip

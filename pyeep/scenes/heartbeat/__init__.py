@@ -14,6 +14,9 @@ from pyeep.scenes.base import WebScene
 class Description(SceneDescription):
     """Heartbeat scene description."""
 
+    #: Target groups
+    targets: list[str]
+
 
 @Description.scene
 class SceneHeartbeat(WebScene[Description]):
@@ -39,19 +42,16 @@ class SceneHeartbeat(WebScene[Description]):
         await self.has_rate.wait()
         assert self.last_rate is not None
         while True:
-            # TODO: define target group
-            await self.send_command(
-                SetColor(
-                    dst=self.hub.groups.all(),
-                    color=animation.ColorHeartPulse(
-                        color=Color(red=0.5, green=0, blue=0),
-                        duration_ns=round(
-                            0.9 * 60 / self.last_rate * 1_000_000_000
-                        ),
-                        atrial_duration_ratio=self.atrial_duration_ratio,
-                    ),
-                )
+            value = animation.ColorHeartPulse(
+                color=Color(red=0.5, green=0, blue=0),
+                duration_ns=round(0.9 * 60 / self.last_rate * 1_000_000_000),
+                atrial_duration_ratio=self.atrial_duration_ratio,
             )
+
+            for target in self.desc.targets:
+                if (group := self.hub.groups.groups.get(target)) is None:
+                    self.log.warning("Target group %s not found", target)
+                await self.send_command(SetColor(dst=group.dst(), color=value))
             await asyncio.sleep(60 / self.last_rate)
 
 

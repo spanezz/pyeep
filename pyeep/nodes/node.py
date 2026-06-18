@@ -1,10 +1,11 @@
-import asyncio
 import abc
+import asyncio
 import logging
+from collections.abc import Coroutine
 from functools import cached_property
-from typing import TypedDict, Unpack, override, Coroutine
+from typing import TypedDict, Unpack, override
 
-from pyeep.models.messages import Message, Event, Broadcast, Command, RoutingKey
+from pyeep.models.messages import Broadcast, Command, Event, Message, RoutingKey
 
 
 class NodeArgs(TypedDict):

@@ -15,10 +15,10 @@ export class Message
     static load(msgdata)
     {
         if (msgdata.primitive === undefined)
-            console.error("Primitive is undefined in message", msgdata);
+            throw new Error("Message without primitive");
         let message_class = registry[msgdata.primitive];
         if (message_class === undefined)
-            console.error("Unknown primitive", msgdata.primitive, "for", msgdata);
+            throw new Error(`Unknown message primitive: ${msgdata.primitive}`);
         return new message_class(msgdata);
     }
 }

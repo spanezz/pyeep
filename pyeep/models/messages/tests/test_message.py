@@ -28,7 +28,7 @@ class TestRoutingKeys(unittest.TestCase):
 
     def test_expand_routing_keys(self) -> None:
         nodes = ["A", "AB1", "AB2", "AC", "AC1", "AC2"]
-        rks = build_routing_keys(tuple(rk) for rk in nodes)
+        rks = build_routing_keys(nodes)
         assert list("".join(rk) for rk in expand_routing_keys(rks)) == nodes
 
     # def test_route_down_nodes(self) -> None:

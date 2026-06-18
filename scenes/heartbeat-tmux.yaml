@@ -5,7 +5,7 @@ windows:
     shell_command_before:
       - cd ~/dev/pyeep/
     panes:
-      - python3 -m pyeep.hub -v --scenes scenes-heartbeat.yaml
+      - python3 -m pyeep.hub -v --config scenes/heartbeat-cfg.yaml
       - python3 -m pyeep.app.inspector --hub .webtoken -v
       # CYCPLUS H1
       # - python3 -m pyeep.heartrate --hub .webtoken -v --addr F9:EC:3D:7A:10:C2

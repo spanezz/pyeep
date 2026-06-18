@@ -5,8 +5,8 @@ import aiohttp_jinja2
 import jinja2
 from aiohttp import web
 
-from pyeep.utils.modules import get_package_path
 from pyeep.nodes.web import WebComponent
+from pyeep.utils.modules import get_package_path
 
 if TYPE_CHECKING:
     from .hub import HubApp
@@ -56,8 +56,8 @@ class Main:
         # )
 
         # Add web components
-        component_loaders: dict[dict[str, jinja2.BaseLoader]] = defaultdict(
-            dict
+        component_loaders: dict[str, dict[str, jinja2.BaseLoader]] = (
+            defaultdict(dict)
         )
         for wc in self.hub.components.values():
             if not isinstance(wc, WebComponent):

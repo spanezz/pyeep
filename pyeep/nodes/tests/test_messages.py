@@ -1,7 +1,7 @@
 from pyeep.nodes.messages import (
+    ComponentAdded,
     ComponentRemoved,
     HubConnected,
-    ComponentAdded,
     Shutdown,
 )
 from pyeep.test.messages import BroadcastTestCase, EventTestCase

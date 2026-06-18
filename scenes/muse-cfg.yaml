@@ -1,0 +1,7 @@
+scenes:
+ # - name: consent
+ #   label: Consent lights
+ #   module: pyeep.scenes.consent
+ - name: dance
+   label: Dance with colors
+   module: pyeep.scenes.dance

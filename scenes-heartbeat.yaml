@@ -1,4 +1,0 @@
-- name: heartbeat
-  # Default: capitalized name
-  # label: Heartbeat
-  module: pyeep.scenes.heartbeat

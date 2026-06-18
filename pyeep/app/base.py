@@ -6,7 +6,7 @@ import logging
 import signal
 import time as tm
 from collections.abc import Coroutine
-from typing import Any, Unpack, override, TypedDict, NotRequired
+from typing import Any, NotRequired, Unpack, override
 
 import rich
 import rich.text

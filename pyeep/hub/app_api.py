@@ -8,6 +8,7 @@ from aiohttp import web
 
 from pyeep.models import load_primitive
 from pyeep.models.messages import Broadcast, Command, Event, Message
+from pyeep.nodes.web import WebComponent
 
 if TYPE_CHECKING:
     from .hub import HubApp
@@ -90,11 +91,16 @@ class API:
                 if (ws := self.clients.get(name)) is not None:
                     tg.create_task(ws.send_str(cmd.as_json))
 
-    async def fanout_ui(self, msg: Message) -> None:
-        """Send a message to all connected UIs."""
+    async def message_to_ui(
+        self, msg: Message, component: WebComponent
+    ) -> None:
+        """Send a message to the UI-side of a web component."""
+        payload = (
+            f"""{{"dst": "{component.routing_key}", "msg": {msg.as_json}}}"""
+        )
         async with asyncio.TaskGroup() as tg:
             for ui in self.ui_clients:
-                tg.create_task(ui.ws.send_str(msg.as_json))
+                tg.create_task(ui.ws.send_str(payload))
 
     async def close_all_clients(self) -> None:
         """Close all client connections."""

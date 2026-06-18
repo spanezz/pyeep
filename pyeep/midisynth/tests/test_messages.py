@@ -4,7 +4,7 @@ from pyeep.midisynth.messages import MIDIMessage, MIDIMessages
 from pyeep.test.messages import EventTestCase
 
 
-class TestMIDIMessages(EventTestCase):
+class TestMIDIMessages(EventTestCase[MIDIMessages]):
     message_cls = MIDIMessages
     samples = {
         "empty": MIDIMessages(frame_time=0, messages=[]),

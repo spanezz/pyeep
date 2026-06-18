@@ -1,5 +1,4 @@
 from collections import deque
-from typing import Generic, TypeVar
 
 
 class Event:
@@ -11,19 +10,16 @@ class Event:
         self.frame_delay: int = frame_delay
 
 
-EventType = TypeVar("EventType", bound=Event)
-
-
-class DeltaList(Generic[EventType]):
+class DeltaList[EVT: Event]:
     """
     Delta list indexing a queue of events by the delay (in frames) at which
     they are scheduled to happen
     """
 
     def __init__(self) -> None:
-        self.events: deque[EventType] = deque()
+        self.events: deque[EVT] = deque()
 
-    def add_event(self, event: EventType) -> None:
+    def add_event(self, event: EVT) -> None:
         """
         Enqueue an event at its frame_delay position.
         """
@@ -48,14 +44,14 @@ class DeltaList(Generic[EventType]):
             case _:
                 self.events.insert(idx, event)
 
-    def clock_tick(self, frames: int) -> list[EventType]:
+    def clock_tick(self, frames: int) -> list[EVT]:
         """
         Advance the delta list clock by the given number of frames.
 
         Get a list with the events that happen in this clock tick, sorted by
         frame delay from the start of the clock tick.
         """
-        res: list[EventType] = []
+        res: list[EVT] = []
         while self.events and self.events[0].frame_delay < frames:
             evt = self.events.popleft()
             frames -= evt.frame_delay

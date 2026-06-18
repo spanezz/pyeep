@@ -5,6 +5,6 @@ windows:
     shell_command_before:
       - cd ~/dev/pyeep/
     panes:
-      - python3 -m pyeep.hub -v --scenes scenes-heartbeat.yaml
+      - python3 -m pyeep.hub -v --config scenes/heartbeat-cfg.yaml
       - python3 -m pyeep.app.inspector --hub .webtoken -v
       - python3 -m pyeep.midisynth --hub .webtoken -v

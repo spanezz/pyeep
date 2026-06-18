@@ -1,23 +1,42 @@
 import abc
 from pathlib import Path
-from typing import Unpack, override
+from typing import NotRequired, Unpack, override
 
 import aiohttp_jinja2
 import jinja2
 from aiohttp import web
 from markupsafe import Markup
 
-from pyeep.nodes import Component, ComponentArgs
 from pyeep.models.messages import Message
+from pyeep.nodes import Component, Hub, NodeArgs
+
+
+class WebHub(Hub, abc.ABC):
+    """Hub that has web-connected components."""
+
+    @abc.abstractmethod
+    async def web_message_to_ui(
+        self, msg: Message, component: "WebComponent"
+    ) -> None:
+        """Forward a message to the web side of a component."""
+
+
+class WebComponentArgs(NodeArgs):
+    """Arguments for WebComponent constructor."""
+
+    hub: WebHub
+    namespace: NotRequired[str | None]
 
 
 class WebComponent(Component, abc.ABC):
     """Base class for components with a web UI."""
 
+    hub: WebHub
+
     #: Section of the UI where this component is mounted
     section: str
 
-    def __init__(self, **kwargs: Unpack[ComponentArgs]) -> None:
+    def __init__(self, **kwargs: Unpack[WebComponentArgs]) -> None:
         super().__init__(**kwargs)
 
     @abc.abstractmethod
@@ -38,7 +57,10 @@ class WebComponent(Component, abc.ABC):
 
     @override
     async def receive(self, message: Message) -> None:
-        await self.hub.api.fanout_ui(message)
+        await super().receive(message)
+        # Forward the message to the web-side of this component.
+        # This can still be overridden to also do local processing
+        await self.hub.web_message_to_ui(message, self)
 
     def add_views(self, app: web.Application, *, prefix: str) -> None:
         """

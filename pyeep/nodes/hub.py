@@ -6,8 +6,8 @@ from pyeep.models.messages import (
     Broadcast,
     Command,
     Event,
-    expand_routing_keys,
     RoutingKey,
+    expand_routing_keys,
 )
 
 from .node import Node, NodeArgs

@@ -1,5 +1,5 @@
-import asyncio
 import argparse
+import asyncio
 import json
 import time as tm
 from pathlib import Path
