@@ -50,10 +50,10 @@ class Main:
         app["scenes"] = self.hub.scenes
         app.router.add_view("/", Home)
 
-        # Examples of how to add assets from system dirs
-        # app.router.add_static(
-        #     "/static/bootstrap5", "/usr/share/bootstrap-html"
-        # )
+        # Add assets from system dirs
+        app.router.add_static(
+            "/static/handlebars", "/usr/share/javascript/handlebars"
+        )
 
         # Web assets
         assets = Assets(
@@ -61,7 +61,8 @@ class Main:
                 "pyeep": self.static_url("js/pyeep.js"),
                 "messages": self.static_url("js/messages.js"),
             },
-            css=[self.static_url("css/pyeep.css")],
+            js={self.static_url("handlebars/handlebars.js")},
+            css={self.static_url("css/pyeep.css")},
         )
         # Add web components
         component_loaders: dict[str, dict[str, jinja2.BaseLoader]] = (

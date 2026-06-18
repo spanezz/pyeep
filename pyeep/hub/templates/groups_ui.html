@@ -1,2 +1,17 @@
 {% extends "component.html" %}
-{% block body %}{% block scene %}{% endblock %}{% endblock %}
+{% block body %}
+<script type="text/html" name="members">
+{% raw %}
+    {{#if members}}
+    <ul>
+        {{#each members}}
+        <li>{{this}}</li>
+        {{/each}}
+    </ul>
+    {{else}}
+    <div>Group is empty</div>
+    {{/if}}
+{% endraw %}
+</script>
+<div class="members"></div>
+{% endblock %}

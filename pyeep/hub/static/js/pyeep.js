@@ -75,6 +75,20 @@ export class Component
         this.routing_key = el.dataset["pyeep_routing_key"];
 
         this.hub.add_component(this)
+
+        this.templates = {};
+        for (let script of this.el.getElementsByTagName("script"))
+        {
+            if (script.attributes.type.value != "text/html")
+                continue;
+            const name = script.attributes.name.value;
+            if (name === undefined)
+            {
+                console.warning("Found template without name: %o", script);
+                continue;
+            }
+            this.templates[name] = Handlebars.compile(script.innerText);
+        }
     }
 
     // Send a message to the Hub side of the component
@@ -88,5 +102,24 @@ export class Component
     {
         console.log(this.routing_key, "RECEIVED", msg)
         this.send({"test": "ACK"})
+    }
+}
+
+export class Group extends Component
+{
+    constructor(el)
+    {
+        super(el);
+        this.el_members = el.getElementsByClassName("members")[0];
+    }
+
+    receive(msg)
+    {
+        const members = msg.membership
+        if (members !== undefined)
+        {
+            // Update members list
+            this.el_members.innerHTML = this.templates.members({members: members});
+        }
     }
 }

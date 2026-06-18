@@ -138,6 +138,8 @@ class API:
                         break
         finally:
             del self.clients[client_name]
+
+        await self.hub.client_disconnected(client_name)
         return ws
 
     async def ui_message_from_js(self, msg: dict[str, Any]) -> None:

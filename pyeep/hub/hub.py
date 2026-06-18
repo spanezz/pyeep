@@ -15,7 +15,7 @@ from pyeep.models.messages import Broadcast, Command, Event, Message
 from pyeep.models.scene import load_scene_description
 from pyeep.nodes import Component, Hub
 from pyeep.nodes.groups import Groups
-from pyeep.nodes.messages import Shutdown
+from pyeep.nodes.messages import Shutdown, ComponentRemoved
 from pyeep.nodes.web import WebComponent, WebHub
 from pyeep.scenes.base import WebScene
 from pyeep.utils.atomic import atomic_writer
@@ -150,6 +150,10 @@ class HubApp(BaseApp, WebHub):
                 await self.api.close_all_clients()
         except TimeoutError:
             self.log.warning("timed out when closing websocket connections")
+
+    async def client_disconnected(self, name: str) -> None:
+        """Called after a client disconnects."""
+        await self.groups.disconnect_by_prefix(name)
 
     async def webapp_run(self) -> None:
         webapp = self.ui.make_app()

@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 from typing import Any, Unpack, override
 
@@ -51,6 +52,7 @@ class Group(WebComponent):
         super().__init__(name=desc.name, namespace=namespace, hub=hub)
         self.desc = desc
         self.members: set[RoutingKey] = set()
+        self.js_class = "Group"
 
     def match(self, msg: ComponentAdded) -> bool:
         """Check if this component matches this group."""
@@ -110,6 +112,15 @@ class Group(WebComponent):
             return template_path
         return None
 
+    async def disconnect_by_prefix(self, prefix: str) -> None:
+        """Report disconnection of all components with this prefix."""
+        self.members.discard(prefix)
+        match = f"{prefix}."
+        for name in list(self.members):
+            if name.startswith(match):
+                self.members.discard(name)
+        await self.membership_changed()
+
 
 class Groups(Component):
     """Manage groups of connected clients."""
@@ -138,3 +149,9 @@ class Groups(Component):
             if group := self.groups.get(name):
                 res.update(group.members)
         return build_routing_keys(res)
+
+    async def disconnect_by_prefix(self, prefix: str) -> None:
+        """Report disconnection of all components with this prefix."""
+        async with asyncio.TaskGroup() as tg:
+            for group in self.groups.values():
+                tg.create_task(group.disconnect_by_prefix(prefix))

@@ -17,11 +17,13 @@ class Assets(pydantic.BaseModel):
     """Bundle of web assets."""
 
     js_modules: dict[str, str] = {}
+    js: set[str] = set()
     css: set[str] = set()
 
     def add(self, assets: "Assets") -> None:
         """Add an asset bundle."""
         self.js_modules.update(assets.js_modules)
+        self.js.update(assets.js)
         self.css.update(assets.css)
 
 
