@@ -1,0 +1,12 @@
+<div class="{{node.dom_classes|join(' ')}}" id="{{node.dom_id}}">
+    <h2>{{node.desc.label}}</h2>
+    {% block body %}{% endblock %}
+</div>
+<script type="module">
+    import { {{node.js_class}} } from "{{node.js_module}}";
+    let el = document.getElementById("{{node.dom_id}}");
+    el.dataset["pyeep_name"] = "{{node.name}}";
+    el.dataset["pyeep_routing_key"] = "{{node.routing_key}}";
+    el.dataset["pyeep_node"] = new {{node.js_class}}(el);
+</script>
+

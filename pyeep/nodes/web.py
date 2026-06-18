@@ -1,6 +1,7 @@
 import abc
+from functools import cached_property
 from pathlib import Path
-from typing import NotRequired, Unpack, override
+from typing import NotRequired, Unpack, override, Any
 
 import aiohttp_jinja2
 import jinja2
@@ -28,10 +29,10 @@ class WebHub(Hub, abc.ABC):
     """Hub that has web-connected components."""
 
     @abc.abstractmethod
-    async def web_message_to_ui(
-        self, msg: Message, component: "WebComponent"
+    async def web_send(
+        self, component: "WebComponent", msg: dict[str, Any]
     ) -> None:
-        """Forward a message to the web side of a component."""
+        """Send a message to the web side of a component."""
 
 
 class WebComponentArgs(NodeArgs):
@@ -51,6 +52,17 @@ class WebComponent(Component, abc.ABC):
 
     def __init__(self, **kwargs: Unpack[WebComponentArgs]) -> None:
         super().__init__(**kwargs)
+        #: DOM classes to use for the element containing this component
+        self.dom_classes: list[str] = ["component"]
+        #: JavaScript class module containing the handler for this component
+        self.js_module: str = "pyeep"
+        #: JavaScript class name instantiated for this component
+        self.js_class: str = "Component"
+
+    @cached_property
+    def dom_id(self) -> str:
+        """Return the base DOM ID for this compoent."""
+        return f"{self.section}-{self.routing_key.replace(".", "-")}"
 
     def get_assets(self) -> Assets:
         """Get the assets to load for this component."""
@@ -72,12 +84,19 @@ class WebComponent(Component, abc.ABC):
         :returns: the path, or None if this component has no templates
         """
 
-    @override
-    async def receive(self, message: Message) -> None:
-        await super().receive(message)
-        # Forward the message to the web-side of this component.
-        # This can still be overridden to also do local processing
-        await self.hub.web_message_to_ui(message, self)
+    async def web_send(self, message: dict[str, Any]) -> None:
+        """Send a message to the JavaScript side of the component."""
+        await self.hub.web_send(self, message)
+
+    async def web_receive(self, message: dict[str, Any]) -> None:
+        """Receive a message from the JavaScript side of the component."""
+
+    # @override
+    # async def receive(self, message: Message) -> None:
+    #     await super().receive(message)
+    #     # Forward the message to the web-side of this component.
+    #     # This can still be overridden to also do local processing
+    #     await self.hub.web_message_to_ui(message, self)
 
     def add_views(self, app: web.Application, *, prefix: str) -> None:
         """

@@ -117,10 +117,10 @@ class HubApp(BaseApp, WebHub):
             json.dump(info.model_dump(), out)
 
     @override
-    async def web_message_to_ui(
-        self, msg: Message, component: WebComponent
+    async def web_send(
+        self, component: WebComponent, msg: dict[str, Any]
     ) -> None:
-        await self.api.message_to_ui(msg, component)
+        await self.api.web_send(component, msg)
 
     @override
     async def outbound_event(self, msg: Event) -> None:

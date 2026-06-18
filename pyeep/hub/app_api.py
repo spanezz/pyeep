@@ -91,13 +91,14 @@ class API:
                 if (ws := self.clients.get(name)) is not None:
                     tg.create_task(ws.send_str(cmd.as_json))
 
-    async def message_to_ui(
-        self, msg: Message, component: WebComponent
+    async def web_send(
+        self, component: WebComponent, msg: dict[str, Any]
     ) -> None:
         """Send a message to the UI-side of a web component."""
-        payload = (
-            f"""{{"dst": "{component.routing_key}", "msg": {msg.as_json}}}"""
-        )
+        # payload = (
+        #     f"""{{"dst": "{component.routing_key}", "msg": {msg.as_json}}}"""
+        # )
+        payload = json.dumps({"rk": component.routing_key, "msg": msg})
         async with asyncio.TaskGroup() as tg:
             for ui in self.ui_clients:
                 tg.create_task(ui.ws.send_str(payload))
@@ -139,6 +140,35 @@ class API:
             del self.clients[client_name]
         return ws
 
+    async def ui_message_from_js(self, msg: dict[str, Any]) -> None:
+        """Dispatch a message received from JavaScript."""
+        if (rk := msg.get("rk")) is None:
+            self.log.warning("JS message receved without routing key: %r", msg)
+            return
+        if (payload := msg.get("msg")) is None:
+            self.log.warning("JS message receved without payload: %r", msg)
+            return
+        if (component := self.hub.components.get(rk)) is None:
+            self.log.warning(
+                "JS message receved for unknown compomnent: %r", msg
+            )
+            return
+        if not isinstance(component, WebComponent):
+            self.log.warning(
+                "JS message receved for non-web compomnent: %r", msg
+            )
+            return
+        await component.web_receive(payload)
+        # match msg := load_primitive(json.loads(wsmsg.data)):
+        #     case Event():
+        #         await self.hub.inbound_event(msg)
+        #     case Broadcast():
+        #         await self.hub.inbound_broadcast(msg)
+        #     case Command():
+        #         await self.hub.inbound_command(msg)
+        #     case _:
+        #         log.warning("received unexpected message", msg)
+
     async def ui_io(self, request: web.Request) -> web.WebSocketResponse:
         """Websocket endpoint to communicate with the UI."""
         ws = web.WebSocketResponse()
@@ -148,15 +178,16 @@ class API:
             async for wsmsg in ws:
                 match wsmsg.type:
                     case web.WSMsgType.text:
-                        match msg := load_primitive(json.loads(wsmsg.data)):
-                            case Event():
-                                await self.hub.inbound_event(msg)
-                            case Broadcast():
-                                await self.hub.inbound_broadcast(msg)
-                            case Command():
-                                await self.hub.inbound_command(msg)
-                            case _:
-                                log.warning("received unexpected message", msg)
+                        try:
+                            msg = json.loads(wsmsg.data)
+                        except json.JSONDecodeError as exc:
+                            self.hub.log.warning(
+                                "received message with non-JSON payload (%s): %r",
+                                exc,
+                                wsmsg.data,
+                            )
+                        else:
+                            await self.ui_message_from_js(msg)
                     case web.WSMsgType.binary:
                         log.warning("received unexpected binary message", wsmsg)
                     case web.WSMsgType.close:

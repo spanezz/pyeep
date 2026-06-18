@@ -122,6 +122,7 @@ class Main:
             scene_static_url=self.scene_static_url,
             ws_url=f"ws://{self.hub.args.host}:{self.hub.args.port}/pyeep/ui/io/",
             assets=assets,
+            hub=self.hub,
         )
 
         return app

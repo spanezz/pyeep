@@ -4,7 +4,7 @@ groups:
    icon: 💡
    color: "#ffcccc"
    match:
-     - happylights.lights
+     - lightsapp.lights
 scenes:
  - name: heartbeat
    # Default: capitalized name

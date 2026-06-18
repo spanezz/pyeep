@@ -2,7 +2,12 @@
 
 {% block body %}
     <h1>Pyeep Hub</h1>
-    {% for scene in scenes.values() %}
-    {{scene.render_widget()}}
-    {% endfor %}
+{% for scene in scenes.values() %}
+{{scene.render_widget()}}
+{% endfor %}
+
+{% for group in hub.groups.groups.values() %}
+{{group.render_widget()}}
+{% endfor %}
+
 {% endblock %}

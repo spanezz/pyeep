@@ -5,13 +5,12 @@ export class Hub
     constructor(url)
     {
         this.url = url;
-        this.ws = new WebSocket(url);
-        this.ws.addEventListener("open", this.on_open);
-        this.ws.addEventListener("close", this.on_close);
-        this.ws.addEventListener("message", this.on_message);
-        this.ws.addEventListener("error", this.on_error);
-
         this.components = {}
+        this.ws = new WebSocket(url);
+        this.ws.addEventListener("open", evt => this.on_open(evt));
+        this.ws.addEventListener("close", evt => this.on_close(evt));
+        this.ws.addEventListener("message", evt => this.on_message(evt));
+        this.ws.addEventListener("error", evt => this.on_error(evt));
     }
 
     on_open(evt) 
@@ -20,7 +19,6 @@ export class Hub
     }
     on_message(evt) 
     {
-        console.log(this.url, "websocket message", evt);
         let msgdata;
         try {
             msgdata = JSON.parse(evt.data);
@@ -28,7 +26,13 @@ export class Hub
             console.error("Failed to decode json %o: %o", evt.data, e)
             return;
         }
+        console.log(this.url, "websocket message payload", msgdata);
 
+        let component = this.components[msgdata.rk];
+        if (component !== undefined)
+            component.receive(msgdata.msg)
+
+        /*
         let msg;
         try {
             msg = Message.load(msgdata.msg);
@@ -42,6 +46,7 @@ export class Hub
         let component = this.components[msgdata.dst];
         if (component !== undefined)
             component.receive(msg)
+        */
     }
     on_close(evt) 
     {
@@ -56,22 +61,32 @@ export class Hub
     add_component(component)
     {
         this.components[component.routing_key] = component
+        console.log("Component %o added", component);
     }
 }
 
 export class Component
 {
-    constructor(hub, name, routing_key)
+    constructor(el)
     {
-        this.hub = hub
-        this.name = name
-        this.routing_key = routing_key
+        this.el = el;
+        this.hub = window.pyeep.hub;
+        this.name = el.dataset["pyeep_name"];
+        this.routing_key = el.dataset["pyeep_routing_key"];
 
         this.hub.add_component(this)
     }
 
+    // Send a message to the Hub side of the component
+    send(msg)
+    {
+        this.hub.ws.send(JSON.stringify({"rk":this.routing_key, "msg": msg}));
+    }
+
+    // Recevie a message from the Hub side of the component
     receive(msg)
     {
-        console.log(this.routing.key, "RECEIVED", msg)
+        console.log(this.routing_key, "RECEIVED", msg)
+        this.send({"test": "ACK"})
     }
 }

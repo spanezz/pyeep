@@ -69,6 +69,15 @@ class Group(WebComponent):
         return build_routing_keys(self.members)
 
     @override
+    async def web_receive(self, message: dict[str, Any]) -> None:
+        await super().web_receive(message)
+        self.log.info("Received from web: %r", message)
+
+    async def membership_changed(self) -> None:
+        """Called when the group membership has changed."""
+        await self.web_send({"membership": sorted(self.members)})
+
+    @override
     async def receive(self, msg: Message) -> None:
         await super().receive(msg)
         if msg.src is None:
@@ -79,9 +88,11 @@ class Group(WebComponent):
                 self.log.info("New component: %s", msg.src)
                 if self.match(msg):
                     self.members.add(msg.src)
+                    await self.membership_changed()
             case ComponentRemoved():
                 self.log.info("Component removed: %s", msg.src)
                 self.members.discard(msg.src)
+                await self.membership_changed()
             case _:
                 await super().receive(msg)
 
