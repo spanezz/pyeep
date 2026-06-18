@@ -1,5 +1,6 @@
 {% extends "component.html" %}
 {% block body %}
+<h2 class="title" style="--color-title-bg: {{node.desc.color}}">{{node.desc.icon}} {{node.desc.label}}</h2>
 <script type="text/html" name="members">
 {% raw %}
     {{#if members}}

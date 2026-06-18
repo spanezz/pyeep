@@ -55,6 +55,18 @@ class TestGroup(GroupTestCase):
         await group.receive(ComponentRemoved(src="foo"))
         self.assertEqual(group.members, {"bar"})
 
+    async def test_match_fnmatch(self) -> None:
+        group = self.group(groupdesc(match=["match:f*"]))
+        self.assertEqual(group.members, set())
+        await group.receive(ComponentAdded(src="foo"))
+        self.assertEqual(group.members, {"foo"})
+        await group.receive(ComponentAdded(src="bar"))
+        self.assertEqual(group.members, {"foo"})
+        await group.receive(ComponentAdded(src="fii"))
+        self.assertEqual(group.members, {"fii", "foo"})
+        await group.receive(ComponentRemoved(src="foo"))
+        self.assertEqual(group.members, {"fii"})
+
     async def test_dst(self) -> None:
         group = self.group(groupdesc(match=["foo", "bar"]))
         await group.receive(ComponentAdded(src="foo"))

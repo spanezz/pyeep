@@ -1,4 +1,6 @@
 import asyncio
+import fnmatch
+import re
 from pathlib import Path
 from typing import Any, Unpack, override
 
@@ -51,20 +53,26 @@ class Group(WebComponent):
         """Initialize a scene from its description."""
         super().__init__(name=desc.name, namespace=namespace, hub=hub)
         self.desc = desc
+        self.re_match: re.Pattern[str] = self.compile_matches()
         self.members: set[RoutingKey] = set()
         self.js_class = "Group"
+        self.dom_classes.append("group")
+
+    def compile_matches(self) -> re.Pattern[str]:
+        """Compile matches in group description to regular expressions."""
+        patterns: list[str] = []
+        for match in self.desc.match:
+            if match.startswith("match:"):
+                patterns.append(fnmatch.translate(match.removeprefix("match:")))
+            elif match.startswith("re:"):
+                patterns.append(match.removeprefix("re:"))
+            else:
+                patterns.append(f"^{re.escape(match)}$")
+        return re.compile("|".join(patterns))
 
     def match(self, msg: ComponentAdded) -> bool:
         """Check if this component matches this group."""
-        for match in self.desc.match:
-            if match.startswith("match:"):
-                raise NotImplementedError("fnmatch")
-            elif match.startswith("re:"):
-                raise NotImplementedError("re")
-            else:
-                if match == msg.src:
-                    return True
-        return False
+        return self.re_match.match(msg.src)
 
     def dst(self) -> RoutingKeys:
         """Return a RoutingKeys to target this group."""

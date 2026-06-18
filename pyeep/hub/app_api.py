@@ -17,12 +17,53 @@ log = logging.getLogger("hub.api")
 
 
 class UI:
+    """
+    Connected web UI.
+
+    Note that one web UI contains interfaces for many web components, and that
+    there can be multiple web UIs connected, all of which will be interfaces
+    for the same web components.
+    """
+
     def __init__(self, hub: "HubApp", ws: web.WebSocketResponse) -> None:
         self.hub = hub
         self.ws = ws
 
-    async def receive_from_ui(self, data: dict[str, Any]) -> None:
-        pass
+    async def connected(self) -> None:
+        """Called when the UI has connected."""
+        # Hack to refresh membership lists on connect
+        async with asyncio.TaskGroup() as tg:
+            for group in self.hub.groups.groups.values():
+                tg.create_task(group.membership_changed())
+
+    async def receive_from_js(self, msg: dict[str, Any]) -> None:
+        """Dispatch a message received from JavaScript."""
+        if (rk := msg.get("rk")) is None:
+            self.log.warning("JS message receved without routing key: %r", msg)
+            return
+        if (payload := msg.get("msg")) is None:
+            self.log.warning("JS message receved without payload: %r", msg)
+            return
+        if (component := self.hub.components.get(rk)) is None:
+            self.log.warning(
+                "JS message receved for unknown compomnent: %r", msg
+            )
+            return
+        if not isinstance(component, WebComponent):
+            self.log.warning(
+                "JS message receved for non-web compomnent: %r", msg
+            )
+            return
+        await component.web_receive(payload)
+        # match msg := load_primitive(json.loads(wsmsg.data)):
+        #     case Event():
+        #         await self.hub.inbound_event(msg)
+        #     case Broadcast():
+        #         await self.hub.inbound_broadcast(msg)
+        #     case Command():
+        #         await self.hub.inbound_command(msg)
+        #     case _:
+        #         log.warning("received unexpected message", msg)
 
     async def close(self) -> None:
         await self.ws.close()
@@ -142,40 +183,12 @@ class API:
         await self.hub.client_disconnected(client_name)
         return ws
 
-    async def ui_message_from_js(self, msg: dict[str, Any]) -> None:
-        """Dispatch a message received from JavaScript."""
-        if (rk := msg.get("rk")) is None:
-            self.log.warning("JS message receved without routing key: %r", msg)
-            return
-        if (payload := msg.get("msg")) is None:
-            self.log.warning("JS message receved without payload: %r", msg)
-            return
-        if (component := self.hub.components.get(rk)) is None:
-            self.log.warning(
-                "JS message receved for unknown compomnent: %r", msg
-            )
-            return
-        if not isinstance(component, WebComponent):
-            self.log.warning(
-                "JS message receved for non-web compomnent: %r", msg
-            )
-            return
-        await component.web_receive(payload)
-        # match msg := load_primitive(json.loads(wsmsg.data)):
-        #     case Event():
-        #         await self.hub.inbound_event(msg)
-        #     case Broadcast():
-        #         await self.hub.inbound_broadcast(msg)
-        #     case Command():
-        #         await self.hub.inbound_command(msg)
-        #     case _:
-        #         log.warning("received unexpected message", msg)
-
     async def ui_io(self, request: web.Request) -> web.WebSocketResponse:
         """Websocket endpoint to communicate with the UI."""
         ws = web.WebSocketResponse()
         await ws.prepare(request)
         self.ui_clients.add(ui := UI(self.hub, ws))
+        await ui.connected()
         try:
             async for wsmsg in ws:
                 match wsmsg.type:
@@ -189,7 +202,7 @@ class API:
                                 wsmsg.data,
                             )
                         else:
-                            await self.ui_message_from_js(msg)
+                            await self.ui.receive_from_js(msg)
                     case web.WSMsgType.binary:
                         log.warning("received unexpected binary message", wsmsg)
                     case web.WSMsgType.close:

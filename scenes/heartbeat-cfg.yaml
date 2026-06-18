@@ -1,8 +1,14 @@
 groups:
+ - name: all
+   label: All components
+   icon: "🪩"
+   color: "#227722"
+   match:
+     - "match:*"
  - name: ledstrip
    label: Led strip
    icon: 💡
-   color: "#ffcccc"
+   color: "#772222"
    match:
      - lightsapp.lights
 scenes:

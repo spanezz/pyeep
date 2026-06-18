@@ -1,2 +1,5 @@
 {% extends "component.html" %}
-{% block body %}{% block scene %}{% endblock %}{% endblock %}
+{% block body %}
+    <h2 class="title">{{node.desc.label}}</h2>
+{% block scene %}{% endblock %}
+{% endblock %}
