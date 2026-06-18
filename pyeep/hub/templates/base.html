@@ -4,21 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <script type="importmap">
-    {
-        "imports": {
-            "pyeep": "{{ static_url("js/pyeep.js") }}",
-            "messages": "{{ static_url("js/messages.js") }}"
-        }
-    }
-    </script>
+    <script type="importmap">{"imports": {{assets.js_modules|tojson}}}</script>
+    {% for url in assets.css %}<link href="{{url}}" rel="stylesheet">{% endfor %}
+
     <script type="module">
         import {Hub} from "pyeep";
         window.pyeep = window.pyeep || {};
         window.pyeep.hub = new Hub("{{ws_url}}")
     </script>
-
-    <link href="{{ static_url('css/pyeep.css') }}" rel="stylesheet">
 
     <title>Pyeep Hub</title>
   </head>

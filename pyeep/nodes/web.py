@@ -4,11 +4,24 @@ from typing import NotRequired, Unpack, override
 
 import aiohttp_jinja2
 import jinja2
+import pydantic
 from aiohttp import web
 from markupsafe import Markup
 
 from pyeep.models.messages import Message
 from pyeep.nodes import Component, Hub, NodeArgs
+
+
+class Assets(pydantic.BaseModel):
+    """Bundle of web assets."""
+
+    js_modules: dict[str, str] = {}
+    css: set[str] = set()
+
+    def add(self, assets: "Assets") -> None:
+        """Add an asset bundle."""
+        self.js_modules.update(assets.js_modules)
+        self.css.update(assets.css)
 
 
 class WebHub(Hub, abc.ABC):
@@ -38,6 +51,10 @@ class WebComponent(Component, abc.ABC):
 
     def __init__(self, **kwargs: Unpack[WebComponentArgs]) -> None:
         super().__init__(**kwargs)
+
+    def get_assets(self) -> Assets:
+        """Get the assets to load for this component."""
+        return Assets()
 
     @abc.abstractmethod
     def get_static_path(self) -> Path | None:

@@ -38,6 +38,10 @@ export class Hub
         }
 
         console.log("PARSED FOR", msgdata.dst, "MSG", msg);
+
+        let component = this.components[msgdata.dst];
+        if (component !== undefined)
+            component.receive(msg)
     }
     on_close(evt) 
     {
@@ -64,5 +68,10 @@ export class Component
         this.routing_key = routing_key
 
         this.hub.add_component(this)
+    }
+
+    receive(msg)
+    {
+        console.log(this.routing.key, "RECEIVED", msg)
     }
 }

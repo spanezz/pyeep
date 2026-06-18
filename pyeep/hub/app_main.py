@@ -5,7 +5,7 @@ import aiohttp_jinja2
 import jinja2
 from aiohttp import web
 
-from pyeep.nodes.web import WebComponent
+from pyeep.nodes.web import WebComponent, Assets
 from pyeep.utils.modules import get_package_path
 
 if TYPE_CHECKING:
@@ -55,6 +55,14 @@ class Main:
         #     "/static/bootstrap5", "/usr/share/bootstrap-html"
         # )
 
+        # Web assets
+        assets = Assets(
+            js_modules={
+                "pyeep": self.static_url("js/pyeep.js"),
+                "messages": self.static_url("js/messages.js"),
+            },
+            css=[self.static_url("css/pyeep.css")],
+        )
         # Add web components
         component_loaders: dict[str, dict[str, jinja2.BaseLoader]] = (
             defaultdict(dict)
@@ -83,6 +91,9 @@ class Main:
             # Views
             wc.add_views(app, prefix=f"{wc.section}/{wc.name}")
 
+            # Web assets
+            assets.add(wc.get_assets())
+
         # Add static router for the main hub
         app.router.add_static(
             "/static", get_package_path("pyeep.hub") / "static"
@@ -110,6 +121,7 @@ class Main:
             static_url=self.static_url,
             scene_static_url=self.scene_static_url,
             ws_url=f"ws://{self.hub.args.host}:{self.hub.args.port}/pyeep/ui/io/",
+            assets=assets,
         )
 
         return app

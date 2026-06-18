@@ -48,10 +48,8 @@ class SceneHeartbeat(WebScene[Description]):
                 atrial_duration_ratio=self.atrial_duration_ratio,
             )
 
-            for target in self.desc.targets:
-                if (group := self.hub.groups.groups.get(target)) is None:
-                    self.log.warning("Target group %s not found", target)
-                await self.send_command(SetColor(dst=group.dst(), color=value))
+            dst = self.hub.groups.dst(*self.desc.targets)
+            await self.send_command(SetColor(dst=dst, color=value))
             await asyncio.sleep(60 / self.last_rate)
 
 

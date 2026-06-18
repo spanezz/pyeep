@@ -1,7 +1,8 @@
-from typing import override
+from typing import override, Unpack
 
 import rich
 
+from pyeep.app.base import BaseAppArgs
 from pyeep.app.client import ClientApp
 from pyeep.models.messages import Command
 
@@ -9,8 +10,8 @@ from pyeep.models.messages import Command
 class Inspector(ClientApp):
     """Inspect the pyeep system."""
 
-    def __init__(self, *, name: str) -> None:
-        super().__init__(name=name)
+    def __init__(self, **kwargs: Unpack[BaseAppArgs]) -> None:
+        super().__init__(**kwargs)
         self.console = rich.get_console()
 
     @override
@@ -19,4 +20,4 @@ class Inspector(ClientApp):
 
 
 if __name__ == "__main__":
-    Inspector.run(name="inspector")
+    Inspector.run()
