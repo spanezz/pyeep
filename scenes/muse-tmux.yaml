@@ -6,7 +6,6 @@ windows:
       - cd ~/dev/pyeep/
     panes:
       - python3 -m pyeep.hub  -v --config scenes/groups.yaml --config=scenes/muse-cfg.yaml
-      - python3 -m pyeep.app.inspector --hub .webtoken -v
       - python3 -m pyeep.muse -a 00:55:DA:B7:DE:A1 -m yesno --hub .webtoken -v
       - python3 -m pyeep.happylights --hub .webtoken -v -a 21:04:99:10:35:05
       # - python3 -m pyeep.happylights --hub .webtoken -v
