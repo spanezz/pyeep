@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <script type="importmap">{"imports": {{assets.js_modules|tojson}}}</script>
+    {% for url in assets.js %}<script src="{{url}}"></script>{% endfor %}
+    {% for url in assets.css %}<link href="{{url}}" rel="stylesheet">{% endfor %}
+
+    <script type="module">
+        import {Hub} from "pyeep";
+        window.pyeep = window.pyeep || {};
+        window.pyeep.hub = new Hub("{{ws_url}}")
+    </script>
+
+    <title>Pyeep Hub</title>
+  </head>
+  <body>
+      {% block body %}
+      {% endblock %}
+  </body>
+</html>
+

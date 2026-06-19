@@ -1,0 +1,18 @@
+{% extends "component.html" %}
+{% block body %}
+<h2 class="title" style="--color-title-bg: {{node.desc.color}}">{{node.desc.icon}} {{node.desc.label}}</h2>
+<script type="text/html" name="members">
+{% raw %}
+    {{#if members}}
+    <ul>
+        {{#each members}}
+        <li>{{this}}</li>
+        {{/each}}
+    </ul>
+    {{else}}
+    <div>Group is empty</div>
+    {{/if}}
+{% endraw %}
+</script>
+<div class="members"></div>
+{% endblock %}

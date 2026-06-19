@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block body %}
+    <h1>Pyeep Hub</h1>
+
+<div class="container" id="scenes">
+<h2 class="title">Scenes</h2>
+<div class="components">
+{% for scene in scenes.values() %}
+{{scene.render_widget()}}
+{% endfor %}
+</div>
+</div>
+
+<div class="container" id="groups">
+<h2 class="title">Groups</h2>
+<div class="components">
+{% for group in hub.groups.groups.values() %}
+{{group.render_widget()}}
+{% endfor %}
+</div>
+</div>
+
+{% endblock %}
