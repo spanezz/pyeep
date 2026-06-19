@@ -1,4 +1,4 @@
-from typing import Unpack, override
+from typing import Unpack, override, Any
 
 from pyeep.models.messages import Broadcast, Command, Event, Message
 from pyeep.nodes import Component, ComponentArgs, Hub, HubArgs
@@ -56,10 +56,10 @@ class ConcreteWebHub(ConcreteHub, WebHub):
 
     def __init__(self, **kwargs: Unpack[HubArgs]) -> None:
         super().__init__(**kwargs)
-        self.messages_to_ui: list[tuple[Message, WebComponent]] = []
+        self.messages_to_ui: list[tuple[WebComponent, dict[str, Any]]] = []
 
     @override
-    async def web_message_to_ui(
-        self, msg: Message, component: WebComponent
+    async def web_send(
+        self, component: WebComponent, msg: dict[str, Any]
     ) -> None:
-        self.messages_to_ui.append((msg, component))
+        self.messages_to_ui.append((component, msg))

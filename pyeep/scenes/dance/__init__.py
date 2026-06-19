@@ -5,28 +5,23 @@ import numpy as np
 
 from pyeep.models.color import Color
 from pyeep.models.messages import Message
-from pyeep.models.messages.color import SetColor
-from pyeep.models.scene import SceneDescription
+from pyeep.models.scene import SingleTargetSceneDescription
 from pyeep.muse.messages import HeadGyro, HeadMoved, HeadYesNo
 from pyeep.nodes.scene import SceneArgs
-from pyeep.scenes.base import WebScene
+from pyeep.scenes.base import WebSceneSingleTarget
 from pyeep.utils import dsp
 
 
-class Description(SceneDescription):
+class Description(SingleTargetSceneDescription):
     """Dance with lights scene description."""
 
 
 @Description.scene
-class SceneDance(WebScene[Description]):
+class SceneDance(WebSceneSingleTarget[Description]):
     """Control lights based on head position."""
 
     def __init__(self, **kwargs: Unpack[SceneArgs[Description]]) -> None:
         super().__init__(**kwargs)
-
-        #: Output group for generated messages
-        # TODO: configure via UI
-        self.output_group: int = 1
 
         # Input sampling rate used for the Butterworth filter
         input_rate = 52
@@ -67,9 +62,7 @@ class SceneDance(WebScene[Description]):
                     blue=np.clip(blue, 0, 1),
                 )
 
-                await self.send_command(
-                    SetColor(dst=self.hub.groups.all(), color=color)
-                )
+                await self.set_color(color)
 
             case HeadMoved():
 
@@ -90,9 +83,7 @@ class SceneDance(WebScene[Description]):
                     blue=np.clip(blue, 0, 1),
                 )
 
-                await self.send_command(
-                    SetColor(dst=self.hub.groups.all(), color=color)
-                )
+                await self.set_color(color)
 
             case HeadGyro():
                 min_dps = 0.0
@@ -111,9 +102,7 @@ class SceneDance(WebScene[Description]):
                     blue=np.clip(blue, 0, 1),
                 )
 
-                await self.send_command(
-                    SetColor(dst=self.hub.groups.all(), color=color)
-                )
+                await self.set_color(color)
 
             # case BrainWaves():
             #     # min_db = 30

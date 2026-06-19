@@ -2,9 +2,11 @@ import abc
 from pathlib import Path
 from typing import override
 
-from pyeep.models.scene import SceneDescription
+from pyeep.models.animation import AnimationPrimitive
+from pyeep.models.color import Color
+from pyeep.models.scene import SceneDescription, SingleTargetSceneDescription
 from pyeep.nodes.scene import Scene
-from pyeep.nodes.web import WebComponent
+from pyeep.nodes.web import WebComponent, SceneHub
 from pyeep.utils.modules import get_package_path
 
 
@@ -30,6 +32,20 @@ class WebScene[DESC: SceneDescription](Scene[DESC], WebComponent, abc.ABC):
     @abc.abstractmethod
     async def main(self) -> None:
         """Run the scene."""
+
+
+class WebSceneSingleTarget[DESC: SingleTargetSceneDescription](WebScene[DESC]):
+    """Base class for scenes with a single target selection."""
+
+    hub: SceneHub
+
+    async def set_power(self, power: float | AnimationPrimitive[float]) -> None:
+        """Send a SetPower command to the target groups."""
+        await self.hub.groups.set_power(self, self.desc.targets, power)
+
+    async def set_color(self, color: Color | AnimationPrimitive[Color]) -> None:
+        """Send a SetColor command to the target groups."""
+        await self.hub.groups.set_color(self, self.desc.targets, color)
 
 
 # from pyeep.component.base import check_hub

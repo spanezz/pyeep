@@ -6,16 +6,14 @@ import numpy as np
 
 from pyeep.models.color import Color
 from pyeep.models.messages import Message
-from pyeep.models.messages.color import SetColor
-from pyeep.models.messages.power import SetPower
-from pyeep.models.scene import SceneDescription
+from pyeep.models.scene import SingleTargetSceneDescription
 from pyeep.muse.messages import HeadYesNo
 from pyeep.nodes.scene import SceneArgs
-from pyeep.scenes.base import WebScene
+from pyeep.scenes.base import WebSceneSingleTarget
 from pyeep.utils.asynctimer import beat_timer
 
 
-class Description(SceneDescription):
+class Description(SingleTargetSceneDescription):
     """Consent scene description."""
 
 
@@ -86,7 +84,7 @@ class DecayedToZeroEvent(SceneEvent):
 
 
 @Description.scene
-class SceneConsent(WebScene[Description]):
+class SceneConsent(WebSceneSingleTarget[Description]):
     """Pulse lights red/yellow/green based on head yes/no movements."""
 
     def __init__(self, **kwargs: Unpack[SceneArgs[Description]]) -> None:
@@ -167,15 +165,9 @@ class SceneConsent(WebScene[Description]):
                 self.color_output = 0.0
             if self.power_output < 0.001:
                 self.power_output = 0.0
-            target = self.hub.groups.all()
-            await self.send_command(
-                SetPower(dst=target, power=self.power_output)
-            )
-            await self.send_command(
-                SetColor(
-                    dst=target,
-                    color=self.gesture_info.color * self.color_output,
-                )
+            await self.set_power(self.power_output)
+            await self.set_color(
+                self.gesture_info.color * self.color_output,
             )
 
     def increment_output(self) -> None:

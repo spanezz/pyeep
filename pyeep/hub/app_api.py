@@ -27,6 +27,7 @@ class UI:
 
     def __init__(self, hub: "HubApp", ws: web.WebSocketResponse) -> None:
         self.hub = hub
+        self.log = self.hub.log
         self.ws = ws
 
     async def connected(self) -> None:
@@ -202,7 +203,7 @@ class API:
                                 wsmsg.data,
                             )
                         else:
-                            await self.ui.receive_from_js(msg)
+                            await ui.receive_from_js(msg)
                     case web.WSMsgType.binary:
                         log.warning("received unexpected binary message", wsmsg)
                     case web.WSMsgType.close:

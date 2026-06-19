@@ -7,10 +7,13 @@ from pyeep.test.messages import EventTestCase
 class TestMIDIMessages(EventTestCase[MIDIMessages]):
     message_cls = MIDIMessages
     samples = {
-        "empty": MIDIMessages(frame_time=0, messages=[]),
-        "one": MIDIMessages(frame_time=1, messages=[MIDIMessage(42, b"123")]),
+        "empty": MIDIMessages(frame_time=0, sample_rate=100, messages=[]),
+        "one": MIDIMessages(
+            frame_time=1, sample_rate=100, messages=[MIDIMessage(42, b"123")]
+        ),
         "many": MIDIMessages(
             frame_time=2,
+            sample_rate=100,
             messages=[
                 MIDIMessage(1, b"1"),
                 MIDIMessage(2, b"2"),

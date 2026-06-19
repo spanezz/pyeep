@@ -11,7 +11,7 @@ from pyeep.app.base import AppEvent, AppEventShutdown, BaseApp, BaseAppArgs
 from pyeep.models import load_primitive
 from pyeep.models.hub import HubConnectInfo
 from pyeep.models.messages import Broadcast, Command, Event
-from pyeep.nodes import Hub, NodeArgs, PublicComponent
+from pyeep.nodes import Hub, NodeArgs, PublicComponent, Component
 from pyeep.nodes.messages import ComponentAdded, ComponentRemoved
 
 
@@ -62,16 +62,12 @@ class ClientApp(BaseApp, Hub):
         raise RuntimeError("Cannot connect to hub after 20 attempts.")
 
     @override
-    async def advertise_component_added(
-        self, component: PublicComponent
-    ) -> None:
+    async def advertise_component_added(self, component: Component) -> None:
         if isinstance(component, PublicComponent):
             await component.send_event(ComponentAdded())
 
     @override
-    async def advertise_component_removed(
-        self, component: PublicComponent
-    ) -> None:
+    async def advertise_component_removed(self, component: Component) -> None:
         if isinstance(component, PublicComponent):
             await component.send_event(ComponentRemoved())
 

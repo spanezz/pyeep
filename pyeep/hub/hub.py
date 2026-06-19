@@ -14,9 +14,8 @@ from pyeep.models.hub import HubConnectInfo
 from pyeep.models.messages import Broadcast, Command, Event, Message
 from pyeep.models.scene import load_scene_description
 from pyeep.nodes import Component, Hub
-from pyeep.nodes.groups import Groups
 from pyeep.nodes.messages import Shutdown, ComponentRemoved
-from pyeep.nodes.web import WebComponent, WebHub
+from pyeep.nodes.web import WebComponent, SceneHub
 from pyeep.scenes.base import WebScene
 from pyeep.utils.atomic import atomic_writer
 
@@ -61,7 +60,7 @@ class Scenes(Component):
                 tg.create_task(self.supervise_coroutine(scene.main()))
 
 
-class HubApp(BaseApp, WebHub):
+class HubApp(BaseApp, SceneHub):
     """Pyeep main coordination app."""
 
     DEFAULT_NAME = "hub"
@@ -70,7 +69,6 @@ class HubApp(BaseApp, WebHub):
         super().__init__(**kwargs)
         self.token = secrets.token_urlsafe()
         self.scenes = Scenes(hub=self)
-        self.groups = Groups(hub=self, name="groups")
         self.log_events = LogEvents(name="log_events", hub=self)
 
         self.ui = app_main.Main(hub=self)
@@ -196,14 +194,18 @@ class HubApp(BaseApp, WebHub):
             await self.scenes.load(scenes)
 
     @override
-    async def main_init(self) -> None:
-        await super().main_init()
+    async def register_components(self) -> None:
+        await super().register_components()
         await self.add_component(self.scenes)
-        await self.add_component(self.groups)
         if self.args.log_events:
             await self.add_component(self.log_events)
         if self.args.config:
             await self.load_config(self.args.config)
+
+    @override
+    async def main_init(self) -> None:
+        await super().main_init()
+        await self.register_components()
         self.write_token(self.web_token_path)
 
     @override

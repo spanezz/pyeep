@@ -3,6 +3,7 @@ from collections import deque
 import enum
 import math
 from typing import Unpack, override
+from statistics import mean
 
 import mido
 import numpy as np
@@ -10,11 +11,9 @@ import numpy as np
 from pyeep.models import animation
 from pyeep.models.color import Color
 from pyeep.models.messages import Message
-from pyeep.models.messages.color import SetColor
-from pyeep.models.messages.power import SetPower
-from pyeep.models.scene import SceneDescription
+from pyeep.models.scene import SingleTargetSceneDescription
 from pyeep.nodes.scene import SceneArgs
-from pyeep.scenes.base import WebScene
+from pyeep.scenes.base import WebSceneSingleTarget
 from pyeep.midisynth.messages import MIDIMessages
 
 
@@ -26,11 +25,8 @@ class Mode(enum.StrEnum):
     RECORD = enum.auto()
 
 
-class Description(SceneDescription):
+class Description(SingleTargetSceneDescription):
     """Heartbeat scene description."""
-
-    #: Target groups
-    targets: list[str]
 
 
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -44,7 +40,7 @@ def note_str(midinote: int) -> str:
 
 
 @Description.scene
-class PianoTrainer(WebScene[Description]):
+class PianoTrainer(WebSceneSingleTarget[Description]):
     """Pulse lights in sync with heartbeat."""
 
     def __init__(self, **kwargs: Unpack[SceneArgs[Description]]) -> None:
@@ -93,11 +89,13 @@ class PianoTrainer(WebScene[Description]):
             self.next_note = 0
             self.last_note_time = None
             self.count_good = 0
-            dst = self.hub.groups.dst(*self.desc.targets)
-            await self.send_command(
-                SetColor(dst=dst, color=Color(red=0, green=0, blue=0))
+            await self.set_color(
+                animation.ColorPulse(
+                    color=Color(red=0, green=0, blue=1),
+                    duration_ns=100_000_000,
+                )
             )
-            await self.send_command(SetPower(dst=dst, power=0))
+            await self.set_power(0)
         else:
             self.log.warning("No sequence recorded: record one to play")
             self.mode = Mode.STOP
@@ -142,7 +140,7 @@ class PianoTrainer(WebScene[Description]):
         if len(self.play_speeds) < 3:
             self.log.info("good, keep playing...")
         else:
-            speed_score = self.top_speed / np.average(self.play_speeds)
+            speed_score = self.top_speed / mean(self.play_speeds)
             lead_attenuation = math.log(self.count_good, self.lead_good_notes)
             score = speed_score * lead_attenuation
             self.log.info(
@@ -155,17 +153,13 @@ class PianoTrainer(WebScene[Description]):
 
     async def on_bad_note(self) -> None:
         self.log.warning("Bad note!")
-        dst = self.hub.groups.dst(*self.desc.targets)
-        await self.send_command(
-            SetColor(
-                dst=dst,
-                color=animation.ColorPulse(
-                    color=Color(red=1, green=0, blue=0),
-                    duration_ns=500_000_000,
-                ),
+        await self.set_color(
+            animation.ColorPulse(
+                color=Color(red=1, green=0, blue=0),
+                duration_ns=500_000_000,
             )
         )
-        await self.send_command(SetPower(dst=dst, power=0))
+        await self.set_power(0)
         await self.start_mode_stop()
 
     async def set_top_speed(self, value: float) -> None:
@@ -180,14 +174,10 @@ class PianoTrainer(WebScene[Description]):
         """Notify a new score."""
         value = np.clip(score, 0, 1)
         extra_value = np.clip(score - value, 0, 1)
-        dst = self.hub.groups.dst(*self.desc.targets)
-        await self.send_command(
-            SetColor(
-                dst=dst,
-                color=Color(red=extra_value, green=value, blue=extra_value),
-            )
+        await self.set_color(
+            color=Color(red=extra_value, green=value, blue=extra_value)
         )
-        await self.send_command(SetPower(dst=dst, power=value))
+        await self.set_power(power=value)
 
     async def on_midi(self, msg: mido.Message) -> None:
         match msg.type:

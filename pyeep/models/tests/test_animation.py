@@ -61,7 +61,7 @@ class TestAnimations(unittest.TestCase):
         self.assertEqual(self.animations.value(10), 1)
         self.assertEqual(self.animations.value(20), 1)
         self.assertEqual(self.animations.value(29), 1)
-        self.assertEqual(self.animations.value(30), None)
+        self.assertEqual(self.animations.value(30), 0)
         self.assertEqual(self.animations.value(40), None)
 
     def test_overlaps(self) -> None:
@@ -130,7 +130,7 @@ class TestAnimations(unittest.TestCase):
         self.assert_value(54, 100)
         self.assert_active_animations(a5)
 
-        self.assert_value(55, None)
+        self.assert_value(55, 0)
         self.assert_active_animations()
 
         self.assert_value(100, None)

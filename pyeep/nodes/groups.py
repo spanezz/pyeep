@@ -2,10 +2,13 @@ import asyncio
 import fnmatch
 import re
 from pathlib import Path
-from typing import Any, Unpack, override
+from typing import Any, Unpack, override, Collection
 
 import pydantic
 
+from pyeep.models.messages.color import SetColor
+from pyeep.models.messages.power import SetPower
+from pyeep.models.animation import AnimationPrimitive
 from pyeep.models.color import Color
 from pyeep.models.messages import (
     Message,
@@ -13,7 +16,7 @@ from pyeep.models.messages import (
     RoutingKeys,
     build_routing_keys,
 )
-from pyeep.nodes import Component
+from pyeep.nodes import Component, Node
 from pyeep.nodes.messages import ComponentAdded, ComponentRemoved
 from pyeep.nodes.web import WebComponent, WebComponentArgs, WebHub
 from pyeep.utils.modules import get_package_path
@@ -72,7 +75,9 @@ class Group(WebComponent):
 
     def match(self, msg: ComponentAdded) -> bool:
         """Check if this component matches this group."""
-        return self.re_match.match(msg.src)
+        if msg.src is None:
+            return False
+        return self.re_match.match(msg.src) is not None
 
     def dst(self) -> RoutingKeys:
         """Return a RoutingKeys to target this group."""
@@ -163,3 +168,23 @@ class Groups(Component):
         async with asyncio.TaskGroup() as tg:
             for group in self.groups.values():
                 tg.create_task(group.disconnect_by_prefix(prefix))
+
+    async def set_power(
+        self,
+        sender: Node,
+        groups: Collection[str],
+        power: float | AnimationPrimitive[float],
+    ) -> None:
+        """Send a SetPower command to the named groups."""
+        dst = self.dst(*groups)
+        await sender.send_command(SetPower(dst=dst, power=power))
+
+    async def set_color(
+        self,
+        sender: Node,
+        groups: Collection[str],
+        color: Color | AnimationPrimitive[Color],
+    ) -> None:
+        """Send a SetColor command to the named groups."""
+        dst = self.dst(*groups)
+        await sender.send_command(SetColor(dst=dst, color=color))

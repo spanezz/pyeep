@@ -1,7 +1,7 @@
 import abc
 from functools import cached_property
 from pathlib import Path
-from typing import NotRequired, Unpack, override, Any
+from typing import NotRequired, Unpack, Any
 
 import aiohttp_jinja2
 import jinja2
@@ -9,8 +9,7 @@ import pydantic
 from aiohttp import web
 from markupsafe import Markup
 
-from pyeep.models.messages import Message
-from pyeep.nodes import Component, Hub, NodeArgs
+from pyeep.nodes import Component, Hub, HubArgs, NodeArgs
 
 
 class Assets(pydantic.BaseModel):
@@ -35,6 +34,22 @@ class WebHub(Hub, abc.ABC):
         self, component: "WebComponent", msg: dict[str, Any]
     ) -> None:
         """Send a message to the web side of a component."""
+
+
+class SceneHub(WebHub):
+    """Hub that runs scenes."""
+
+    def __init__(self, **kwargs: Unpack[HubArgs]) -> None:
+        from pyeep.nodes.groups import Groups
+
+        super().__init__(**kwargs)
+        # self.scenes = Scenes(hub=self)
+        self.groups = Groups(hub=self, name="groups")
+
+    async def register_components(self) -> None:
+        """Register this hub's built-in components."""
+        # await self.add_component(self.scenes)
+        await self.add_component(self.groups)
 
 
 class WebComponentArgs(NodeArgs):

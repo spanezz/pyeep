@@ -40,6 +40,13 @@ class SceneDescription(pydantic.BaseModel, abc.ABC):
         return scene_class
 
 
+class SingleTargetSceneDescription(SceneDescription):
+    """Base description for a scene with a single target selection."""
+
+    #: Target group names
+    targets: list[str]
+
+
 def get_scene_description_subclass(
     obj: dict[str, Any],
 ) -> type[SceneDescription]:

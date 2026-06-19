@@ -5,21 +5,17 @@ from pyeep.heartrate.messages import HeartBeat
 from pyeep.models import animation
 from pyeep.models.color import Color
 from pyeep.models.messages import Message
-from pyeep.models.messages.color import SetColor
-from pyeep.models.scene import SceneDescription
+from pyeep.models.scene import SingleTargetSceneDescription
 from pyeep.nodes.scene import SceneArgs
-from pyeep.scenes.base import WebScene
+from pyeep.scenes.base import WebSceneSingleTarget
 
 
-class Description(SceneDescription):
+class Description(SingleTargetSceneDescription):
     """Heartbeat scene description."""
-
-    #: Target groups
-    targets: list[str]
 
 
 @Description.scene
-class SceneHeartbeat(WebScene[Description]):
+class SceneHeartbeat(WebSceneSingleTarget[Description]):
     """Pulse lights in sync with heartbeat."""
 
     def __init__(self, **kwargs: Unpack[SceneArgs[Description]]) -> None:
@@ -47,9 +43,7 @@ class SceneHeartbeat(WebScene[Description]):
                 duration_ns=round(0.9 * 60 / self.last_rate * 1_000_000_000),
                 atrial_duration_ratio=self.atrial_duration_ratio,
             )
-
-            dst = self.hub.groups.dst(*self.desc.targets)
-            await self.send_command(SetColor(dst=dst, color=value))
+            await self.set_color(value)
             await asyncio.sleep(60 / self.last_rate)
 
 
