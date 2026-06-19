@@ -64,7 +64,7 @@ class Animations[T](Animation[T]):
 
 class PowerAnimations(Animations[float]):
     def __init__(self) -> None:
-        super().__init__(zero=0)
+        super().__init__(zero=0.0)
 
 
 class ColorAnimations(Animations[Color]):
