@@ -12,8 +12,9 @@ from aiohttp import web
 from pyeep.app.base import BaseApp, BaseAppArgs
 from pyeep.models.hub import HubConnectInfo
 from pyeep.models.messages import Broadcast, Command, Event, Message
-from pyeep.models.scene import load_scene_description
+from pyeep.models.scene import load_scene_description, SceneDescription
 from pyeep.nodes import Component, Hub
+from pyeep.nodes.groups import GroupDescription
 from pyeep.nodes.messages import Shutdown, ComponentRemoved
 from pyeep.nodes.web import WebComponent, SceneHub
 from pyeep.scenes.base import WebScene
@@ -42,17 +43,15 @@ class Scenes(Component):
         super().__init__(name="scenes", hub=hub)
         self.scenes: dict[str, WebScene[Any]] = {}
 
-    async def load(self, data: list[dict[str, Any]]) -> None:
+    async def add(self, desc: SceneDescription) -> None:
         """Load scenes from a YAML file."""
-        for scene_data in data:
-            desc = load_scene_description(scene_data)
-            scene = desc.make_scene(hub=self.hub)
-            assert isinstance(scene, WebScene)
-            if scene.name in self.scenes:
-                raise RuntimeError(f"scene {scene.name} defined multiple times")
-            self.scenes[scene.name] = scene
-            await self.hub.add_component(scene)
-            self.log.info("Added scene %s - %s", scene.name, scene.desc.label)
+        scene = desc.make_scene(hub=self.hub)
+        assert isinstance(scene, WebScene)
+        if scene.name in self.scenes:
+            raise RuntimeError(f"scene {scene.name} defined multiple times")
+        self.scenes[scene.name] = scene
+        await self.hub.add_component(scene)
+        self.log.info("Added scene %s - %s", scene.name, scene.desc.label)
 
     async def main(self) -> None:
         async with asyncio.TaskGroup() as tg:
@@ -98,7 +97,10 @@ class HubApp(BaseApp, SceneHub):
             "--config",
             "-C",
             type=Path,
-            help="YAML file with the Hub configuration",
+            action="append",
+            help="YAML file with the Hub configuration."
+            " Can be specified multiple times,"
+            " and they will be loaded in order.",
         )
         parser.add_argument(
             "--log-events", action="store_true", help="Log incoming events"
@@ -174,24 +176,38 @@ class HubApp(BaseApp, SceneHub):
             await runner.cleanup()
             log.info("HTTP server shut down")
 
-    async def load_config(self, source: Path) -> None:
+    async def load_config(self, sources: list[Path]) -> None:
         """Load configuration from the given file."""
-        self.log.info("Loading configuration from %s", source)
-        data = yaml.safe_load(source.read_text())
-        if not isinstance(data, dict):
-            raise RuntimeError(f"{source} does not contain a dict")
-        if groups := data.get("groups"):
-            if not isinstance(groups, list):
-                raise RuntimeError(
-                    f"{source}:groups does not contain a list of records"
-                )
-            await self.groups.load(groups)
-        if scenes := data.get("scenes"):
-            if not isinstance(scenes, list):
-                raise RuntimeError(
-                    f"{source}:scenes does not contain a list of records"
-                )
-            await self.scenes.load(scenes)
+        group_descs: dict[str, GroupDescription] = {}
+        scene_descs: dict[str, SceneDescription] = {}
+        for source in sources:
+            self.log.info("Loading configuration from %s", source)
+            data = yaml.safe_load(source.read_text())
+            if not isinstance(data, dict):
+                raise RuntimeError(f"{source} does not contain a dict")
+
+            if groups := data.get("groups"):
+                if not isinstance(groups, list):
+                    raise RuntimeError(
+                        f"{source}:groups does not contain a list of records"
+                    )
+                for group_data in groups:
+                    gdesc = GroupDescription.model_validate(group_data)
+                    group_descs[gdesc.name] = gdesc
+
+            if scenes := data.get("scenes"):
+                if not isinstance(scenes, list):
+                    raise RuntimeError(
+                        f"{source}:scenes does not contain a list of records"
+                    )
+                for scene_data in scenes:
+                    sdesc = load_scene_description(scene_data)
+                    scene_descs[sdesc.name] = sdesc
+
+        for gdesc in group_descs.values():
+            await self.groups.add(gdesc)
+        for sdesc in scene_descs.values():
+            await self.scenes.add(sdesc)
 
     @override
     async def register_components(self) -> None:

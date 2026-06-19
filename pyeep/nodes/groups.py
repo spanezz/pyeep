@@ -142,9 +142,10 @@ class Group(WebComponent):
         await self.membership_changed()
 
     async def web_set_power(self, power: float) -> None:
-        await self.web_send({"power": float})
+        await self.web_send({"power": power})
 
     async def web_set_color(self, color: Color) -> None:
+        self.log.info("WSC %s", color)
         await self.web_send({"color": str(color)})
 
     async def notify_set_power(self, power: float | AnimationPrimitive[float]):
@@ -194,16 +195,14 @@ class Groups(Component):
                 tg.create_task(group.main())
             await asyncio.Event().wait()
 
-    async def load(self, data: list[dict[str, Any]]) -> None:
-        """Load groups from a YAML file."""
-        for group_data in data:
-            desc = GroupDescription.model_validate(group_data)
-            group = Group(desc=desc, hub=self.hub, namespace=self.routing_key)
-            if group.name in self.groups:
-                raise RuntimeError(f"group {group.name} defined multiple times")
-            self.groups[group.name] = group
-            await self.hub.add_component(group)
-            self.log.info("Added group %s - %s", group.name, group.desc.label)
+    async def add(self, desc: GroupDescription) -> None:
+        """Add a group by its description."""
+        group = Group(desc=desc, hub=self.hub, namespace=self.routing_key)
+        if group.name in self.groups:
+            raise RuntimeError(f"group {group.name} defined multiple times")
+        self.groups[group.name] = group
+        await self.hub.add_component(group)
+        self.log.info("Added group %s - %s", group.name, group.desc.label)
 
     def dst(self, *names: str) -> RoutingKeys:
         """Return a RoutingKeys targeting components in the named groups."""

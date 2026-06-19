@@ -1,16 +1,3 @@
-groups:
- - name: all
-   label: All components
-   icon: "🪩"
-   color: "#227722"
-   match:
-     - "match:*"
- - name: ledstrip
-   label: Led strip
-   icon: 💡
-   color: "#772222"
-   match:
-     - lightsapp.lights
 scenes:
  - name: heartbeat
    # Default: capitalized name

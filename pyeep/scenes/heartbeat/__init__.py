@@ -38,14 +38,14 @@ class SceneHeartbeat(WebSceneSingleTarget[Description]):
         await self.has_rate.wait()
         assert self.last_rate is not None
         while True:
+            beat_time = 60 / self.last_rate
             value = animation.ColorHeartPulse(
-                color=Color(red=0.5, green=0, blue=0),
-                # TODO: enlarge the pulse a bit if the rate is low
-                duration_ns=round(0.2 * 1_000_000_000),
+                color=Color(red=1, green=0, blue=0),
+                duration_ns=round(0.5 * beat_time * 1_000_000_000),
                 atrial_duration_ratio=self.atrial_duration_ratio,
             )
             await self.set_color(value)
-            await asyncio.sleep(60 / self.last_rate)
+            await asyncio.sleep(beat_time)
 
 
 #    @check_hub

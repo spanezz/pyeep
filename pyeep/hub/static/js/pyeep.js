@@ -26,7 +26,7 @@ export class Hub
             console.error("Failed to decode json %o: %o", evt.data, e)
             return;
         }
-        console.log(this.url, "websocket message payload", msgdata);
+        // console.log(this.url, "websocket message payload", msgdata);
 
         let component = this.components[msgdata.rk];
         if (component !== undefined)
@@ -111,6 +111,8 @@ export class Group extends Component
     {
         super(el);
         this.el_members = el.getElementsByClassName("members")[0];
+        this.el_color = document.getElementById(`${this.el.id}-color`);
+        this.el_power = document.getElementById(`${this.el.id}-power`);
     }
 
     receive(msg)
@@ -120,6 +122,16 @@ export class Group extends Component
         {
             // Update members list
             this.el_members.innerHTML = this.templates.members({members: members});
+        }
+        const color = msg.color;
+        if (color !== undefined)
+        {
+            this.el_color.setAttribute("fill", color);
+        }
+        const power = msg.power;
+        if (power !== undefined)
+        {
+            this.el_power.setAttribute("width", `${power * 100}%`);
         }
     }
 }
