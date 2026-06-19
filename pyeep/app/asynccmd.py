@@ -392,8 +392,14 @@ class ApplicationAsyncCmdClientApp(ClientApp):
 
         logging.basicConfig(level=log_level, handlers=handlers, format=FORMAT)
 
-    async def main_cmd_task(self) -> None:
+    async def main_welcome_user(self) -> None:
+        """Show a user welcome when the app is started."""
         await self.cmd_help(None)
+        self.interface.term.add_line([])
+
+    async def main_cmd_task(self) -> None:
+        """Main user interface event loop."""
+        await self.main_welcome_user()
         await self.interface.async_cmdloop()
         await self.main_event_queue.put(AppEventShutdown("User quit"))
 

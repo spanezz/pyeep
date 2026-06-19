@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 from typing import override, Unpack
 
@@ -6,7 +7,7 @@ from pyeep.app.base import AppEvent, BaseAppArgs
 
 from .jack import JackClient, MIDIHandler, MIDIInput
 from .messages import MIDIMessage, MIDIMessages
-from .midisynth import setup_synth
+from .midisynth import Synth
 
 
 class AppEventMIDI(AppEvent):
@@ -47,9 +48,16 @@ class MidiSynth(ApplicationAsyncCmdClientApp):
     def __init__(self, **kwargs: Unpack[BaseAppArgs]) -> None:
         super().__init__(**kwargs)
         self.jack = JackClient(self.name, log=self.log)
-        self.midi_input = MIDIInput()
-        self.jack.add_handler(self.midi_input)
-        setup_synth(self.jack, self.midi_input)
+        self.synth = Synth(self.jack, mute=self.args.mute)
+
+    @override
+    @classmethod
+    def argparser(
+        cls, description: str | None = None
+    ) -> argparse.ArgumentParser:
+        parser = super().argparser(description)
+        parser.add_argument("--mute", action="store_true", help="Start muted")
+        return parser
 
     @override
     async def main_process_event(self, evt: AppEvent) -> None:
@@ -72,9 +80,21 @@ class MidiSynth(ApplicationAsyncCmdClientApp):
         notify_midi_events = NotifyMIDIEvents(
             queue=self.main_event_queue, loop=asyncio.get_running_loop()
         )
-        self.midi_input.add_handler(notify_midi_events)
+        self.synth.midi_input.add_handler(notify_midi_events)
         await super().start_main_tasks()
         await self.start_task(self.jack.main())
+
+    @override
+    async def main_welcome_user(self) -> None:
+        await super().main_welcome_user()
+        if self.args.mute:
+            self.log.info("Starting muted.")
+
+    async def cmd_mute(self) -> None:
+        self.synth.mute()
+
+    async def cmd_unmute(self) -> None:
+        self.synth.unmute()
 
 
 if __name__ == "__main__":

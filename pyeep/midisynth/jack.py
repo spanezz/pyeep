@@ -193,7 +193,7 @@ class MIDIInput(JackHandler):
     def register(self, client: "JackClient") -> None:
         super().register(client)
         self.inport = self.jack_client.midi_inports.register(self.name)
-        self.midi_handlers: list[MIDIHandler] = []
+        self.midi_handlers: set[MIDIHandler] = set()
         self.midi_handlers_lock = threading.Lock()
         # Connect to all midi output ports
         for port in self.jack_client.get_ports(is_midi=True, is_output=True):
@@ -209,7 +209,16 @@ class MIDIInput(JackHandler):
         with self.midi_handlers_lock:
             if handler not in self.midi_handlers:
                 handler.register(self)
-                self.midi_handlers.append(handler)
+                self.midi_handlers.add(handler)
+
+    def remove_handler(self, handler: MIDIHandler) -> None:
+        """
+        Remove a MIDI handler.
+
+        The function is idempotent: removing a missing handler does nothing.
+        """
+        with self.midi_handlers_lock:
+            self.midi_handlers.discard(handler)
 
     @override
     def jack_process(self, frames: int) -> None:

@@ -1,0 +1,9 @@
+session_name: musictrainer
+windows:
+  - window_name: Main
+    layout: even-vertical
+    shell_command_before:
+      - cd ~/dev/pyeep/
+    panes:
+      - python3 -m pyeep.hub -v --config scenes/musictrainer-cfg.yaml
+      - python3 -m pyeep.midisynth --hub .webtoken -v --mute

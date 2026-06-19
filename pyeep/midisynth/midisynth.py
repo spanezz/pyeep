@@ -70,27 +70,49 @@ class MIDIIn(MIDIHandler):
         self.synth.add_messages(last_frame_time, mido_messages)
 
 
-def setup_synth(jack_client: JackClient, midi_input: MIDIInput) -> None:
-    rate = jack_client.samplerate
-    midi_synth = MidiSynth(in_samplerate=rate)
+class Synth:
+    def __init__(
+        self,
+        jack_client: JackClient,
+        *,
+        midi_input: MIDIInput | None = None,
+        mute: bool = False,
+    ) -> None:
+        self.jack_client = jack_client
+        if midi_input is None:
+            midi_input = MIDIInput()
+            self.jack_client.add_handler(midi_input)
+        self.midi_input = midi_input
 
-    # Set up the synth instrument bank
-    instruments = Instruments(
-        AudioConfig(
-            in_samplerate=rate,
-            out_samplerate=rate,
-            dtype=np.float32,
+        self.samplerate = jack_client.samplerate
+        self.midi_synth = MidiSynth(in_samplerate=self.samplerate)
+
+        # Set up the synth instrument bank
+        self.instruments = Instruments(
+            AudioConfig(
+                in_samplerate=self.samplerate,
+                out_samplerate=self.samplerate,
+                dtype=np.float32,
+            )
         )
-    )
-    envelope = EnvelopeShape(
-        attack_time=0.03, decay_time=0.01, release_time=0.1
-    )
-    instruments.set(0, Sine, envelope=envelope)
-    instruments.set(1, Saw, envelope=envelope)
-    midi_synth.add_output(instruments)
+        self.envelope = EnvelopeShape(
+            attack_time=0.03, decay_time=0.01, release_time=0.1
+        )
+        self.instruments.set(0, Sine, envelope=self.envelope)
+        self.instruments.set(1, Saw, envelope=self.envelope)
+        self.midi_synth.add_output(self.instruments)
 
-    audio_out = AudioOut(synth=midi_synth)
-    midi_in = MIDIIn(synth=midi_synth)
+        self.audio_out = AudioOut(synth=self.midi_synth)
+        self.jack_client.add_handler(self.audio_out)
 
-    midi_input.add_handler(midi_in)
-    jack_client.add_handler(audio_out)
+        self.midi_in = MIDIIn(synth=self.midi_synth)
+        if not mute:
+            self.unmute()
+
+    def mute(self) -> None:
+        """Stop processing MIDI events."""
+        self.midi_input.remove_handler(self.midi_in)
+
+    def unmute(self) -> None:
+        """(Re)start processing MIDI events."""
+        self.midi_input.add_handler(self.midi_in)
