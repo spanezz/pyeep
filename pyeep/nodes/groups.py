@@ -6,6 +6,7 @@ from typing import Any, Unpack, override, Collection
 
 import pydantic
 
+from pyeep.animator import PowerAnimator, ColorAnimator
 from pyeep.models.messages.color import SetColor
 from pyeep.models.messages.power import SetPower
 from pyeep.models.animation import AnimationPrimitive
@@ -60,6 +61,12 @@ class Group(WebComponent):
         self.members: set[RoutingKey] = set()
         self.js_class = "Group"
         self.dom_classes.append("group")
+        self.power_animator = PowerAnimator(
+            name="power", frame_duration_ns=100_000_000
+        )
+        self.color_animator = ColorAnimator(
+            name="color", frame_duration_ns=100_000_000
+        )
 
     def compile_matches(self) -> re.Pattern[str]:
         """Compile matches in group description to regular expressions."""
@@ -134,6 +141,43 @@ class Group(WebComponent):
                 self.members.discard(name)
         await self.membership_changed()
 
+    async def web_set_power(self, power: float) -> None:
+        await self.web_send({"power": float})
+
+    async def web_set_color(self, color: Color) -> None:
+        await self.web_send({"color": str(color)})
+
+    async def notify_set_power(self, power: float | AnimationPrimitive[float]):
+        """Notify that a SetPower command has been sent to the group members."""
+        match power:
+            case float():
+                await self.web_set_power(power)
+            case AnimationPrimitive():
+                self.power_animator.add_at_next_tick(power.get_animation())
+
+    async def notify_set_color(
+        self, color: Color | AnimationPrimitive[Color]
+    ) -> None:
+        """Notify that a SetColor command has been sent to the group members."""
+        match color:
+            case Color():
+                await self.web_set_color(color)
+            case AnimationPrimitive():
+                self.color_animator.add_at_next_tick(color.get_animation())
+
+    async def power_animations(self) -> None:
+        async for value in self.power_animator.values():
+            await self.web_set_power(value)
+
+    async def color_animations(self) -> None:
+        async for value in self.color_animator.values():
+            await self.web_set_color(value)
+
+    async def main(self) -> None:
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(self.power_animations())
+            tg.create_task(self.color_animations())
+
 
 class Groups(Component):
     """Manage groups of connected clients."""
@@ -143,6 +187,12 @@ class Groups(Component):
     def __init__(self, **kwargs: Unpack[WebComponentArgs]) -> None:
         super().__init__(**kwargs)
         self.groups: dict[str, Group] = {}
+
+    async def main(self) -> None:
+        async with asyncio.TaskGroup() as tg:
+            for group in self.groups.values():
+                tg.create_task(group.main())
+            await asyncio.Event().wait()
 
     async def load(self, data: list[dict[str, Any]]) -> None:
         """Load groups from a YAML file."""
@@ -176,8 +226,12 @@ class Groups(Component):
         power: float | AnimationPrimitive[float],
     ) -> None:
         """Send a SetPower command to the named groups."""
-        dst = self.dst(*groups)
-        await sender.send_command(SetPower(dst=dst, power=power))
+        async with asyncio.TaskGroup() as tg:
+            dst = self.dst(*groups)
+            tg.create_task(sender.send_command(SetPower(dst=dst, power=power)))
+            for name in groups:
+                if group := self.groups.get(name):
+                    tg.create_task(group.notify_set_power(power))
 
     async def set_color(
         self,
@@ -186,5 +240,9 @@ class Groups(Component):
         color: Color | AnimationPrimitive[Color],
     ) -> None:
         """Send a SetColor command to the named groups."""
-        dst = self.dst(*groups)
-        await sender.send_command(SetColor(dst=dst, color=color))
+        async with asyncio.TaskGroup() as tg:
+            dst = self.dst(*groups)
+            tg.create_task(sender.send_command(SetColor(dst=dst, color=color)))
+            for name in groups:
+                if group := self.groups.get(name):
+                    tg.create_task(group.notify_set_color(color))
