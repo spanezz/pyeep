@@ -102,6 +102,9 @@ class HubApp(BaseApp, WebHub):
             type=Path,
             help="YAML file with the Hub configuration",
         )
+        parser.add_argument(
+            "--log-events", action="store_true", help="Log incoming events"
+        )
         return parser
 
     def write_token(self, path: Path) -> None:
@@ -197,7 +200,8 @@ class HubApp(BaseApp, WebHub):
         await super().main_init()
         await self.add_component(self.scenes)
         await self.add_component(self.groups)
-        await self.add_component(self.log_events)
+        if self.args.log_events:
+            await self.add_component(self.log_events)
         if self.args.config:
             await self.load_config(self.args.config)
         self.write_token(self.web_token_path)

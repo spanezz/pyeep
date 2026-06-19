@@ -59,8 +59,6 @@ class Animations[T](Animation[T]):
                 i += 1
                 value += a_value
 
-        if not self.animations:
-            return None
         return value
 
 
@@ -147,9 +145,9 @@ class ColorPulseAnimation(Animation[float]):
             return None
 
         if time_ns < self.midpoint:
-            return self.color * time_ns / self.midpoint
+            return self.color * (time_ns / self.midpoint)
         else:
-            return self.color * (self.duration_ns - time_ns) / self.midpoint
+            return self.color * ((self.duration_ns - time_ns) / self.midpoint)
 
 
 class ColorPulse(AnimationPrimitive[Color]):

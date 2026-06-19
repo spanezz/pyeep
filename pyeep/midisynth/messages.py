@@ -49,6 +49,8 @@ class MIDIMessages(Event):
 
     #: JACK frame time for this bundle of messages
     frame_time: int
+    #: JACK sample rate
+    sample_rate: int
     #: Message bundle
     messages: list[SerializableMIDIMessage]
 

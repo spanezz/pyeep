@@ -99,9 +99,5 @@ class Hub(Node, abc.ABC):
         async with asyncio.TaskGroup() as tg:
             for dest in expand_routing_keys(msg.dst):
                 if (component := self.components.get(dest)) is None:
-                    self.log.warning(
-                        "Ignoring inbound command for nonexisting component %r",
-                        dest,
-                    )
                     continue
                 tg.create_task(component.receive(msg))

@@ -65,7 +65,9 @@ class MidiSynth(ApplicationAsyncCmdClientApp):
             case AppEventMIDI():
                 await self.send_event(
                     MIDIMessages(
-                        frame_time=evt.frame_time, messages=evt.messages
+                        frame_time=evt.frame_time,
+                        sample_rate=self.jack.samplerate,
+                        messages=evt.messages,
                     )
                 )
                 # for idx, msg in enumerate(evt.messages, start=1):

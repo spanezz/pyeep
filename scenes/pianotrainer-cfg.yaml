@@ -12,9 +12,9 @@ groups:
    match:
      - lightsapp.lights
 scenes:
- - name: heartbeat
+ - name: pianotrainer
    # Default: capitalized name
-   # label: Heartbeat
-   module: pyeep.scenes.heartbeat
+   label: Piano trainer
+   module: pyeep.scenes.pianotrainer
    targets:
      - ledstrip
