@@ -11,7 +11,7 @@ from typing import Any, NotRequired, Unpack, override
 import rich
 import rich.text
 
-from pyeep.nodes.node import Node, NodeArgs
+from pyeep.nodes.hub import Hub, HubArgs
 
 
 class ColoredLogHandler(logging.Handler):
@@ -71,14 +71,14 @@ class Shutdown(Exception):
     """Shutdown has been requested."""
 
 
-class BaseAppArgs(NodeArgs):
+class BaseAppArgs(HubArgs):
     """Arguments for BaseApp constructor."""
 
     handle_sigterm_sigint: NotRequired[bool]
     args: argparse.Namespace
 
 
-class BaseApp(Node, abc.ABC):
+class BaseApp(Hub, abc.ABC):
     """Base framework for executable commands."""
 
     APP_NAME: str | None = None
@@ -88,7 +88,7 @@ class BaseApp(Node, abc.ABC):
         *,
         args: argparse.Namespace,
         handle_sigterm_sigint: bool = True,
-        **kwargs: Unpack[NodeArgs],
+        **kwargs: Unpack[HubArgs],
     ) -> None:
         """
         Initialize an app.

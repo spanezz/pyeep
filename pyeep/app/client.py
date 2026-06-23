@@ -26,7 +26,7 @@ class AppEventSendEvent(AppEvent):
         return str(self.event)
 
 
-class ClientApp(BaseApp, Hub):
+class ClientApp(BaseApp):
     """Base for pyeep client apps."""
 
     def __init__(self, **kwargs: Unpack[BaseAppArgs]) -> None:
