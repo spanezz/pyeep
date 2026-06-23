@@ -194,16 +194,19 @@ class BaseApp(Hub, abc.ABC):
                 self.log.warning("Received unsupported app event: %s", evt)
 
     async def main(self) -> None:
-        """Main entry point for the application."""
+        """Main body of the application."""
+        while True:
+            evt = await self.main_event_queue.get()
+            self.log.debug("App event: %s", evt)
+            await self.main_process_event(evt)
+            self.main_event_queue.task_done()
 
+    async def main_task(self) -> None:
+        """Main entry point for the application."""
         try:
             async with self.main_task_group:
                 await self.main_init()
-                while True:
-                    evt = await self.main_event_queue.get()
-                    self.log.debug("App event: %s", evt)
-                    await self.main_process_event(evt)
-                    self.main_event_queue.task_done()
+                await self.main()
         except* Shutdown as exc:
             self.log.info("App shutdown: %s", exc.exceptions[0])
         finally:
@@ -215,4 +218,4 @@ class BaseApp(Hub, abc.ABC):
         parser = cls.argparser()
         args = parser.parse_args()
         app = cls(name=args.name, args=args)
-        asyncio.run(app.main())
+        asyncio.run(app.main_task())
