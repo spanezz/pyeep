@@ -3,9 +3,13 @@ import asyncio
 import logging
 from collections.abc import Coroutine
 from functools import cached_property
-from typing import TypedDict, Unpack, override
+from typing import TypedDict, Unpack, override, Any
 
 from pyeep.models.messages import Broadcast, Command, Event, Message, RoutingKey
+
+
+class Shutdown(Exception):
+    """Node shutdown has been requested."""
 
 
 class NodeArgs(TypedDict):
@@ -29,6 +33,7 @@ class Node(abc.ABC):
         """
         self.name = kwargs["name"]
         self.log = logging.getLogger(self.get_logger_name())
+        self.task_group = asyncio.TaskGroup()
 
     @cached_property
     def routing_key(self) -> RoutingKey:
@@ -95,3 +100,38 @@ class Node(abc.ABC):
             return None
 
         return wrapper()
+
+    async def start_task(self, coro: Coroutine[None, None, Any]) -> None:
+        """
+        Run the coroutine as a task in the node task group.
+
+        Exceptions raised by the coroutine, except for CancelledError, are
+        logged.
+        """
+        self.task_group.create_task(self.supervise_coroutine(coro))
+
+    async def init(self) -> None:
+        """
+        Initialize the node.
+
+        This is called by main() after calling __aenter__ on self.task_group,
+        so this method can register new tasks with the node.
+        """
+
+    async def main(self) -> None:
+        """Main body of the application."""
+
+    async def shutdown(self) -> None:
+        """Clean up when ``main_thread`` is shutting down."""
+
+    async def main_task(self) -> None:
+        """Main entry point for executing the node functions."""
+        try:
+            async with self.task_group:
+                await self.init()
+                await self.main()
+            self.log.info("%s: main task done", self.name)
+        except* Shutdown as exc:
+            self.log.info("%s: node shutdown: %s", self.name, exc.exceptions[0])
+        finally:
+            await self.shutdown()

@@ -128,7 +128,3 @@ class SceneDance(WebSceneSingleTarget[Description]):
             #         self.scene.send(
             #             SetGroupColor(group=self.scene.get_group(), color=color)
             #         )
-
-    @override
-    async def main(self) -> None:
-        await asyncio.Event().wait()

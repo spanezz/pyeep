@@ -44,11 +44,12 @@ class Lights(PublicComponent):
         #     [(str(color), f"Color set to {color}.")]
         # )
 
-    async def main(self) -> None:
-        async with asyncio.TaskGroup() as tg:
-            if self.lights is not None:
-                tg.create_task(self.supervise_coroutine(self.lights.main()))
-            tg.create_task(self.supervise_coroutine(self.animator_task()))
+    @override
+    async def init(self) -> None:
+        await super().init()
+        if self.lights is not None:
+            await self.start_task(self.lights.main())
+        await self.start_task(self.animator_task())
 
     @override
     async def receive(self, msg: Message) -> None:
@@ -93,8 +94,8 @@ class LightsApp(ApplicationAsyncCmdClientApp):
         return parser
 
     @override
-    async def main_init(self) -> None:
-        await super().main_init()
+    async def init(self) -> None:
+        await super().init()
         await self.add_component(self.lights)
         await self.start_task(self.lights.main())
 

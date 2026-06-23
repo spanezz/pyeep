@@ -38,8 +38,8 @@ class Heartrate(ApplicationAsyncCmdClientApp):
             await self.send_event(HeartBeat(sample=sample))
 
     @override
-    async def main_init(self) -> None:
-        await super().main_init()
+    async def init(self) -> None:
+        await super().init()
         if self.monitor is not None:
             await self.start_task(self.monitor.main())
             await self.start_task(self.send_beats())

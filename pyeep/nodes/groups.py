@@ -174,10 +174,11 @@ class Group(WebComponent):
         async for value in self.color_animator.values():
             await self.web_set_color(value)
 
-    async def main(self) -> None:
-        async with asyncio.TaskGroup() as tg:
-            tg.create_task(self.power_animations())
-            tg.create_task(self.color_animations())
+    @override
+    async def init(self) -> None:
+        await super().init()
+        await self.start_task(self.power_animations())
+        await self.start_task(self.color_animations())
 
 
 class Groups(Component):
@@ -189,11 +190,11 @@ class Groups(Component):
         super().__init__(**kwargs)
         self.groups: dict[str, Group] = {}
 
-    async def main(self) -> None:
-        async with asyncio.TaskGroup() as tg:
-            for group in self.groups.values():
-                tg.create_task(group.main())
-            await asyncio.Event().wait()
+    @override
+    async def init(self) -> None:
+        await super().init()
+        for group in self.groups.values():
+            await self.start_task(group.main_task())
 
     async def add(self, desc: GroupDescription) -> None:
         """Add a group by its description."""

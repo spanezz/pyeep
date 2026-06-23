@@ -212,7 +212,3 @@ class PianoTrainer(WebSceneSingleTarget[Description]):
 
             case _:
                 self.log.info("MIDI unhandled: %s", msg)
-
-    @override
-    async def main(self) -> None:
-        await asyncio.Event().wait()

@@ -211,31 +211,30 @@ class SceneConsent(WebSceneSingleTarget[Description]):
     @override
     async def main(self) -> None:
         try:
-            async with asyncio.TaskGroup() as tg:
-                while True:
-                    match await self.event_queue.get():
-                        case NewStreakEvent():
-                            assert self.streak_start is not None
-                            try:
-                                self.gesture_info = GESTURES[
-                                    self.streak_start.gesture
-                                ]
-                            except KeyError:
-                                self.log.error(
-                                    "Unrecognized gesture %r",
-                                    self.streak_start.gesture,
-                                )
-                                # TODO: log unknown gesture name?
-                                continue
-                            self.color_output = 0.0
-                            self.increment_output()
-                            if self.animate_task is None:
-                                self.animate_task = tg.create_task(
-                                    self.animate_streak()
-                                )
-                        case StreakExtendedEvent():
-                            self.increment_output()
-                        case DecayedToZeroEvent():
-                            self.reset_gesture()
+            while True:
+                match await self.event_queue.get():
+                    case NewStreakEvent():
+                        assert self.streak_start is not None
+                        try:
+                            self.gesture_info = GESTURES[
+                                self.streak_start.gesture
+                            ]
+                        except KeyError:
+                            self.log.error(
+                                "Unrecognized gesture %r",
+                                self.streak_start.gesture,
+                            )
+                            # TODO: log unknown gesture name?
+                            continue
+                        self.color_output = 0.0
+                        self.increment_output()
+                        if self.animate_task is None:
+                            self.animate_task = await self.start_task(
+                                self.animate_streak()
+                            )
+                    case StreakExtendedEvent():
+                        self.increment_output()
+                    case DecayedToZeroEvent():
+                        self.reset_gesture()
         except Exception as e:
             self.log.error("Exception %s", e, exc_info=e)

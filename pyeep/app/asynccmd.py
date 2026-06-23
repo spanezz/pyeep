@@ -404,8 +404,8 @@ class ApplicationAsyncCmdClientApp(ClientApp):
         await self.main_event_queue.put(AppEventShutdown("User quit"))
 
     @override
-    async def main_init(self) -> None:
-        await super().main_init()
+    async def init(self) -> None:
+        await super().init()
         await self.start_task(self.main_cmd_task())
 
     async def cmd_quit(self) -> None:

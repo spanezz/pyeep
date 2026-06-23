@@ -11,6 +11,7 @@ from typing import Any, NotRequired, Unpack, override
 import rich
 import rich.text
 
+from pyeep.nodes.node import Shutdown
 from pyeep.nodes.hub import Hub, HubArgs
 
 
@@ -65,10 +66,6 @@ class AppEventShutdown(AppEvent):
     @override
     def __str__(self) -> str:
         return self.reason
-
-
-class Shutdown(Exception):
-    """Shutdown has been requested."""
 
 
 class BaseAppArgs(HubArgs):
@@ -150,7 +147,8 @@ class BaseApp(Hub, abc.ABC):
 
         return asyncio.create_task(handler())
 
-    async def main_init(self) -> None:
+    @override
+    async def init(self) -> None:
         """
         Initialize the application.
 
@@ -165,21 +163,10 @@ class BaseApp(Hub, abc.ABC):
                     signum,
                     functools.partial(self.handle_termination_signal, signum),
                 )
-
-    async def start_task(self, coro: Coroutine[None, None, Any]) -> None:
-        """
-        Run the coroutine as a task in the main task group.
-
-        Exceptions raised by the coroutine, except for CancelledError, are
-        logged.
-        """
-        self.main_task_group.create_task(self.supervise_coroutine(coro))
+        await super().init()
 
     async def main_shutdown_requested(self) -> None:
         """Callen when an app shutdown has been requested."""
-
-    async def main_shutdown(self) -> None:
-        """Shut down the application."""
 
     async def main_process_event(self, evt: AppEvent) -> None:
         """Process an event from the main event queue."""
@@ -193,6 +180,7 @@ class BaseApp(Hub, abc.ABC):
             case _:
                 self.log.warning("Received unsupported app event: %s", evt)
 
+    @override
     async def main(self) -> None:
         """Main body of the application."""
         while True:
@@ -200,17 +188,6 @@ class BaseApp(Hub, abc.ABC):
             self.log.debug("App event: %s", evt)
             await self.main_process_event(evt)
             self.main_event_queue.task_done()
-
-    async def main_task(self) -> None:
-        """Main entry point for the application."""
-        try:
-            async with self.main_task_group:
-                await self.main_init()
-                await self.main()
-        except* Shutdown as exc:
-            self.log.info("App shutdown: %s", exc.exceptions[0])
-        finally:
-            await self.main_shutdown()
 
     @classmethod
     def run(cls) -> None:
