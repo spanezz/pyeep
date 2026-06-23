@@ -151,7 +151,13 @@ class BaseApp(Hub, abc.ABC):
         return asyncio.create_task(handler())
 
     async def main_init(self) -> None:
-        """Initialize the application before entering the main loop."""
+        """
+        Initialize the application.
+
+        This is called by main() after calling __aenter__ on
+        self.main_task_group, so this method can register new tasks with the
+        node.
+        """
         self.setup_logging()
         if self.handle_sigterm_sigint:
             for signum in signal.SIGINT, signal.SIGTERM:
@@ -168,15 +174,6 @@ class BaseApp(Hub, abc.ABC):
         logged.
         """
         self.main_task_group.create_task(self.supervise_coroutine(coro))
-
-    async def start_main_tasks(self) -> None:
-        """
-        Start tasks for the application.
-
-        Start the tasks via the task group; the application will exit when the
-        task group exists.
-        """
-        # Do nothing by default
 
     async def main_shutdown_requested(self) -> None:
         """Callen when an app shutdown has been requested."""
@@ -199,10 +196,9 @@ class BaseApp(Hub, abc.ABC):
     async def main(self) -> None:
         """Main entry point for the application."""
 
-        await self.main_init()
         try:
             async with self.main_task_group:
-                await self.start_main_tasks()
+                await self.main_init()
                 while True:
                     evt = await self.main_event_queue.get()
                     self.log.debug("App event: %s", evt)

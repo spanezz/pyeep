@@ -152,8 +152,8 @@ class ClientApp(BaseApp):
             )
 
     @override
-    async def start_main_tasks(self) -> None:
-        await super().start_main_tasks()
+    async def main_init(self) -> None:
+        await super().main_init()
         await self.start_task(self.client_task())
 
     @override

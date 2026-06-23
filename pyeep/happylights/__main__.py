@@ -93,8 +93,8 @@ class LightsApp(ApplicationAsyncCmdClientApp):
         return parser
 
     @override
-    async def start_main_tasks(self) -> None:
-        await super().start_main_tasks()
+    async def main_init(self) -> None:
+        await super().main_init()
         await self.add_component(self.lights)
         await self.start_task(self.lights.main())
 

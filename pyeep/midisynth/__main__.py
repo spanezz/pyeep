@@ -78,12 +78,12 @@ class MidiSynth(ApplicationAsyncCmdClientApp):
                 await super().main_process_event(evt)
 
     @override
-    async def start_main_tasks(self) -> None:
+    async def main_init(self) -> None:
         notify_midi_events = NotifyMIDIEvents(
             queue=self.main_event_queue, loop=asyncio.get_running_loop()
         )
         self.synth.midi_input.add_handler(notify_midi_events)
-        await super().start_main_tasks()
+        await super().main_init()
         await self.start_task(self.jack.main())
 
     @override

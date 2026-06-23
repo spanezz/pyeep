@@ -36,8 +36,8 @@ class MuseApp(ApplicationAsyncCmdClientApp):
         return parser
 
     @override
-    async def start_main_tasks(self) -> None:
-        await super().start_main_tasks()
+    async def main_init(self) -> None:
+        await super().main_init()
         if self.muse is not None:
             await self.start_task(self.muse.main())
         if self.args.mode is not None:

@@ -223,10 +223,6 @@ class HubApp(BaseApp, SceneHub):
         await super().main_init()
         await self.register_components()
         self.write_token(self.web_token_path)
-
-    @override
-    async def start_main_tasks(self) -> None:
-        await super().start_main_tasks()
         await self.start_task(self.webapp_run())
         await self.start_task(self.scenes.main())
         await self.start_task(self.groups.main())
