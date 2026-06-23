@@ -53,12 +53,6 @@ class Scenes(Component):
         await self.hub.add_component(scene)
         self.log.info("Added scene %s - %s", scene.name, scene.desc.label)
 
-    @override
-    async def init(self) -> None:
-        await super().init()
-        for scene in self.scenes.values():
-            await self.start_task(scene.main_task())
-
 
 class HubApp(BaseApp, SceneHub):
     """Pyeep main coordination app."""
@@ -211,22 +205,15 @@ class HubApp(BaseApp, SceneHub):
             await self.scenes.add(sdesc)
 
     @override
-    async def register_components(self) -> None:
-        await super().register_components()
+    async def init(self) -> None:
+        await super().init()
         await self.add_component(self.scenes)
         if self.args.log_events:
             await self.add_component(self.log_events)
         if self.args.config:
             await self.load_config(self.args.config)
-
-    @override
-    async def init(self) -> None:
-        await super().init()
-        await self.register_components()
         self.write_token(self.web_token_path)
         await self.start_task(self.webapp_run())
-        await self.start_task(self.scenes.main_task())
-        await self.start_task(self.groups.main_task())
 
     @override
     async def main_shutdown_requested(self) -> None:

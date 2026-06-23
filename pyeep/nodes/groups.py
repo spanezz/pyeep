@@ -190,12 +190,6 @@ class Groups(Component):
         super().__init__(**kwargs)
         self.groups: dict[str, Group] = {}
 
-    @override
-    async def init(self) -> None:
-        await super().init()
-        for group in self.groups.values():
-            await self.start_task(group.main_task())
-
     async def add(self, desc: GroupDescription) -> None:
         """Add a group by its description."""
         group = Group(desc=desc, hub=self.hub, namespace=self.routing_key)

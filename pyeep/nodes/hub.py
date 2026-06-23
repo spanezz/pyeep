@@ -45,6 +45,7 @@ class Hub(Node, abc.ABC):
         if rk in self.components:
             self.log.warning("Component %s replaced", rk)
         self.components[rk] = component
+        await self.start_task(component.main_task())
         await self.advertise_component_added(component)
 
     async def remove_component(self, component: "Component") -> None:
