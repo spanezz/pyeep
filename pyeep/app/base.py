@@ -11,7 +11,8 @@ from typing import Any, NotRequired, Unpack, override
 import rich
 import rich.text
 
-from pyeep.nodes.node import Node, NodeArgs
+from pyeep.nodes.node import Shutdown
+from pyeep.nodes.hub import Hub, HubArgs
 
 
 class ColoredLogHandler(logging.Handler):
@@ -67,18 +68,14 @@ class AppEventShutdown(AppEvent):
         return self.reason
 
 
-class Shutdown(Exception):
-    """Shutdown has been requested."""
-
-
-class BaseAppArgs(NodeArgs):
+class BaseAppArgs(HubArgs):
     """Arguments for BaseApp constructor."""
 
     handle_sigterm_sigint: NotRequired[bool]
     args: argparse.Namespace
 
 
-class BaseApp(Node, abc.ABC):
+class BaseApp(Hub, abc.ABC):
     """Base framework for executable commands."""
 
     APP_NAME: str | None = None
@@ -88,7 +85,7 @@ class BaseApp(Node, abc.ABC):
         *,
         args: argparse.Namespace,
         handle_sigterm_sigint: bool = True,
-        **kwargs: Unpack[NodeArgs],
+        **kwargs: Unpack[HubArgs],
     ) -> None:
         """
         Initialize an app.
@@ -150,8 +147,15 @@ class BaseApp(Node, abc.ABC):
 
         return asyncio.create_task(handler())
 
-    async def main_init(self) -> None:
-        """Initialize the application before entering the main loop."""
+    @override
+    async def init(self) -> None:
+        """
+        Initialize the application.
+
+        This is called by main() after calling __aenter__ on
+        self.main_task_group, so this method can register new tasks with the
+        node.
+        """
         self.setup_logging()
         if self.handle_sigterm_sigint:
             for signum in signal.SIGINT, signal.SIGTERM:
@@ -159,30 +163,10 @@ class BaseApp(Node, abc.ABC):
                     signum,
                     functools.partial(self.handle_termination_signal, signum),
                 )
-
-    async def start_task(self, coro: Coroutine[None, None, Any]) -> None:
-        """
-        Run the coroutine as a task in the main task group.
-
-        Exceptions raised by the coroutine, except for CancelledError, are
-        logged.
-        """
-        self.main_task_group.create_task(self.supervise_coroutine(coro))
-
-    async def start_main_tasks(self) -> None:
-        """
-        Start tasks for the application.
-
-        Start the tasks via the task group; the application will exit when the
-        task group exists.
-        """
-        # Do nothing by default
+        await super().init()
 
     async def main_shutdown_requested(self) -> None:
         """Callen when an app shutdown has been requested."""
-
-    async def main_shutdown(self) -> None:
-        """Shut down the application."""
 
     async def main_process_event(self, evt: AppEvent) -> None:
         """Process an event from the main event queue."""
@@ -196,22 +180,14 @@ class BaseApp(Node, abc.ABC):
             case _:
                 self.log.warning("Received unsupported app event: %s", evt)
 
+    @override
     async def main(self) -> None:
-        """Main entry point for the application."""
-
-        await self.main_init()
-        try:
-            async with self.main_task_group:
-                await self.start_main_tasks()
-                while True:
-                    evt = await self.main_event_queue.get()
-                    self.log.debug("App event: %s", evt)
-                    await self.main_process_event(evt)
-                    self.main_event_queue.task_done()
-        except* Shutdown as exc:
-            self.log.info("App shutdown: %s", exc.exceptions[0])
-        finally:
-            await self.main_shutdown()
+        """Main body of the application."""
+        while True:
+            evt = await self.main_event_queue.get()
+            self.log.debug("App event: %s", evt)
+            await self.main_process_event(evt)
+            self.main_event_queue.task_done()
 
     @classmethod
     def run(cls) -> None:
@@ -219,4 +195,4 @@ class BaseApp(Node, abc.ABC):
         parser = cls.argparser()
         args = parser.parse_args()
         app = cls(name=args.name, args=args)
-        asyncio.run(app.main())
+        asyncio.run(app.main_task())

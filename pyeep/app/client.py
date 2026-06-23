@@ -26,7 +26,7 @@ class AppEventSendEvent(AppEvent):
         return str(self.event)
 
 
-class ClientApp(BaseApp, Hub):
+class ClientApp(BaseApp):
     """Base for pyeep client apps."""
 
     def __init__(self, **kwargs: Unpack[BaseAppArgs]) -> None:
@@ -152,8 +152,8 @@ class ClientApp(BaseApp, Hub):
             )
 
     @override
-    async def start_main_tasks(self) -> None:
-        await super().start_main_tasks()
+    async def init(self) -> None:
+        await super().init()
         await self.start_task(self.client_task())
 
     @override

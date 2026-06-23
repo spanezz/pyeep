@@ -29,10 +29,6 @@ class WebScene[DESC: SceneDescription](Scene[DESC], WebComponent, abc.ABC):
             return template_path
         return None
 
-    @abc.abstractmethod
-    async def main(self) -> None:
-        """Run the scene."""
-
 
 class WebSceneSingleTarget[DESC: SingleTargetSceneDescription](WebScene[DESC]):
     """Base class for scenes with a single target selection."""

@@ -53,11 +53,6 @@ class Scenes(Component):
         await self.hub.add_component(scene)
         self.log.info("Added scene %s - %s", scene.name, scene.desc.label)
 
-    async def main(self) -> None:
-        async with asyncio.TaskGroup() as tg:
-            for scene in self.scenes.values():
-                tg.create_task(self.supervise_coroutine(scene.main()))
-
 
 class HubApp(BaseApp, SceneHub):
     """Pyeep main coordination app."""
@@ -210,26 +205,15 @@ class HubApp(BaseApp, SceneHub):
             await self.scenes.add(sdesc)
 
     @override
-    async def register_components(self) -> None:
-        await super().register_components()
+    async def init(self) -> None:
+        await super().init()
         await self.add_component(self.scenes)
         if self.args.log_events:
             await self.add_component(self.log_events)
         if self.args.config:
             await self.load_config(self.args.config)
-
-    @override
-    async def main_init(self) -> None:
-        await super().main_init()
-        await self.register_components()
         self.write_token(self.web_token_path)
-
-    @override
-    async def start_main_tasks(self) -> None:
-        await super().start_main_tasks()
         await self.start_task(self.webapp_run())
-        await self.start_task(self.scenes.main())
-        await self.start_task(self.groups.main())
 
     @override
     async def main_shutdown_requested(self) -> None:
@@ -240,6 +224,6 @@ class HubApp(BaseApp, SceneHub):
             log.error("Failed to shut down clients cleanly: %s", e, exc_info=e)
 
     @override
-    async def main_shutdown(self) -> None:
+    async def shutdown(self) -> None:
         self.web_token_path.unlink(missing_ok=True)
-        await super().main_shutdown()
+        await super().shutdown()

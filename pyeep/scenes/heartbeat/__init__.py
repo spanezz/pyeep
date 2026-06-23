@@ -76,39 +76,3 @@ class SceneHeartbeat(WebSceneSingleTarget[Description]):
 #        grid.attach(spinbutton, self.ui_grid_columns - 1, row, 1, 1)
 #
 #        return expander
-#
-#    def _check_timeout(self) -> None:
-#        if self.last_rate is None:
-#            return
-#
-#        if self.timeout is not None:
-#            return
-#
-#        self.timeout = GLib.timeout_add(60 / self.last_rate * 1000, self._tick)
-#
-#    def _tick(self) -> bool:
-#        if self.last_rate is None:
-#            return False
-#
-#        self.send(
-#            SetGroupColor(
-#                group=self.get_group(),
-#                color=animation.ColorHeartPulse(
-#                    color=Color(red=0.5, green=0, blue=0),
-#                    duration=0.9 * 60 / self.last_rate,
-#                    atrial_duration_ratio=self.atrial_duration_ratio.get_value(),
-#                ),
-#            )
-#        )
-#
-#        self.timeout = GLib.timeout_add(60 / self.last_rate * 1000, self._tick)
-#        return False
-#
-#    @check_hub
-#    def receive(self, msg: Message) -> None:
-#        if not self.is_active:
-#            return
-#        match msg:
-#            case HeartBeat():
-#                self.last_rate = msg.sample.rate
-#                self._check_timeout()

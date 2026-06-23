@@ -1,7 +1,7 @@
 import abc
 from functools import cached_property
 from pathlib import Path
-from typing import NotRequired, Unpack, Any
+from typing import NotRequired, Unpack, Any, override
 
 import aiohttp_jinja2
 import jinja2
@@ -46,9 +46,9 @@ class SceneHub(WebHub):
         # self.scenes = Scenes(hub=self)
         self.groups = Groups(hub=self, name="groups")
 
-    async def register_components(self) -> None:
-        """Register this hub's built-in components."""
-        # await self.add_component(self.scenes)
+    @override
+    async def init(self) -> None:
+        await super().init()
         await self.add_component(self.groups)
 
 

@@ -317,8 +317,8 @@ class Gamepad(ApplicationAsyncCmdClientApp):
                 await super().main_process_event(evt)
 
     @override
-    async def main_init(self) -> None:
-        await super().main_init()
+    async def init(self) -> None:
+        await super().init()
         self.reader = ReadGamepad(
             queue=self.main_event_queue,
             loop=asyncio.get_running_loop(),
@@ -332,13 +332,13 @@ class Gamepad(ApplicationAsyncCmdClientApp):
         self.reader.start()
 
     @override
-    async def main_shutdown(self) -> None:
+    async def shutdown(self) -> None:
         if self.reader is not None:
             # File a QUIT event to the pygame thread
             self.reader.quit()
             await asyncio.to_thread(self.reader.join)
 
-        await super().main_shutdown()
+        await super().shutdown()
 
     # async def cmd_mute(self) -> None:
     #     self.synth.mute()
