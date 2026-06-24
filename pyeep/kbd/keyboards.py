@@ -4,9 +4,8 @@ from typing import override, Unpack, Literal
 import evdev
 from evdev import ecodes
 
-# from pyeep.models.messages.input import EmergencyStop, Shortcut
+from pyeep.models.messages.button import ButtonEvent
 from .device import Device, DeviceArgs
-from .messages import KeyEvent
 
 # To avoid devices being registered as normal keyboard, and make them
 # accessible exclusively to the user running pyeep, you need to install udev
@@ -21,7 +20,7 @@ from .messages import KeyEvent
 class KeyboardDevice(Device, abc.ABC):
     KEY_MAP: dict[int, str]
 
-    def make_message(self, evt: evdev.InputEvent) -> KeyEvent | None:
+    def make_message(self, evt: evdev.InputEvent) -> ButtonEvent | None:
         """Create a message from the given keyboard event."""
         if evt.type != ecodes.EV_KEY:
             return None
@@ -35,7 +34,7 @@ class KeyboardDevice(Device, abc.ABC):
                 return None
         if (name := self.KEY_MAP.get(evt.code)) is None:
             return None
-        return KeyEvent(key=name, action=action)
+        return ButtonEvent(key=name, action=action)
 
 
 class CNCControlPanel(
@@ -279,5 +278,5 @@ class RingRemote(
     async def on_evdev(self, ev: evdev.InputEvent) -> None:
         if (shortcut := self._process_event(ev)) is None:
             return
-        await self.send_event(KeyEvent(key=shortcut, action="down"))
-        await self.send_event(KeyEvent(key=shortcut, action="up"))
+        await self.send_event(ButtonEvent(key=shortcut, action="down"))
+        await self.send_event(ButtonEvent(key=shortcut, action="up"))

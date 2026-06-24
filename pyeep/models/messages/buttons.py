@@ -3,8 +3,8 @@ from typing import Literal
 from pyeep.models.messages import Event
 
 
-class KeyEvent(Event):
-    """Report a keystroke on a named key."""
+class ButtonEvent(Event):
+    """Report a press or release on a named button."""
 
     #: Key name
     key: str

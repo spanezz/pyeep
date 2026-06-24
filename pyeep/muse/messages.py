@@ -1,4 +1,5 @@
 from pyeep.models.messages import Event
+from pyeep.models.messages.position import Orientation
 
 
 class HeadYesNo(Event):
@@ -12,12 +13,10 @@ class HeadYesNo(Event):
     intensity: float
 
 
-class HeadMoved(Event):
+class HeadMoved(OrientationEvent):
     """Head position tracking."""
 
     frames: int
-    pitch: float
-    roll: float
 
 
 class HeadGyro(Event):
