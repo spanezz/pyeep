@@ -25,6 +25,6 @@ strict = true
 enable_error_code = "explicit-override"
 
 [[tool.mypy.overrides]]
-module = ["mido", "muselsl", "muselsl.constants", "muselsl.muse", "numba", "numba.experimental", "scipy", "scipy.signal"]
+module = ["aionotify", "mido", "muselsl", "muselsl.constants", "muselsl.muse", "numba", "numba.experimental", "scipy", "scipy.signal"]
 ignore_missing_imports = true
 
