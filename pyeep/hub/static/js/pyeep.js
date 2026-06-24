@@ -11,6 +11,7 @@ export class Hub
         this.ws.addEventListener("close", evt => this.on_close(evt));
         this.ws.addEventListener("message", evt => this.on_message(evt));
         this.ws.addEventListener("error", evt => this.on_error(evt));
+        this.el_disconnected = document.getElementById("server-disconnected");
     }
 
     on_open(evt) 
@@ -51,6 +52,7 @@ export class Hub
     on_close(evt) 
     {
         console.error(this.url, "websocket closed", evt);
+        this.el_disconnected.style.display = "flex";
     }
 
     on_error(evt) 
