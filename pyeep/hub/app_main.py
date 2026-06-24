@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Any
 import aiohttp_jinja2
 import jinja2
 from aiohttp import web
+import markdown
+from markupsafe import Markup
 
 from pyeep.nodes.web import WebComponent, Assets
 from pyeep.utils.modules import get_package_path
@@ -117,6 +119,11 @@ class Main:
             enable_async=True,
         )
 
+        markdown_engine = markdown.Markdown()
+
+        def markdown_filter(value: str) -> Markup:
+            return Markup(markdown_engine.convert(value))
+
         j2_env = aiohttp_jinja2.get_env(app)
         j2_env.globals.update(
             static_url=self.static_url,
@@ -125,5 +132,6 @@ class Main:
             assets=assets,
             hub=self.hub,
         )
+        j2_env.filters.update(markdown=markdown_filter)
 
         return app

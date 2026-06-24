@@ -135,3 +135,31 @@ export class Group extends Component
         }
     }
 }
+
+export class Scene extends Component
+{
+    constructor(el)
+    {
+        super(el);
+        this.el_playpause = document.getElementById(`${this.el.id}-playpause`);
+        this.el_playpause.addEventListener("click", evt => { this.on_play_pause(evt); });
+    }
+
+    on_play_pause(evt)
+    {
+        this.send({"action": "toggle-active"});
+    }
+
+    receive(msg)
+    {
+        const active = msg.active;
+        if (active !== undefined)
+        {
+            if (active)
+                this.el_playpause.innerText = "⏸";
+            else
+                this.el_playpause.innerText = "⏵";
+        }
+        super.receive(msg);
+    }
+}

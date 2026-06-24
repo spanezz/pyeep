@@ -1,7 +1,6 @@
 scenes:
  - name: heartbeat
-   # Default: capitalized name
-   # label: Heartbeat
+   notes: Pulsate colors in time with measured heart beat.
    module: pyeep.scenes.heartbeat
    targets:
      - ledstrip

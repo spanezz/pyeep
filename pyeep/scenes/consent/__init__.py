@@ -134,6 +134,8 @@ class SceneConsent(WebSceneSingleTarget[Description]):
         assert self.streak_start is not None and self.streak_last is not None
         match msg:
             case HeadYesNo():
+                if not self.active:
+                    return
                 if (
                     self.streak_start is None
                     or self.streak_start.gesture != msg.gesture
@@ -145,6 +147,8 @@ class SceneConsent(WebSceneSingleTarget[Description]):
                 else:
                     self.streak_last = msg
                     await self.event_queue.put(StreakExtendedEvent())
+            case _:
+                await super().receive(msg)
 
     async def animate_streak(self) -> None:
         """

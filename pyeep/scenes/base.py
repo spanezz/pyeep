@@ -1,11 +1,11 @@
 import abc
 from pathlib import Path
-from typing import override
+from typing import override, Unpack, Any
 
 from pyeep.models.animation import AnimationPrimitive
 from pyeep.models.color import Color
 from pyeep.models.scene import SceneDescription, SingleTargetSceneDescription
-from pyeep.nodes.scene import Scene
+from pyeep.nodes.scene import Scene, SceneArgs
 from pyeep.nodes.web import WebComponent, SceneHub
 from pyeep.utils.modules import get_package_path
 
@@ -14,6 +14,10 @@ class WebScene[DESC: SceneDescription](Scene[DESC], WebComponent, abc.ABC):
     """Base class for scenes."""
 
     section = "scenes"
+
+    def __init__(self, **kwargs: Unpack[SceneArgs[DESC]]) -> None:
+        super().__init__(**kwargs)
+        self.js_class = "Scene"
 
     @override
     def get_static_path(self) -> Path | None:
@@ -28,6 +32,27 @@ class WebScene[DESC: SceneDescription](Scene[DESC], WebComponent, abc.ABC):
         if template_path.exists():
             return template_path
         return None
+
+    @override
+    async def start(self) -> None:
+        await super().start()
+        await self.web_send({"active": self.active})
+        self.log.info("Scene started")
+
+    @override
+    async def stop(self) -> None:
+        await super().stop()
+        await self.web_send({"active": self.active})
+        self.log.info("Scene stopped")
+
+    @override
+    async def web_receive(self, message: dict[str, Any]) -> None:
+        if message.get("action") == "toggle-active":
+            if self.active:
+                await self.stop()
+            else:
+                await self.start()
+        await super().web_receive(message)
 
 
 class WebSceneSingleTarget[DESC: SingleTargetSceneDescription](WebScene[DESC]):

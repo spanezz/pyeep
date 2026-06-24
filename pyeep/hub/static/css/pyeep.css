@@ -4,6 +4,7 @@ body {
     --color-title: #cccccc;
     --color-title-bg: transparent;
     --color-border: var(--color-fg);
+    --color-button-active-bg: #777777;
     --font-family: system-ui;
     --font-title-family: system-ui;
     --font-title-weight: bold;
@@ -14,6 +15,16 @@ body {
     color: var(--color-fg);
     font-family: var(--font-family);
 }
+button {
+    background-color: var(--color-bg);
+    color: var(--color-fg);
+    border: 1pt solid var(--color-fg);
+    box-shadow: none;
+}
+button:active {
+    background-color: var(--color-button-active-bg);
+}
+
 .title, h1, h2, h3, h4, h5, h6 {
     color: var(--color-title);
     background: var(--color-title-bg);
@@ -41,30 +52,53 @@ body {
     border: 1pt dashed var(--color-border);
     margin: 0.5em;
     .head {
-        padding: 0;
+        display: grid;
+        grid-template: 2rem 0.2lh / auto max-content;
+        grid-template-areas:
+          "title widgets"
+          "power power";
         margin: 0;
+        padding: 0;
         border-bottom: 1pt dashed var(--color-border);
         font-size: var(--component-title-font-size);
-        .title {
+        h2.title {
+            grid-area: title;
+            padding-top: 0.2rem;
             padding-left: 0.2em;
+            background: var(--color-title-bg);
             font-size: var(--component-title-font-size);
-            margin: 0;
-            padding: 0;
             border: none;
             width: 100%;
+        }
+        div.widgets {
+            grid-area: widgets;
+            background: var(--color-title-bg);
+            border: none;
+            vertical-align: baseline;
             display: flex;
+            padding-top: 0.2rem;
+            padding-right: 0.2em;
             flex-direction: row;
-            justify-content: space-between;
-            svg.color {
-                height: 1cap;
-                padding-right: 0.5em;
-                vertical-align: baseline;
+            justify-content: flex-end;
+            align-items: stretch;
+            svg {
+                height: 1lh;
+                width: 1lh;
+                aspect-ratio: 1/1;
+
+            }
+            button {
+                height: 100%;
+                aspect-ratio: 1/1;
+                font-size: inherit;
             }
         }
         div.power {
+            grid-area: power;
             margin: 0;
             padding: 0;
-            height: 0.2lh;
+            height: 0.2rem;
+            background: var(--color-title-bg);
             svg {
                 height: 100%;
                 float: left;

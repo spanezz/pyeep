@@ -1,5 +1,12 @@
 <div class="{{node.dom_classes|join(' ')}}" id="{{node.dom_id}}">
+    <div class="head"{% if node.desc.color %} style="--color-title-bg: {{node.desc.color}}"{% endif %}>
+        <h2 class="title">{% if node.desc.icon %}{{node.desc.icon}} {% endif %}{{node.desc.label}}</h2>
+        <div class="widgets">{% block widgets %}{% endblock %}</div>
+        {% block power %}{% endblock %}
+    </div>
+    <div class="body">
     {% block body %}{% endblock %}
+    </div>
 </div>
 <script type="module">
     import { {{node.js_class}} } from "{{node.js_module}}";

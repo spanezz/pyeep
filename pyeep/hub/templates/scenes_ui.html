@@ -1,5 +1,8 @@
 {% extends "component.html" %}
+{% block widgets %}
+    <button id="{{node.dom_id}}-playpause">{% if node.active %}⏸{% else %}⏵{% endif %}</button>
+{% endblock %}
 {% block body %}
-    <h2 class="title">{{node.desc.label}}</h2>
+{{node.desc.notes|markdown}}
 {% block scene %}{% endblock %}
 {% endblock %}

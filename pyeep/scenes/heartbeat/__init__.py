@@ -38,6 +38,7 @@ class SceneHeartbeat(WebSceneSingleTarget[Description]):
         await self.has_rate.wait()
         assert self.last_rate is not None
         while True:
+            await self.pause_until_active()
             beat_time = 60 / self.last_rate
             value = animation.ColorHeartPulse(
                 color=Color(red=1, green=0, blue=0),
@@ -48,14 +49,6 @@ class SceneHeartbeat(WebSceneSingleTarget[Description]):
             await asyncio.sleep(beat_time)
 
 
-#    @check_hub
-#    def set_active(self, value: bool) -> None:
-#        super().set_active(value)
-#        if not value:
-#            if self.timeout is not None:
-#                GLib.source_remove(self.timeout)
-#                self.timeout = None
-#
 #    def build(self) -> Gtk.Expander:
 #        expander = super().build()
 #        grid = SceneGrid(max_column=self.ui_grid_columns)

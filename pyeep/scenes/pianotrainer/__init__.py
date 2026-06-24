@@ -68,11 +68,15 @@ class PianoTrainer(WebSceneSingleTarget[Description]):
     async def receive(self, msg: Message) -> None:
         match msg:
             case MIDIMessages():
+                if not self.active:
+                    return
                 for raw in msg.messages:
                     midimsg = mido.Message.from_bytes(
                         raw.message, time=raw.frame_time / msg.sample_rate
                     )
                     await self.on_midi(midimsg)
+            case _:
+                await super().receive(msg)
 
     async def start_mode_record(self) -> None:
         self.log.info("Recording a sequence. Press stop or play when done.")

@@ -34,6 +34,8 @@ class SceneDance(WebSceneSingleTarget[Description]):
     async def receive(self, msg: Message) -> None:
         match msg:
             case HeadYesNo():
+                if not self.active:
+                    return
                 value = msg.intensity**2
 
                 red = 0.0
@@ -86,6 +88,8 @@ class SceneDance(WebSceneSingleTarget[Description]):
                 await self.set_color(color)
 
             case HeadGyro():
+                if not self.active:
+                    return
                 min_dps = 0.0
                 max_dps = 200.0
 
@@ -128,3 +132,6 @@ class SceneDance(WebSceneSingleTarget[Description]):
             #         self.scene.send(
             #             SetGroupColor(group=self.scene.get_group(), color=color)
             #         )
+
+            case _:
+                await super().receive(msg)

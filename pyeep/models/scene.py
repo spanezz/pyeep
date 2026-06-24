@@ -20,6 +20,10 @@ class SceneDescription(pydantic.BaseModel, abc.ABC):
     label: str
     #: Python module for the scene
     module: str
+    #: Scene notes (Markdown free text)
+    notes: str
+    #: Scene starts automatically at startup
+    started: bool = True
 
     @pydantic.model_validator(mode="before")
     @classmethod
