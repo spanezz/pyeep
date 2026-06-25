@@ -1,5 +1,4 @@
 import argparse
-import logging
 import time as tm
 from typing import Unpack, override
 
@@ -15,11 +14,9 @@ class Heartrate(ApplicationAsyncCmdClientApp):
 
     def __init__(self, **kwargs: Unpack[BaseAppArgs]) -> None:
         super().__init__(**kwargs)
-        self.monitor: HeartRateMonitor | None = None
-        if self.args.addr:
-            self.monitor = HeartRateMonitor(
-                device=self.args.addr, log=logging.getLogger(f"{self.name}.ble")
-            )
+        self.monitor = HeartRateMonitor(
+            name="monitor", device=self.args.addr, hub=self
+        )
 
     @override
     @classmethod
@@ -28,21 +25,28 @@ class Heartrate(ApplicationAsyncCmdClientApp):
     ) -> argparse.ArgumentParser:
         parser = super().argparser(description)
         parser.add_argument(
-            "--addr", "-a", type=str, help="Bluetooth address of the device"
+            "--addr",
+            "-a",
+            required=True,
+            type=str,
+            help="Bluetooth address of the device",
         )
         return parser
 
     async def send_beats(self) -> None:
+        last_rate: float | None = None
         assert self.monitor is not None
         async for sample in self.monitor.samples():
+            if last_rate is None or last_rate != sample.rate:
+                self.log.info("New rate: %f", sample.rate)
+                last_rate = sample.rate
             await self.send_event(HeartBeat(sample=sample))
 
     @override
     async def init(self) -> None:
         await super().init()
-        if self.monitor is not None:
-            await self.start_task(self.monitor.main())
-            await self.start_task(self.send_beats())
+        await self.add_component(self.monitor)
+        await self.start_task(self.send_beats())
 
     async def cmd_rate(self, rate: float) -> None:
         """Simulate a heartrate report of a float rate."""

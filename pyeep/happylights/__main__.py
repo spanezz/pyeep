@@ -1,6 +1,4 @@
 import argparse
-import asyncio
-import logging
 from typing import Unpack, override
 
 from pyeep.animator import ColorAnimator
@@ -11,44 +9,28 @@ from pyeep.models.animation import AnimationPrimitive
 from pyeep.models.color import Color
 from pyeep.models.messages import Message
 from pyeep.models.messages.color import SetColor
-from pyeep.nodes import ComponentArgs, PublicComponent
+from pyeep.nodes import PublicComponent
+from pyeep.nodes.bluetooth import BLEComponentArgs
 
 
-class Lights(PublicComponent):
+class Lights(HappyLights, PublicComponent):
     """Lights control."""
 
     hub: "LightsApp"
 
-    def __init__(
-        self, addr: str | None, **kwargs: Unpack[ComponentArgs]
-    ) -> None:
+    def __init__(self, **kwargs: Unpack[BLEComponentArgs]) -> None:
         super().__init__(**kwargs)
         self.animator = ColorAnimator(
             name="colors", frame_duration_ns=50_000_000
         )
-        self.lights: HappyLights | None = None
-        if addr:
-            self.lights = HappyLights(
-                device=addr,
-                log=logging.getLogger(f"{self.get_logger_name()}.ble"),
-            )
 
     async def animator_task(self) -> None:
         async for value in self.animator.values():
             await self.set_color(value)
 
-    async def set_color(self, color: Color) -> None:
-        if self.lights is not None:
-            await self.lights.set_color(color)
-        # self.hub.interface.term.add_line(
-        #     [(str(color), f"Color set to {color}.")]
-        # )
-
     @override
     async def init(self) -> None:
         await super().init()
-        if self.lights is not None:
-            await self.start_task(self.lights.main())
         await self.start_task(self.animator_task())
 
     @override
@@ -80,7 +62,7 @@ class LightsApp(ApplicationAsyncCmdClientApp):
 
     def __init__(self, **kwargs: Unpack[BaseAppArgs]) -> None:
         super().__init__(**kwargs)
-        self.lights = Lights(name="lights", addr=self.args.addr, hub=self)
+        self.lights = Lights(name="lights", device=self.args.addr, hub=self)
 
     @override
     @classmethod
@@ -89,7 +71,11 @@ class LightsApp(ApplicationAsyncCmdClientApp):
     ) -> argparse.ArgumentParser:
         parser = super().argparser(description)
         parser.add_argument(
-            "--addr", "-a", type=str, help="Bluetooth address of the device"
+            "--addr",
+            "-a",
+            type=str,
+            required=True,
+            help="Bluetooth address of the device",
         )
         return parser
 

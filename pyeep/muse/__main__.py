@@ -14,12 +14,8 @@ class MuseApp(ApplicationAsyncCmdClientApp):
 
     def __init__(self, **kwargs: Unpack[BaseAppArgs]) -> None:
         super().__init__(**kwargs)
-        self.muse: Muse | None = None
         self.mode: modes.Mode | None = None
-        if self.args.addr:
-            self.muse = Muse(
-                device=self.args.addr, log=logging.getLogger(f"{self.name}.ble")
-            )
+        self.muse = Muse(name="muse", device=self.args.addr, hub=self)
 
     @override
     @classmethod
@@ -28,7 +24,11 @@ class MuseApp(ApplicationAsyncCmdClientApp):
     ) -> argparse.ArgumentParser:
         parser = super().argparser(description)
         parser.add_argument(
-            "--addr", "-a", type=str, help="Bluetooth address of the device"
+            "--addr",
+            "-a",
+            required=True,
+            type=str,
+            help="Bluetooth address of the device",
         )
         parser.add_argument(
             "--mode", "-m", type=str, help="Mode to set at startup"
@@ -38,8 +38,11 @@ class MuseApp(ApplicationAsyncCmdClientApp):
     @override
     async def init(self) -> None:
         await super().init()
-        if self.muse is not None:
-            await self.start_task(self.muse.main())
+        await self.add_component(self.muse)
+
+    @override
+    async def main_welcome_user(self) -> None:
+        await super().main_welcome_user()
         if self.args.mode is not None:
             await self.set_mode(self.args.mode)
 
@@ -47,9 +50,9 @@ class MuseApp(ApplicationAsyncCmdClientApp):
         if (selected := modes.modes.get(name)) is None:
             await self.interface.print_error(f"Mode {name!r} not found.")
             return
-        if self.muse is not None:
-            self.mode = selected(muse=self.muse, app=self)
-            await self.mode.start()
+        self.mode = selected(muse=self.muse, app=self)
+        await self.mode.start()
+        self.log.info("Mode set to %s", name)
 
     async def cmd_mode(self, value: str) -> None:
         """Set the monitor mode, use 'list' to list modes."""

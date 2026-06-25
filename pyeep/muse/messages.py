@@ -1,5 +1,5 @@
 from pyeep.models.messages import Event
-from pyeep.models.messages.position import Orientation
+from pyeep.models.messages.position import OrientationEvent
 
 
 class HeadYesNo(Event):

@@ -1,9 +1,112 @@
 import abc
 import asyncio
-import logging
+from typing import override
 
 import bleak
 import bleak.backends
+
+from pyeep.nodes import Component, ComponentArgs, Hub
+
+
+class BLEComponentArgs(ComponentArgs):
+    """Arguments for BLEComponent's constructor."""
+
+    device: bleak.backends.device.BLEDevice | str
+
+
+class BLEComponent(Component, abc.ABC):
+    """Connect to a Bluetooth LE gadget."""
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        device: bleak.backends.device.BLEDevice | str,
+        hub: "Hub",
+        namespace: str | None = None,
+    ) -> None:
+        super().__init__(name=name, hub=hub)
+        self.device = device
+        self.client: bleak.BleakClient | None = None
+        self.event_queue: asyncio.Queue[str] = asyncio.Queue()
+        self.connected_task: asyncio.Task[None] | None = None
+
+    async def connect(self) -> None:
+        """Manage (re)connection to the device."""
+        while True:
+            disconnect = asyncio.Event()
+
+            def _on_disconnect(client: bleak.BleakClient) -> None:
+                disconnect.set()
+
+            self.log.info("(Re)connecting device")
+            try:
+                async with bleak.BleakClient(
+                    self.device, disconnected_callback=_on_disconnect, timeout=5
+                ) as client:
+                    self.log.info("Connected")
+                    self.client = client
+                    await self.event_queue.put("connected")
+                    await disconnect.wait()
+            except TimeoutError as exc:
+                self.log.warning("Cannot connect (timeout): %s", exc)
+            except bleak.BleakError as exc:
+                self.log.warning("Cannot connect (error): %s", exc)
+            finally:
+                self.log.warning("Disconnected")
+                self.client = None
+                await self.event_queue.put("disconnected")
+
+            await asyncio.sleep(0.2)
+
+    @override
+    async def init(self) -> None:
+        await super().init()
+        await self.start_task(self.connect())
+
+    @override
+    async def main(self) -> None:
+        """Main handling of the device."""
+        connected_task: asyncio.Task[None] | None = None
+        while True:
+            match (evt := await self.event_queue.get()):
+                case "connected":
+                    connected_task = await self.start_task(self.connected())
+                case "disconnected":
+                    if connected_task is not None:
+                        connected_task.cancel()
+                    connected_task = None
+                case _:
+                    self.log.error("unknown event: %r", evt)
+            self.event_queue.task_done()
+
+    @abc.abstractmethod
+    async def connected(self) -> None:
+        """Called on connect, cancelled on disconnect."""
+
+    # async def connect(self):
+    #     """
+    #     Connect to the device, waiting for it to come back in range if not
+    #     reachable
+    #     """
+    #     while not self.client.is_connected:
+    #         self.log.info("(re)connecting device")
+    #         # self._update_connected_state(ConnectedState.CONNECTING)
+    #         try:
+    #             await self.client.connect(timeout=5)
+    #         except bleak.exc.BleakError as e:
+    #             # self._update_connected_state(ConnectedState.DISCONNECTED)
+    #             self.log.warning("Cannot connect: %s", e)
+    #         except TimeoutError as e:
+    #             # self._update_connected_state(ConnectedState.DISCONNECTED)
+    #             self.log.warning("Connect timeout: %s", e)
+    #         else:
+    #             break
+    #         await asyncio.sleep(0.3)
+    #     await self.on_connect()
+    #     self.log.info("connected")
+    #     # self.connect_task = None
+
 
 # import asyncio
 # import re
@@ -236,87 +339,3 @@ import bleak.backends
 #                 self.scan_task.cancel()
 #                 await self.scan_task
 #                 self.scan_task = None
-
-
-class BLEConnection(abc.ABC):
-    """Connect to a Bluetooth LE gadget."""
-
-    def __init__(
-        self,
-        *,
-        device: bleak.backends.device.BLEDevice | str,
-        log: logging.Logger,
-    ) -> None:
-        self.device = device
-        self.log = log
-        self.client: bleak.BleakClient | None = None
-        self.event_queue: asyncio.Queue[str] = asyncio.Queue()
-        self.connected_task: asyncio.Task[None] | None = None
-
-    async def connect(self) -> None:
-        """Manage (re)connection to the device."""
-        while True:
-            disconnect = asyncio.Event()
-
-            def _on_disconnect(client: bleak.BleakClient) -> None:
-                disconnect.set()
-
-            self.log.info("(Re)connecting device")
-            try:
-                async with bleak.BleakClient(
-                    self.device, disconnected_callback=_on_disconnect, timeout=5
-                ) as client:
-                    self.log.info("Connected")
-                    self.client = client
-                    await self.event_queue.put("connected")
-                    await disconnect.wait()
-            except TimeoutError as exc:
-                self.log.warning("Cannot connect: %s", exc)
-            finally:
-                self.log.warning("Disconnected")
-                self.client = None
-                await self.event_queue.put("disconnected")
-
-    async def main(self) -> None:
-        """Main handling of the device."""
-        connected_task: asyncio.Task[None] | None = None
-        async with asyncio.TaskGroup() as tg:
-            tg.create_task(self.connect())
-            while True:
-                match (evt := await self.event_queue.get()):
-                    case "connected":
-                        connected_task = tg.create_task(self.connected())
-                    case "disconnected":
-                        if connected_task is not None:
-                            connected_task.cancel()
-                        connected_task = None
-                    case _:
-                        self.log.error("unknown event: %r", evt)
-                self.event_queue.task_done()
-
-    @abc.abstractmethod
-    async def connected(self) -> None:
-        """Called on connect, cancelled on disconnect."""
-
-    # async def connect(self):
-    #     """
-    #     Connect to the device, waiting for it to come back in range if not
-    #     reachable
-    #     """
-    #     while not self.client.is_connected:
-    #         self.log.info("(re)connecting device")
-    #         # self._update_connected_state(ConnectedState.CONNECTING)
-    #         try:
-    #             await self.client.connect(timeout=5)
-    #         except bleak.exc.BleakError as e:
-    #             # self._update_connected_state(ConnectedState.DISCONNECTED)
-    #             self.log.warning("Cannot connect: %s", e)
-    #         except TimeoutError as e:
-    #             # self._update_connected_state(ConnectedState.DISCONNECTED)
-    #             self.log.warning("Connect timeout: %s", e)
-    #         else:
-    #             break
-    #         await asyncio.sleep(0.3)
-    #     await self.on_connect()
-    #     self.log.info("connected")
-    #     # self.connect_task = None

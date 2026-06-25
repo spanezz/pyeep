@@ -101,14 +101,16 @@ class Node(abc.ABC):
 
         return wrapper()
 
-    async def start_task(self, coro: Coroutine[None, None, Any]) -> None:
+    async def start_task[T](
+        self, coro: Coroutine[None, None, T]
+    ) -> asyncio.Task[T | None]:
         """
         Run the coroutine as a task in the node task group.
 
         Exceptions raised by the coroutine, except for CancelledError, are
         logged.
         """
-        self.task_group.create_task(self.supervise_coroutine(coro))
+        return self.task_group.create_task(self.supervise_coroutine(coro))
 
     async def init(self) -> None:
         """

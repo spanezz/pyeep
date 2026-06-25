@@ -161,7 +161,7 @@ class ClientApp(BaseApp):
         """Process an event from the main event queue."""
         match evt:
             case AppEventSendEvent():
-                await self.outbound_event(evt.event)
+                await self.send_event(evt.event)
             case _:
                 await super().main_process_event(evt)
 

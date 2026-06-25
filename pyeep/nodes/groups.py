@@ -145,7 +145,6 @@ class Group(WebComponent):
         await self.web_send({"power": power})
 
     async def web_set_color(self, color: Color) -> None:
-        self.log.info("WSC %s", color)
         await self.web_send({"color": str(color)})
 
     async def notify_set_power(self, power: float | AnimationPrimitive[float]):

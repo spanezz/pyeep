@@ -21,7 +21,7 @@ class SceneDescription(pydantic.BaseModel, abc.ABC):
     #: Python module for the scene
     module: str
     #: Scene notes (Markdown free text)
-    notes: str
+    notes: str = ""
     #: Scene starts automatically at startup
     started: bool = True
 
@@ -48,7 +48,7 @@ class SingleTargetSceneDescription(SceneDescription):
     """Base description for a scene with a single target selection."""
 
     #: Target group names
-    targets: list[str]
+    targets: list[str] = []
 
 
 def get_scene_description_subclass(

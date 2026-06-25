@@ -2,21 +2,15 @@ import asyncio
 import enum
 import logging
 import math
-import time as tm
 import struct
-from collections.abc import AsyncGenerator
-from typing import override
+from typing import override, Unpack
 
 import bleak
 import bleak.backends
 
-from pyeep.bluetooth import BLEConnection
+from pyeep.nodes.bluetooth import BLEComponent, BLEComponentArgs
 from pyeep.models.messages.buttons import ButtonEvent
 from pyeep.models.messages.position import OrientationEvent, AccelerationEvent
-from pyeep.utils import dsp
-from pyeep.nodes import Hub
-
-from .messages import Sample
 
 # See https://github.com/Ludsota/DG-LAB-Bluetooth-Protocole/blob/main/Pawprints/PROTOCOL.md
 COMMAND_UUID = "0000150a-0000-1000-8000-00805f9b34fb"
@@ -34,20 +28,11 @@ class Color(enum.IntEnum):
     GREEN = 6
 
 
-class Pawprint(BLEConnection):
+class Pawprint(BLEComponent):
     """Interact with a DG-Lab Pawprint device."""
 
-    def __init__(
-        self,
-        # TODO: make this a Component instead of keeping a hub to send messages
-        hub: Hub,
-        *,
-        device: bleak.backends.device.BLEDevice | str,
-        log: logging.Logger,
-    ) -> None:
-        super().__init__(device=device, log=log)
-        self.hub = hub
-        self.sample_queue: asyncio.Queue[Sample] = asyncio.Queue()
+    def __init__(self, **kwargs: Unpack[BLEComponentArgs]) -> None:
+        super().__init__(**kwargs)
         self.color = Color.YELLOW
         self.stream: bool = False
         self.btn0_pressed: bool = False
@@ -58,7 +43,6 @@ class Pawprint(BLEConnection):
     async def connected(self) -> None:
         assert self.client is not None
         await self.client.start_notify(NOTIFY_UUID, self.on_data)
-        # TODO: also start_notify BATTERY_SERVICE_UUID
         await asyncio.Event().wait()
 
     async def set_color(self, color: Color) -> None:
@@ -151,17 +135,3 @@ class Pawprint(BLEConnection):
             acc,
         )
         await self.hub.send_event(AccelerationEvent(value=acc))
-
-        # sample = Sample(time=tm.time_ns(), rate=float(hr), rr=tuple(rr))
-        # await self.sample_queue.put(sample)
-
-
-#    def on_sample(self, sample: Sample):
-#        """
-#        Handle a new heart rate sample
-#        """
-#        if self.active:
-#            self.mode(sample=sample)
-#
-#    def mode_default(self, sample: Sample):
-#        self.send(HeartBeat(sample=sample))

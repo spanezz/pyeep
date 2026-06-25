@@ -1,24 +1,13 @@
 import asyncio
-import logging
-from typing import override
+from typing import override, Unpack
 
-import bleak
-import bleak.backends
-
-# from ..component.controller import ControllerWidget
-# from pyeep.gtk import Gtk
-from pyeep.bluetooth import BLEConnection
+from pyeep.nodes.bluetooth import BLEComponent, BLEComponentArgs
 from pyeep.models.color import Color
-
-# from pyeep.models.messages.message import Message
-# from .base import OutputController
-
-# from .color import ColorOutput, ColorOutputController
 
 COMMAND_CHARACTERISTIC = "0000ffd9-0000-1000-8000-00805f9b34fb"
 
 
-class HappyLights(BLEConnection):
+class HappyLights(BLEComponent):
     """
     Control a Bluetooth light strip.
 
@@ -26,13 +15,8 @@ class HappyLights(BLEConnection):
     protocol.
     """
 
-    def __init__(
-        self,
-        *,
-        device: bleak.backends.device.BLEDevice | str,
-        log: logging.Logger,
-    ) -> None:
-        super().__init__(device=device, log=log)
+    def __init__(self, **kwargs: Unpack[BLEComponentArgs]) -> None:
+        super().__init__(**kwargs)
         self.last_color = Color()
 
     @override

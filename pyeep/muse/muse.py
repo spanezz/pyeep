@@ -1,25 +1,16 @@
 import asyncio
-import logging
-from typing import override
+from typing import override, Unpack
 
-import bleak
-import bleak.backends
-
-from pyeep.bluetooth import BLEConnection
+from pyeep.nodes.bluetooth import BLEComponentArgs, BLEComponent
 
 from . import aio_muse
 
 
-class Muse(BLEConnection):
+class Muse(BLEComponent):
     """Interact with a Muse2 headband."""
 
-    def __init__(
-        self,
-        *,
-        device: bleak.backends.device.BLEDevice | str,
-        log: logging.Logger,
-    ) -> None:
-        super().__init__(device=device, log=log)
+    def __init__(self, **kwargs: Unpack[BLEComponentArgs]) -> None:
+        super().__init__(**kwargs)
         self.muse: aio_muse.Muse | None = None
         self.cb_eeg: aio_muse.CallbackEEG | None = None
         self.cb_control: aio_muse.CallbackControl | None = None
