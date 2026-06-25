@@ -19,6 +19,10 @@ class WebScene[DESC: SceneDescription](Scene[DESC], WebComponent, abc.ABC):
         super().__init__(**kwargs)
         self.js_class = "Scene"
 
+    def scene_static_url(self, path: str) -> str:
+        """Return a scene-specific static URL for a relative path."""
+        return f"/static/scenes/{self.name}/" + path.lstrip("/")
+
     @override
     def get_static_path(self) -> Path | None:
         static_path = get_package_path(self.desc.module) / "static"
@@ -46,12 +50,20 @@ class WebScene[DESC: SceneDescription](Scene[DESC], WebComponent, abc.ABC):
         self.log.info("Scene stopped")
 
     @override
+    async def web_connected(self) -> None:
+        await super().web_connected()
+        await self.web_send({"active": self.active})
+
+    @override
     async def web_receive(self, message: dict[str, Any]) -> None:
-        if message.get("action") == "toggle-active":
-            if self.active:
-                await self.stop()
-            else:
-                await self.start()
+        match message.get("action"):
+            case "toggle-active":
+                if self.active:
+                    await self.stop()
+                else:
+                    await self.start()
+            case "connected":
+                await self.web_connected()
         await super().web_receive(message)
 
 

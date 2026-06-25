@@ -44,7 +44,7 @@ class Main:
                 "scene_static_url used without a scene in context"
             )
         assert isinstance(scene, WebScene)
-        return "/static/scenes/{scene.name}" + path.lstrip("/")
+        return scene.scene_static_url(path)
 
     def make_app(self) -> web.Application:
         """Make the main hub application."""

@@ -1,4 +1,26 @@
 {% extends "scenes_ui.html" %}
 {% block scene %}
-    body
+<div class="game">GAME</div>
+<script type="text/html" name="game">
+{% raw %}
+<dl>
+
+<dt>Mode:</dt>
+<dd>{{mode}}</dd>
+
+<dt>Sequence:</dt>
+<dd>{{#if sequence}}{{#each sequence}}{{this}} {{/each}}{{else}}-{{/if}}</dd>
+
+<dt>Notes per second:</dt>
+<dd>{{tofixed nps 2}} / {{tofixed max_nps 2}}</dd>
+
+<dt>Good notes:</dt>
+<dd>{{count_good}} / {{lead_good_notes}}</dd>
+
+<dt>Score:</dt>
+<dd>{{tofixed score 2}} / {{tofixed max_score 2}}</dd>
+
+</dl>
+{% endraw %}
+</script>
 {% endblock %}

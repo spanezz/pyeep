@@ -1,5 +1,10 @@
 import {Message} from "messages";
 
+Handlebars.registerHelper("tofixed", (num, digits) => {
+    console.log("HANDLEBAR TOFIXED", num, digits);
+    return num.toFixed(digits);
+});
+
 export class Hub
 {
     constructor(url)
@@ -17,6 +22,8 @@ export class Hub
     on_open(evt) 
     {
         console.log(this.url, "websocket connected");
+        for (let component of Object.values(this.components))
+            component.send({"action": "connected"})
     }
     on_message(evt) 
     {
@@ -64,6 +71,8 @@ export class Hub
     {
         this.components[component.routing_key] = component
         console.log("Component %o added", component);
+        if (this.ws.readyState == WebSocket.OPEN)
+            component.send({"action": "connected"})
     }
 }
 
@@ -78,6 +87,7 @@ export class Component
 
         this.hub.add_component(this)
 
+        // Load templates
         this.templates = {};
         for (let script of this.el.getElementsByTagName("script"))
         {
@@ -102,8 +112,6 @@ export class Component
     // Recevie a message from the Hub side of the component
     receive(msg)
     {
-        console.log(this.routing_key, "RECEIVED", msg)
-        this.send({"test": "ACK"})
     }
 }
 

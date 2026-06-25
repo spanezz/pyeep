@@ -5,6 +5,6 @@ windows:
     shell_command_before:
       - cd ~/dev/pyeep/
     panes:
-      - python3 -m pyeep.hub -v --config --config scenes/groups.yaml scenes/pianotrainer-cfg.yaml
+      - python3 -m pyeep.hub -v --config=scenes/groups.yaml --config=scenes/pianotrainer-cfg.yaml
       - python3 -m pyeep.midisynth --hub .webtoken -v --mute
       - python3 -m pyeep.happylights --hub .webtoken -v -a 21:04:99:10:35:05

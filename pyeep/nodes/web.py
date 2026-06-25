@@ -101,12 +101,22 @@ class WebComponent(Component, abc.ABC):
         :returns: the path, or None if this component has no templates
         """
 
+    async def web_connected(self) -> None:
+        """
+        Called when a web side of the component is connected.
+
+        Use this to send a refresh of the scene state to the UI
+        """
+
     async def web_send(self, message: dict[str, Any]) -> None:
         """Send a message to the JavaScript side of the component."""
         await self.hub.web_send(self, message)
 
     async def web_receive(self, message: dict[str, Any]) -> None:
         """Receive a message from the JavaScript side of the component."""
+        match message.get("action"):
+            case "connected":
+                await self.web_connected()
 
     # @override
     # async def receive(self, message: Message) -> None:
