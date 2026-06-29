@@ -4,7 +4,7 @@ from typing import override, Unpack, Literal
 import evdev
 from evdev import ecodes
 
-from pyeep.models.messages.button import ButtonEvent
+from pyeep.models.messages.buttons import ButtonEvent
 from .device import Device, DeviceArgs
 
 # To avoid devices being registered as normal keyboard, and make them

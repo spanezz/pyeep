@@ -43,6 +43,7 @@ class Pawprint(BLEComponent):
     async def connected(self) -> None:
         assert self.client is not None
         await self.client.start_notify(NOTIFY_UUID, self.on_data)
+        await self.set_stream(True)
         await asyncio.Event().wait()
 
     async def set_color(self, color: Color) -> None:
@@ -50,6 +51,7 @@ class Pawprint(BLEComponent):
         await self.sync()
 
     async def set_stream(self, value: bool) -> None:
+        self.log.info("%s stream", "Starting" if value else "Stopping")
         self.stream = value
         await self.sync()
 
@@ -120,18 +122,18 @@ class Pawprint(BLEComponent):
         mag = math.sqrt(fx**2 + fy**2 + fz**2)
         acc = abs(mag - 9.8)
 
-        logging.info(
-            "Pawprint btn0:%s btn1:%s btn2:%s V:%d x:%d y:%d z:%d, pitch:%f, roll:%f, mag:%f, a:%f",
-            btn0,
-            btn1,
-            btn2,
-            voltage,
-            x,
-            y,
-            z,
-            pitch,
-            roll,
-            mag,
-            acc,
-        )
+        # logging.info(
+        #     "Pawprint btn0:%s btn1:%s btn2:%s V:%d x:%d y:%d z:%d, pitch:%f, roll:%f, mag:%f, a:%f",
+        #     btn0,
+        #     btn1,
+        #     btn2,
+        #     voltage,
+        #     x,
+        #     y,
+        #     z,
+        #     pitch,
+        #     roll,
+        #     mag,
+        #     acc,
+        # )
         await self.hub.send_event(AccelerationEvent(value=acc))

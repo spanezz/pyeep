@@ -33,6 +33,11 @@ class Animator[T](abc.ABC):
     def __str__(self) -> str:
         return f"Animator({self.name})"
 
+    @property
+    def running(self) -> bool:
+        """Check if there are running animations."""
+        return self.animations is not None
+
     @abc.abstractmethod
     def get_animations(self) -> Animations[T]:
         """Instantiate the Animations sequence for this animator."""

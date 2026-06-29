@@ -1,9 +1,8 @@
 import argparse
-import logging
-import time as tm
 from typing import Unpack, override
 
 from pyeep.app.asynccmd import ApplicationAsyncCmdClientApp
+from pyeep.models.messages.buttons import ButtonEvent
 from pyeep.app.base import BaseAppArgs
 from pyeep.models.messages import Event
 
@@ -11,21 +10,16 @@ from . import pawprint
 from .pawprint import Pawprint
 
 
-# from .messages import HeartBeat, Sample
-
-
 class Pawprints(ApplicationAsyncCmdClientApp):
     """Interface with a DG-Lab Pawprint device."""
 
     def __init__(self, **kwargs: Unpack[BaseAppArgs]) -> None:
         super().__init__(**kwargs)
-        self.pawprint: Pawprint | None = None
-        if self.args.addr:
-            self.pawprint = Pawprint(
-                self,
-                device=self.args.addr,
-                log=logging.getLogger(f"{self.name}.ble"),
-            )
+        self.pawprint = Pawprint(
+            name="pawprint",
+            device=self.args.addr,
+            hub=self,
+        )
 
     @override
     @classmethod
@@ -34,19 +28,23 @@ class Pawprints(ApplicationAsyncCmdClientApp):
     ) -> argparse.ArgumentParser:
         parser = super().argparser(description)
         parser.add_argument(
-            "--addr", "-a", type=str, help="Bluetooth address of the device"
+            "--addr",
+            "-a",
+            required=True,
+            type=str,
+            help="Bluetooth address of the device",
         )
         return parser
 
     @override
     async def init(self) -> None:
         await super().init()
-        if self.pawprint is not None:
-            await self.start_task(self.pawprint.main())
+        await self.add_component(self.pawprint)
 
     @override
     async def send_event(self, msg: Event) -> None:
-        self.log.info("Sending event %s", msg)
+        if isinstance(msg, ButtonEvent):
+            self.log.info("Sending event %s", msg)
         await super().send_event(msg)
 
     async def cmd_color(self, color: str) -> None:
@@ -55,16 +53,10 @@ class Pawprints(ApplicationAsyncCmdClientApp):
 
         Valid values: yellow, red, violet, blue, cyan, green
         """
-        if not self.pawprint:
-            self.log.error("pawprint not connected")
-            return
         await self.pawprint.set_color(pawprint.Color[color.upper()])
 
     async def cmd_start(self) -> None:
         """Start streaming data."""
-        if not self.pawprint:
-            self.log.error("pawprint not connected")
-            return
         await self.pawprint.set_stream(True)
 
     async def cmd_stop(self) -> None:
